@@ -45,3 +45,12 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+
+## Styling (Tailwind-only)
+
+- Use Tailwind CSS for all styling — do NOT add other CSS utility frameworks (e.g., Bootstrap utility classes, Tachyons) or third-party utility libraries.
+- Prefer Tailwind utility classes and component-focused CSS only. Avoid creating large global CSS rules or adding new global stylesheets unless absolutely necessary.
+- Do NOT write plain utility CSS classes that duplicate Tailwind's functionality. If you need a custom utility or plugin, extend Tailwind via `tailwind.config.cjs` or a Tailwind plugin.
+- Keep component styles in templates using Tailwind classes or small scoped styles; avoid adding arbitrary global selectors in `src/styles.css`.
+- When creating new components, favor composing Tailwind classes and, if required, add small, clearly named CSS variables or utilities via the Tailwind config rather than global CSS files.
+
