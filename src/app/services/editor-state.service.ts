@@ -65,6 +65,11 @@ export class EditorStateService {
   ]);
   readonly currentFrameIndex = signal<number>(0);
 
+  // Canvas metadata
+  readonly canvasWidth = signal<number>(640);
+  readonly canvasHeight = signal<number>(360);
+  readonly canvasSaved = signal<boolean>(true);
+
   // Derived
   readonly selectedLayer: Signal<LayerItem | undefined> = computed(() =>
     this.layers().find((l) => l.id === this.selectedLayerId())
@@ -81,6 +86,15 @@ export class EditorStateService {
   setCurrentFrame(index: number) {
     const max = this.frames().length - 1;
     this.currentFrameIndex.set(Math.max(0, Math.min(index, max)));
+  }
+
+  setCanvasSize(width: number, height: number) {
+    this.canvasWidth.set(width);
+    this.canvasHeight.set(height);
+  }
+
+  setCanvasSaved(saved: boolean) {
+    this.canvasSaved.set(saved);
   }
 
   toggleLayerVisibility(id: string) {

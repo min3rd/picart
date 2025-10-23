@@ -1,6 +1,44 @@
 <div class="h-full w-full relative">
-  <div class="absolute inset-0 canvas-bg"></div>
-  <div class="absolute inset-0 grid place-items-center p-4">
-    <canvas #canvasEl width="640" height="360" class="border border-neutral-300 dark:border-neutral-700"></canvas>
+  <div class="absolute inset-0 p-4">
+    <div class="relative mx-auto" style="width:max-content;">
+      <div class="canvas-wrap">
+        <div
+          class="transform-origin-center"
+          [style.transform]="'translate(' + panX() + 'px,' + panY() + 'px) scale(' + scale() + ') rotate(' + rotation() + 'deg)'"
+        >
+          <canvas #canvasEl width="640" height="360" class="border border-neutral-300 dark:border-neutral-700 block" 
+            (pointermove)="onPointerMove($event)" (pointerdown)="onPointerDown($event)" (pointerup)="onPointerUp($event)" (contextmenu)="$event.preventDefault()" (wheel)="onWheel($event)"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mouse coordinates -->
+  <div class="absolute left-4 top-12 text-xs text-neutral-700 dark:text-neutral-300 bg-neutral-50/80 dark:bg-neutral-900/60 rounded-sm p-1">
+    X: <strong>{{ mouseX() ?? '-' }}</strong> Y: <strong>{{ mouseY() ?? '-' }}</strong>
+  </div>
+
+  <!-- Info panel -->
+  <div class="absolute right-4 top-12 text-sm p-2 bg-neutral-50/90 dark:bg-neutral-900/70 rounded-sm shadow-sm" *ngIf="infoVisible()">
+    <div class="flex items-center gap-2">
+      <div class="text-xs opacity-80">{{ 'canvas.size' | transloco }}</div>
+      <div class="ml-auto flex items-center gap-2">
+        <button type="button" class="w-6 h-6 grid place-items-center" (click)="infoVisible.set(!infoVisible())">
+          <ng-icon name="eye" class="w-4 h-4"></ng-icon>
+        </button>
+      </div>
+    </div>
+    <div class="mt-2 text-xs">
+      <div>{{ 'canvas.width' | transloco }}: {{ state.canvasWidth() }}</div>
+      <div>{{ 'canvas.height' | transloco }}: {{ state.canvasHeight() }}</div>
+      <div>{{ 'canvas.saved' | transloco }}: {{ state.canvasSaved() ? ('yes' | transloco) : ('no' | transloco) }}</div>
+    </div>
+  </div>
+
+  <!-- Always-visible opener when panel hidden -->
+  <div class="absolute right-4 top-12" *ngIf="!infoVisible()">
+    <button type="button" class="w-8 h-8 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-sm shadow-sm" (click)="infoVisible.set(true)" aria-label="Open info">
+      <ng-icon name="eye" class="w-5 h-5 text-neutral-800 dark:text-neutral-200"></ng-icon>
+    </button>
   </div>
 </div>
