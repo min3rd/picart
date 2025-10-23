@@ -30,6 +30,11 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Do NOT use inline `template` or `styles` in the `@Component` decorator. Use `styleUrls` to point to one or more external CSS/SCSS files.
 - Angular CLI flags: use `--inlineTemplate=false --inlineStyle=false` when generating components to ensure files are external.
 
+Additional project rules:
+
+- Only use icons from the `ng-icons` library with Heroicons (do not add or use other icon libraries or inline SVGs directly; register custom SVGs through the `provideIcons` mechanism if needed).
+- Do NOT leave comments in code. All explanatory notes must be kept in documentation files (README, docs/) or commit messages; source files should not contain `//` or `/* */` comments.
+
 ## State Management
 
 - Use signals for local component state

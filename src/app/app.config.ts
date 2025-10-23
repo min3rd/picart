@@ -15,6 +15,7 @@ import {
   heroEye,
   heroEyeSlash,
   heroTrash,
+  heroPlus,
   heroCursorArrowRays,
   heroRectangleGroup,
   heroCircleStack,
@@ -24,6 +25,7 @@ import {
   heroBackspace,
   heroMinus,
   heroSquare2Stack,
+  heroBars3,
 } from '@ng-icons/heroicons/outline';
 
 export const appConfig: ApplicationConfig = {
@@ -40,17 +42,19 @@ export const appConfig: ApplicationConfig = {
       rectSelect: heroRectangleGroup,
       ellipseSelect: heroCircleStack,
       lassoSelect: heroSparkles,
-  eyedropper: heroEyeDropper,
+      eyedropper: heroEyeDropper,
       fill: heroPaintBrush,
-  eraser: heroBackspace,
+      eraser: heroBackspace,
       line: heroMinus,
       circle: heroCircleStack,
       square: heroSquare2Stack,
+      plus: heroPlus,
+      drag: heroBars3,
     }),
     provideTransloco({
       config: {
         availableLangs: ['en', 'vi'],
-        defaultLang: 'vi',
+        defaultLang: 'en',
         reRenderOnLangChange: true,
         prodMode: !isDevMode(),
       },

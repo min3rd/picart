@@ -3,41 +3,33 @@
   [style.gridTemplateColumns]="gridCols()"
   [style.gridTemplateRows]="gridRows()"
 >
-  <!-- Header spanning full width -->
   <pa-editor-header class="row-start-1 col-start-1 -col-end-1" />
 
-  <!-- Left tools -->
   <pa-tool-palette
     class="row-start-2 col-start-1 overflow-auto border-r border-neutral-200 dark:border-neutral-800 bg-neutral-100/60 dark:bg-neutral-800/40"
   />
 
-  <!-- Left vertical grip -->
   <div
     class="row-start-2 col-start-2 cursor-col-resize bg-transparent hover:bg-neutral-300/30 dark:hover:bg-neutral-600/30"
     (pointerdown)="onGripDown('left', $event)"
   ></div>
 
-  <!-- Center canvas -->
   <pa-editor-canvas class="row-start-2 col-start-3 overflow-hidden bg-white dark:bg-neutral-900" />
 
-  <!-- Right vertical grip -->
   <div
     class="row-start-2 col-start-4 cursor-col-resize bg-transparent hover:bg-neutral-300/30 dark:hover:bg-neutral-600/30"
     (pointerdown)="onGripDown('right', $event)"
   ></div>
 
-  <!-- Right layers -->
   <pa-layers-panel
     class="row-start-2 col-start-5 overflow-auto border-l border-neutral-200 dark:border-neutral-800 bg-neutral-100/60 dark:bg-neutral-800/40"
   />
 
-  <!-- Horizontal grip above timeline -->
   <div
     class="row-start-3 col-start-1 -col-end-1 cursor-row-resize bg-transparent hover:bg-neutral-300/30 dark:hover:bg-neutral-600/30"
     (pointerdown)="onGripDown('bottom', $event)"
   ></div>
 
-  <!-- Timeline bottom -->
   <pa-timeline-panel
     class="row-start-4 col-start-1 -col-end-1 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900"
   />

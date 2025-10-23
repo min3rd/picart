@@ -21,7 +21,11 @@
 		"square": "Square"
 	},
 	"layers": {
-		"title": "Layers"
+		"title": "Layers",
+		"hide": "Hide",
+		"show": "Show",
+		"delete": "Delete layer",
+		"add": "Add Layer"
 	},
 	"timeline": {
 		"title": "Timeline"

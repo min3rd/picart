@@ -21,7 +21,11 @@
     "square": "Hình vuông"
   },
   "layers": {
-    "title": "Danh sách layer"
+    "title": "Danh sách layer",
+    "hide": "Ẩn",
+    "show": "Hiện",
+    "delete": "Xóa layer",
+    "add": "Thêm layer"
   },
   "timeline": {
     "title": "Timeline"

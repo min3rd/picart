@@ -16,7 +16,33 @@ import { NgIcon } from '@ng-icons/core';
 export class LayersPanel {
   readonly state = inject(EditorStateService);
 
+  private dragIndex: number | null = null;
+
   select(id: string) {
     this.state.selectLayer(id);
+  }
+
+  onAddLayer() {
+    this.state.addLayer();
+  }
+
+  onDragStart(ev: DragEvent, index: number) {
+    this.dragIndex = index;
+    try {
+      ev.dataTransfer?.setData('text/plain', String(index));
+    } catch {}
+  }
+
+  onDragOver(ev: DragEvent, index: number) {
+    ev.preventDefault();
+  }
+
+  onDrop(ev: DragEvent, index: number) {
+    ev.preventDefault();
+    const from = this.dragIndex ?? parseInt(ev.dataTransfer?.getData('text/plain') || '-1', 10);
+    if (from >= 0 && from !== index) {
+      this.state.reorderLayers(from, index);
+    }
+    this.dragIndex = null;
   }
 }
