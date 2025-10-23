@@ -5,6 +5,7 @@ import { LayersPanel } from './parts/layers-panel.component';
 import { TimelinePanel } from './parts/timeline-panel.component';
 import { EditorCanvas } from './parts/editor-canvas.component';
 import { EditorStateService } from '../services/editor-state.service';
+import { UserSettingsService } from '../services/user-settings.service';
 
 @Component({
   selector: 'pa-editor-page',
@@ -20,11 +21,12 @@ import { EditorStateService } from '../services/editor-state.service';
 })
 export class EditorPage {
   private readonly state = inject(EditorStateService);
+  private readonly settings = inject(UserSettingsService);
 
   // Panel sizes (px)
-  readonly leftWidth = signal(220);
-  readonly rightWidth = signal(260);
-  readonly bottomHeight = signal(112);
+  readonly leftWidth = signal(this.settings.settings.panels.left);
+  readonly rightWidth = signal(this.settings.settings.panels.right);
+  readonly bottomHeight = signal(this.settings.settings.panels.bottom);
 
   // Computed grid tracks
   readonly gridCols = computed(() => `${this.leftWidth()}px 4px 1fr 4px ${this.rightWidth()}px`);
@@ -69,6 +71,8 @@ export class EditorPage {
 
   onWindowUp() {
     this.dragging = null;
+    // persist panels sizes
+    this.settings.setPanelSizes({ left: this.leftWidth(), right: this.rightWidth(), bottom: this.bottomHeight() });
   }
 
   private clamp(v: number, min: number, max: number) {

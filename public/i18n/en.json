@@ -30,4 +30,7 @@
 	"timeline": {
 		"title": "Timeline"
 	}
+	,"theme": {
+		"toggle": "Toggle theme"
+	}
 }

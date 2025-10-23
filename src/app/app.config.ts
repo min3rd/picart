@@ -26,6 +26,8 @@ import {
   heroMinus,
   heroSquare2Stack,
   heroBars3,
+  heroSun,
+  heroMoon,
 } from '@ng-icons/heroicons/outline';
 
 export const appConfig: ApplicationConfig = {
@@ -50,6 +52,8 @@ export const appConfig: ApplicationConfig = {
       square: heroSquare2Stack,
       plus: heroPlus,
       drag: heroBars3,
+      sun: heroSun,
+      moon: heroMoon,
     }),
     provideTransloco({
       config: {

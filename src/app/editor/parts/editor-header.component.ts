@@ -2,13 +2,15 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FileService } from '../../services/file.service';
 import { EditorStateService } from '../../services/editor-state.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { UserSettingsService } from '../../services/user-settings.service';
+import { NgIcon } from '@ng-icons/core';
 
 @Component({
   selector: 'pa-editor-header',
   templateUrl: './editor-header.component.html',
   styleUrl: './editor-header.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, NgIcon],
   host: {
     class: 'block w-full bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-800'
   }
@@ -17,6 +19,10 @@ export class EditorHeader {
   private readonly fileService = inject(FileService);
   readonly state = inject(EditorStateService);
   private readonly i18n = inject(TranslocoService);
+  private readonly settings = inject(UserSettingsService);
+  get userSettings() {
+    return this.settings.settings;
+  }
 
   async onNewProject() {
     // Minimal new project; in future wire modal
@@ -30,6 +36,11 @@ export class EditorHeader {
   }
 
   setLang(lang: 'en' | 'vi') {
-    this.i18n.setActiveLang(lang);
+    this.settings.setLanguage(lang);
+  }
+
+  toggleTheme() {
+    const next = this.settings.settings.theme === 'dark' ? 'light' : 'dark';
+    this.settings.setTheme(next);
   }
 }
