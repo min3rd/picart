@@ -1,0 +1,14 @@
+<div class="p-2 grid gap-2 text-xs grid-cols-[repeat(auto-fill,minmax(40px,1fr))]">
+  @for (t of state.tools(); track t.id) {
+    <button
+      type="button"
+      (click)="select(t.id)"
+      class="aspect-square w-full rounded-sm border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60 grid place-items-center"
+      [class]="state.currentTool() === t.id ? 'bg-neutral-200 dark:bg-neutral-700' : ''"
+      title="{{ t.name }}"
+    >
+      <ng-icon [name]="t.icon || ''" class="w-5 h-5"></ng-icon>
+      <span class="sr-only">{{ t.name }}</span>
+    </button>
+  }
+</div>

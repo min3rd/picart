@@ -1,0 +1,29 @@
+{
+  "menu": {
+    "file": "Tệp",
+    "edit": "Chỉnh sửa",
+    "tool": "Công cụ",
+    "help": "Trợ giúp"
+  },
+  "badges": {
+    "title": "Trình biên tập 2D • Alpha"
+  },
+  "tools": {
+    "selectLayer": "Chọn layer",
+    "rectSelect": "Chọn vùng hình vuông",
+    "ellipseSelect": "Chọn vùng hình tròn",
+    "lassoSelect": "Chọn vùng tự do",
+    "eyedropper": "Chấm điểm màu",
+    "fill": "Đổ màu",
+    "eraser": "Tẩy",
+    "line": "Vẽ đường",
+    "circle": "Hình tròn",
+    "square": "Hình vuông"
+  },
+  "layers": {
+    "title": "Danh sách layer"
+  },
+  "timeline": {
+    "title": "Timeline"
+  }
+}

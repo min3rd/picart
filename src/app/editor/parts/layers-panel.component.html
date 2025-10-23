@@ -1,0 +1,25 @@
+<div class="p-2 text-sm">
+  <div class="font-semibold mb-2">{{ 'layers.title' | transloco }}</div>
+  <div class="flex flex-col gap-1">
+    @for (l of state.layers(); track l.id) {
+      <div
+        class="px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700"
+        [class]="state.selectedLayerId() === l.id ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'"
+      >
+        <div class="flex items-center gap-2">
+          <button type="button" class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center"
+            (click)="state.toggleLayerVisibility(l.id)" [title]="l.visible ? 'Hide' : 'Show'">
+            <ng-icon [name]="l.visible ? 'eye' : 'eyeSlash'" class="w-4 h-4"></ng-icon>
+          </button>
+          <button type="button" class="flex-1 text-left" (click)="select(l.id)">
+            <span class="truncate opacity-90">{{ l.name }}</span>
+          </button>
+          <button type="button" class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50"
+            (click)="state.removeLayer(l.id)" [disabled]="state.layers().length <= 1" title="Delete layer">
+            <ng-icon name="trash" class="w-4 h-4"></ng-icon>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

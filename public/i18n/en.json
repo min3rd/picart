@@ -1,0 +1,29 @@
+{
+	"menu": {
+		"file": "File",
+		"edit": "Edit",
+		"tool": "Tool",
+		"help": "Help"
+	},
+	"badges": {
+		"title": "2D Editor • Alpha"
+	},
+	"tools": {
+		"selectLayer": "Select layer",
+		"rectSelect": "Rectangle select",
+		"ellipseSelect": "Ellipse select",
+		"lassoSelect": "Lasso select",
+		"eyedropper": "Eyedropper",
+		"fill": "Fill",
+		"eraser": "Eraser",
+		"line": "Line",
+		"circle": "Circle",
+		"square": "Square"
+	},
+	"layers": {
+		"title": "Layers"
+	},
+	"timeline": {
+		"title": "Timeline"
+	}
+}
