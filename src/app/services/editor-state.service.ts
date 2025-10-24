@@ -247,6 +247,53 @@ export class EditorStateService {
     return changed;
   }
 
+  // Flood-fill (4-way) on a single layer at logical pixel x,y with color (null = erase)
+  applyFillToLayer(layerId: string, x: number, y: number, color: string | null) {
+    const buf = this.layerPixels.get(layerId);
+    if (!buf) return 0;
+    const w = Math.max(1, this.canvasWidth());
+    const h = Math.max(1, this.canvasHeight());
+    if (x < 0 || x >= w || y < 0 || y >= h) return 0;
+    const idx0 = y * w + x;
+    const target = buf[idx0] || '';
+    const newVal = color === null ? '' : color;
+    if (target === newVal) return 0;
+
+    let changed = 0;
+    const stack: number[] = [idx0];
+    while (stack.length > 0) {
+      const idx = stack.pop() as number;
+      if (buf[idx] !== target) continue;
+      // record previous value if action open
+      if (this.currentAction) {
+        let entry = this.currentAction.map.get(layerId);
+        if (!entry) {
+          entry = { indices: [], previous: [], next: [] };
+          this.currentAction.map.set(layerId, entry);
+        }
+        entry.indices.push(idx);
+        entry.previous.push(target);
+        entry.next.push(newVal);
+      }
+      buf[idx] = newVal;
+      changed++;
+
+      const y0 = Math.floor(idx / w);
+      const x0 = idx - y0 * w;
+      // neighbors: left, right, up, down
+      if (x0 > 0) stack.push(idx - 1);
+      if (x0 < w - 1) stack.push(idx + 1);
+      if (y0 > 0) stack.push(idx - w);
+      if (y0 < h - 1) stack.push(idx + w);
+    }
+
+    if (changed > 0) {
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(false);
+    }
+    return changed;
+  }
+
   // History management APIs
   beginAction(description?: string) {
     // If there's already an action, end it first

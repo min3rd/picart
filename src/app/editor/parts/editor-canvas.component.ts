@@ -197,7 +197,14 @@ export class EditorCanvas {
       const logicalX = Math.floor(visX * ratioX);
       const logicalY = Math.floor(visY * ratioY);
       const tool = this.state.currentTool();
-      if (
+      if (tool === 'fill' && logicalX >= 0 && logicalX < this.state.canvasWidth() && logicalY >= 0 && logicalY < this.state.canvasHeight()) {
+        // One-shot fill action
+        this.state.beginAction('fill');
+        const layerId = this.state.selectedLayerId();
+        const color = this.state.brushColor();
+        this.state.applyFillToLayer(layerId, logicalX, logicalY, color);
+        this.state.endAction();
+      } else if (
         (tool === 'brush' || tool === 'eraser') &&
         logicalX >= 0 &&
         logicalX < this.state.canvasWidth() &&
