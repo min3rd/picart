@@ -161,6 +161,12 @@ export class EditorCanvas {
   onPointerLeave() {
     this.hoverX.set(null);
     this.hoverY.set(null);
+    if (this.painting) {
+      // finalize current paint action if pointer leaves
+      this.painting = false;
+      this.lastPaintPos = null;
+      this.state.endAction();
+    }
   }
 
   onWheel(ev: WheelEvent) {
@@ -198,6 +204,9 @@ export class EditorCanvas {
         logicalY >= 0 &&
         logicalY < this.state.canvasHeight()
       ) {
+        // Begin a grouped user action so the whole stroke is a single undoable
+        // section. The action will be collected until pointer up/leave.
+        this.state.beginAction('paint');
         this.painting = true;
         this.lastPaintPos = { x: logicalX, y: logicalY };
         const layerId = this.state.selectedLayerId();
@@ -211,8 +220,11 @@ export class EditorCanvas {
     this.panning = false;
     // rotation disabled
     // stop painting on any pointer up
-    this.painting = false;
-    this.lastPaintPos = null;
+    if (this.painting) {
+      this.painting = false;
+      this.lastPaintPos = null;
+      this.state.endAction();
+    }
   }
 
   infoVisible = signal(true);

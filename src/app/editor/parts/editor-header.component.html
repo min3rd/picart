@@ -3,6 +3,8 @@
   <nav class="flex items-center gap-2">
     <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700">{{ 'menu.file' | transloco }}</button>
     <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700">{{ 'menu.edit' | transloco }}</button>
+    <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="onUndo()" title="Undo (Ctrl+Z)">Undo</button>
+    <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="onRedo()" title="Redo (Ctrl+Y)">Redo</button>
     <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700">{{ 'menu.tool' | transloco }}</button>
     <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700">{{ 'menu.help' | transloco }}</button>
   </nav>

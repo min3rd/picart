@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnDestroy } from '@angular/core';
 import { FileService } from '../../services/file.service';
 import { EditorStateService } from '../../services/editor-state.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -30,6 +30,44 @@ export class EditorHeader {
   }
   async onSave() {
     // Placeholder: serialize minimal state later
+  }
+
+  onUndo() {
+    try {
+      this.state.undo();
+    } catch {}
+  }
+
+  onRedo() {
+    try {
+      this.state.redo();
+    } catch {}
+  }
+
+  private keydownHandler = (ev: KeyboardEvent) => {
+    const z = ev.key.toLowerCase() === 'z';
+    const y = ev.key.toLowerCase() === 'y';
+    const meta = ev.ctrlKey || ev.metaKey;
+    if (!meta) return;
+    if (z) {
+      ev.preventDefault();
+      this.onUndo();
+    } else if (y) {
+      ev.preventDefault();
+      this.onRedo();
+    }
+  };
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', this.keydownHandler as EventListener);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('keydown', this.keydownHandler as EventListener);
+    }
   }
 
   setLang(lang: 'en' | 'vi') {

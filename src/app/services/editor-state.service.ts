@@ -33,6 +33,32 @@ export interface FrameItem {
   duration: number; // ms
 }
 
+// History types for undo/redo
+interface LayerChange {
+  layerId: string;
+  indices: number[];
+  previous: string[];
+  next: string[];
+}
+
+interface MetaChange {
+  key: string;
+  previous: any;
+  next: any;
+}
+
+interface HistoryEntry {
+  pixelChanges?: LayerChange[];
+  metaChanges?: MetaChange[];
+  description?: string;
+}
+
+interface CurrentAction {
+  map: Map<string, { indices: number[]; previous: string[]; next: string[] }>;
+  meta: MetaChange[];
+  description?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class EditorStateService {
   // Tools
@@ -82,6 +108,18 @@ export class EditorStateService {
   readonly layerPixelsVersion = signal(0);
   private layerPixels = new Map<string, string[]>();
 
+  // History (undo/redo) support. History entries are recorded as grouped
+  // changes per user action (a "section" of user interaction), allowing
+  // undo/redo to restore previous pixel values.
+  private undoStack: HistoryEntry[] = [];
+  private redoStack: HistoryEntry[] = [];
+  private historyLimit = 200;
+  // Version signals to allow UI to observe availability without exposing stacks
+  readonly undoVersion = signal(0);
+  readonly redoVersion = signal(0);
+  // Current in-progress action (null when not recording)
+  private currentAction: CurrentAction | null = null;
+
   constructor() {
     this.loadFromStorage();
   }
@@ -92,6 +130,8 @@ export class EditorStateService {
   );
 
   selectTool(id: ToolId) {
+    const prev = this.currentTool();
+    this.commitMetaChange({ key: 'currentTool', previous: prev, next: id });
     this.currentTool.set(id);
     this.saveToStorage();
   }
@@ -106,6 +146,8 @@ export class EditorStateService {
   }
 
   setCanvasSize(width: number, height: number) {
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    const prevSize = { width: this.canvasWidth(), height: this.canvasHeight(), buffers: prevSnapshot.buffers };
     this.canvasWidth.set(width);
     this.canvasHeight.set(height);
     // Ensure all existing layer buffers match the new canvas dimensions
@@ -113,17 +155,25 @@ export class EditorStateService {
     for (const l of layers) {
       this.ensureLayerBuffer(l.id, width, height);
     }
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    const nextSize = { width, height, buffers: nextSnapshot.buffers };
+    this.commitMetaChange({ key: 'canvasSnapshot', previous: prevSize, next: nextSize });
   }
 
   setBrushSize(size: number) {
     const s = Math.max(1, Math.min(size, Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()))));
-    this.brushSize.set(Math.floor(s));
+    const prev = this.brushSize();
+    const next = Math.floor(s);
+    this.commitMetaChange({ key: 'brushSize', previous: prev, next });
+    this.brushSize.set(next);
     this.saveToStorage();
   }
 
   setBrushColor(color: string) {
     // Basic validation: ensure it's a string and not empty
     if (typeof color === 'string' && color.length) {
+      const prev = this.brushColor();
+      this.commitMetaChange({ key: 'brushColor', previous: prev, next: color });
       this.brushColor.set(color);
       this.saveToStorage();
     }
@@ -172,7 +222,19 @@ export class EditorStateService {
       for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
         const idx = yy * w + xx;
         const newVal = color === null ? '' : color;
-        if (buf[idx] !== newVal) {
+        const oldVal = buf[idx] || '';
+        if (oldVal !== newVal) {
+          // If a current action is open, record the change (previous + new)
+          if (this.currentAction) {
+            let entry = this.currentAction.map.get(layerId);
+            if (!entry) {
+              entry = { indices: [], previous: [], next: [] };
+              this.currentAction.map.set(layerId, entry);
+            }
+            entry.indices.push(idx);
+            entry.previous.push(oldVal);
+            entry.next.push(newVal);
+          }
           buf[idx] = newVal;
           changed = true;
         }
@@ -183,6 +245,198 @@ export class EditorStateService {
       this.setCanvasSaved(false);
     }
     return changed;
+  }
+
+  // History management APIs
+  beginAction(description?: string) {
+    // If there's already an action, end it first
+    if (this.currentAction) {
+      this.endAction();
+    }
+    this.currentAction = { map: new Map(), meta: [], description: description || '' };
+  }
+
+  endAction() {
+    if (!this.currentAction) return;
+    const map = this.currentAction.map;
+    // collect pixel changes
+    const pixelChanges: LayerChange[] = [];
+    for (const [layerId, v] of map.entries()) {
+      pixelChanges.push({ layerId, indices: v.indices.slice(), previous: v.previous.slice(), next: v.next.slice() });
+    }
+    const metaChanges = this.currentAction.meta && this.currentAction.meta.length ? this.currentAction.meta.slice() : undefined;
+    // Only push an entry if there are pixel changes or meta changes
+    if (pixelChanges.length > 0 || (metaChanges && metaChanges.length > 0)) {
+      const entry: HistoryEntry = { pixelChanges: pixelChanges.length > 0 ? pixelChanges : undefined, metaChanges, description: this.currentAction.description };
+      this.pushUndo(entry);
+    }
+    this.currentAction = null;
+  }
+
+  // Helper: commit a meta change either into currentAction (if open) or as a single-step history entry
+  private commitMetaChange(meta: MetaChange) {
+    if (this.currentAction) {
+      this.currentAction.meta.push(meta);
+      return;
+    }
+    const entry: HistoryEntry = { metaChanges: [meta], description: meta.key };
+    this.pushUndo(entry);
+  }
+
+  // Snapshot current buffers and layers for structural operations
+  private snapshotLayersAndBuffers(): { layers: LayerItem[]; buffers: Record<string, string[]> } {
+    const layersCopy = this.layers().map((l) => ({ ...l }));
+    const buffers: Record<string, string[]> = {};
+    for (const [id, buf] of this.layerPixels.entries()) {
+      buffers[id] = buf.slice();
+    }
+    return { layers: layersCopy, buffers };
+  }
+
+  // Apply a meta change (previous/next) depending on useNext flag.
+  private applyMetaChange(meta: MetaChange, useNext: boolean) {
+    const val = useNext ? meta.next : meta.previous;
+    switch (meta.key) {
+      case 'currentTool':
+        if (typeof val === 'string') this.currentTool.set(val as ToolId);
+        break;
+      case 'brushSize':
+        if (typeof val === 'number') this.brushSize.set(Math.max(1, Math.floor(val)));
+        break;
+      case 'brushColor':
+        if (typeof val === 'string') this.brushColor.set(val);
+        break;
+      case 'layersSnapshot':
+        if (val && typeof val === 'object') {
+          const layers = (val.layers as LayerItem[]) || [];
+          const buffers = (val.buffers as Record<string, string[]>) || {};
+          this.layers.set(layers.map((l) => ({ ...l })));
+          // replace buffers map
+          this.layerPixels = new Map<string, string[]>();
+          for (const k of Object.keys(buffers)) {
+            this.layerPixels.set(k, (buffers[k] || []).slice());
+          }
+          // ensure selectedLayerId valid
+          const sel = this.selectedLayerId();
+          if (!this.layers().some((x) => x.id === sel)) {
+            this.selectedLayerId.set(this.layers()[0]?.id ?? '');
+          }
+          this.layerPixelsVersion.update((v) => v + 1);
+        }
+        break;
+      case 'canvasSnapshot':
+        if (val && typeof val === 'object') {
+          const w = Number(val.width) || this.canvasWidth();
+          const h = Number(val.height) || this.canvasHeight();
+          this.canvasWidth.set(w);
+          this.canvasHeight.set(h);
+          // restore buffers if provided
+          if (val.buffers && typeof val.buffers === 'object') {
+            this.layerPixels = new Map<string, string[]>();
+            for (const k of Object.keys(val.buffers)) {
+              this.layerPixels.set(k, (val.buffers[k] || []).slice());
+            }
+            this.layerPixelsVersion.update((v) => v + 1);
+          } else {
+            // ensure buffers match new size
+            for (const l of this.layers()) this.ensureLayerBuffer(l.id, w, h);
+          }
+        }
+        break;
+      default:
+        // unknown meta keys: attempt to set directly on known signals by key name
+        try {
+          // no-op if not recognized
+        } catch {}
+    }
+  }
+
+  private pushUndo(entry: HistoryEntry) {
+    this.undoStack.push(entry);
+    if (this.undoStack.length > this.historyLimit) this.undoStack.shift();
+    // clear redo on new user action
+    this.redoStack = [];
+    this.undoVersion.update((v) => v + 1);
+    this.redoVersion.update((v) => v + 1);
+  }
+
+  canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  undo() {
+    if (!this.canUndo()) return false;
+    const entry = this.undoStack.pop() as HistoryEntry;
+    // apply pixel inverse (previous values)
+    if (entry.pixelChanges) {
+      for (const ch of entry.pixelChanges) {
+        const buf = this.layerPixels.get(ch.layerId);
+        if (!buf) continue;
+        for (let i = 0; i < ch.indices.length; i++) {
+          buf[ch.indices[i]] = ch.previous[i];
+        }
+      }
+    }
+    // apply meta inverse
+    if (entry.metaChanges) {
+      for (const m of entry.metaChanges) {
+        this.applyMetaChange(m, /*useNext*/ false);
+      }
+    }
+    // push to redo as inverse (swap previous/next)
+    const redoEntry: HistoryEntry = {
+      pixelChanges: entry.pixelChanges ? entry.pixelChanges.map((c) => ({ layerId: c.layerId, indices: c.indices.slice(), previous: c.next.slice(), next: c.previous.slice() })) : undefined,
+      metaChanges: entry.metaChanges ? entry.metaChanges.map((m) => ({ key: m.key, previous: m.next, next: m.previous })) : undefined,
+      description: entry.description,
+    };
+    this.redoStack.push(redoEntry);
+    this.layerPixelsVersion.update((v) => v + 1);
+    this.setCanvasSaved(false);
+    this.undoVersion.update((v) => v + 1);
+    this.redoVersion.update((v) => v + 1);
+    return true;
+  }
+
+  redo() {
+    if (!this.canRedo()) return false;
+    const entry = this.redoStack.pop() as HistoryEntry;
+    if (entry.pixelChanges) {
+      for (const ch of entry.pixelChanges) {
+        const buf = this.layerPixels.get(ch.layerId);
+        if (!buf) continue;
+        for (let i = 0; i < ch.indices.length; i++) {
+          buf[ch.indices[i]] = ch.next[i];
+        }
+      }
+    }
+    if (entry.metaChanges) {
+      for (const m of entry.metaChanges) {
+        this.applyMetaChange(m, /*useNext*/ true);
+      }
+    }
+    // push inverse back to undo
+    const undoEntry: HistoryEntry = {
+      pixelChanges: entry.pixelChanges ? entry.pixelChanges.map((c) => ({ layerId: c.layerId, indices: c.indices.slice(), previous: c.next.slice(), next: c.previous.slice() })) : undefined,
+      metaChanges: entry.metaChanges ? entry.metaChanges.map((m) => ({ key: m.key, previous: m.next, next: m.previous })) : undefined,
+      description: entry.description,
+    };
+    this.undoStack.push(undoEntry);
+    this.layerPixelsVersion.update((v) => v + 1);
+    this.setCanvasSaved(false);
+    this.undoVersion.update((v) => v + 1);
+    this.redoVersion.update((v) => v + 1);
+    return true;
+  }
+
+  clearHistory() {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.undoVersion.set(0);
+    this.redoVersion.set(0);
   }
 
   private saveToStorage() {
@@ -227,11 +481,12 @@ export class EditorStateService {
   }
 
   toggleLayerVisibility(id: string) {
-    this.layers.update((arr) =>
-      arr.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
-    );
+    const prev = this.snapshotLayersAndBuffers();
+    this.layers.update((arr) => arr.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)));
     // trigger redraw
     this.layerPixelsVersion.update((v) => v + 1);
+    const next = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
   }
 
   removeLayer(id: string): boolean {
@@ -241,6 +496,7 @@ export class EditorStateService {
     }
     const idx = arr.findIndex((l) => l.id === id);
     if (idx === -1) return false;
+    const prevSnapshot = this.snapshotLayersAndBuffers();
     const next = arr.filter((l) => l.id !== id);
     this.layers.set(next);
     // remove pixel buffer for this layer
@@ -250,21 +506,27 @@ export class EditorStateService {
       const newIdx = Math.max(0, idx - 1);
       this.selectedLayerId.set(next[newIdx]?.id ?? next[0].id);
     }
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({ key: 'layersSnapshot', previous: prevSnapshot, next: nextSnapshot });
     return true;
   }
 
   addLayer(name?: string) {
+    const prevSnapshot = this.snapshotLayersAndBuffers();
     const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const item: LayerItem = { id, name: name || `Layer ${this.layers().length + 1}`, visible: true, locked: false };
-  // Add to top (insert at index 0 so the new layer becomes the topmost in the UI)
-  this.layers.update((arr) => [item, ...arr]);
+    // Add to top (insert at index 0 so the new layer becomes the topmost in the UI)
+    this.layers.update((arr) => [item, ...arr]);
     this.selectedLayerId.set(item.id);
     // create pixel buffer for new layer matching current canvas size
     this.ensureLayerBuffer(item.id, this.canvasWidth(), this.canvasHeight());
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({ key: 'layersSnapshot', previous: prevSnapshot, next: nextSnapshot });
     return item;
   }
 
   reorderLayers(fromIndex: number, toIndex: number) {
+    const prev = this.snapshotLayersAndBuffers();
     const arr = [...this.layers()];
     if (fromIndex < 0 || fromIndex >= arr.length) return false;
     if (toIndex < 0) toIndex = 0;
@@ -272,6 +534,8 @@ export class EditorStateService {
     const [item] = arr.splice(fromIndex, 1);
     arr.splice(toIndex, 0, item);
     this.layers.set(arr);
+    const next = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
     return true;
   }
 }
