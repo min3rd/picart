@@ -36,10 +36,10 @@ export class EditorCanvas {
   readonly panX = signal(0);
   readonly panY = signal(0);
   readonly scale = signal(1);
+  // rotation feature disabled temporarily
   readonly rotation = signal(0);
 
   private panning = false;
-  private rotating = false;
   // painting state
   private painting = false;
   private lastPaintPos: { x: number; y: number } | null = null;
@@ -121,11 +121,7 @@ export class EditorCanvas {
       this.lastPointer.y = ev.clientY;
     }
 
-    if (this.rotating) {
-      const dx = ev.clientX - this.lastPointer.x;
-      this.rotation.set(this.rotation() + dx * 0.2);
-      this.lastPointer.x = ev.clientX;
-    }
+    // rotation disabled: no-op
 
     // Painting: if left button pressed and current tool is brush/eraser, apply
     if (this.painting) {
@@ -167,11 +163,7 @@ export class EditorCanvas {
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
     }
-    if (ev.button === 2) {
-      this.rotating = true;
-      this.lastPointer.x = ev.clientX;
-      this.lastPointer.y = ev.clientY;
-    }
+    // right-click rotation disabled
 
     // Left-button painting start (draw into selected layer)
     if (ev.button === 0) {
@@ -203,7 +195,7 @@ export class EditorCanvas {
 
   onPointerUp(ev: PointerEvent) {
     this.panning = false;
-    this.rotating = false;
+    // rotation disabled
     // stop painting on any pointer up
     this.painting = false;
     this.lastPaintPos = null;

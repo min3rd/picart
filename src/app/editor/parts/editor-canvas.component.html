@@ -5,15 +5,7 @@
         <div
           class="transform-origin-center"
           [style.transform]="
-            'translate(' +
-            panX() +
-            'px,' +
-            panY() +
-            'px) scale(' +
-            scale() +
-            ') rotate(' +
-            rotation() +
-            'deg)'
+            'translate(' + panX() + 'px,' + panY() + 'px) scale(' + scale() + ')'
           "
         >
           <canvas
@@ -137,19 +129,6 @@
       <div class="text-xs ml-2 w-14 text-right">{{ scale().toFixed(2) }}x</div>
     </div>
 
-    <div class="h-6 border-l border-neutral-200 dark:border-neutral-700"></div>
-
-    <div class="flex items-center gap-2">
-      <div class="text-xs opacity-80">{{ 'canvas.rotate' | transloco }}</div>
-      <div class="text-xs w-12 text-right">{{ rotation().toFixed(0) }}°</div>
-      <button
-        type="button"
-        class="w-7 h-7 grid place-items-center bg-neutral-100 dark:bg-neutral-800 rounded-sm"
-        (click)="resetRotation()"
-        [title]="'canvas.resetRotation' | transloco"
-      >
-        <ng-icon name="arrow-path" class="w-4 h-4"></ng-icon>
-      </button>
-    </div>
+    <!-- rotation controls removed (feature temporarily disabled) -->
   </div>
 </div>
