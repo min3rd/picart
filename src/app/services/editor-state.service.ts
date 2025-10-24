@@ -7,6 +7,7 @@ export type ToolId =
   | 'lasso-select'
   | 'eyedropper'
   | 'fill'
+  | 'brush'
   | 'eraser'
   | 'line'
   | 'circle'
@@ -42,6 +43,7 @@ export class EditorStateService {
     { id: 'lasso-select', name: 'Lasso select', icon: 'lassoSelect', labelKey: 'tools.lassoSelect' },
     { id: 'eyedropper', name: 'Eyedropper', icon: 'eyedropper', labelKey: 'tools.eyedropper' },
     { id: 'fill', name: 'Fill', icon: 'fill', labelKey: 'tools.fill' },
+  { id: 'brush', name: 'Brush', icon: 'fill', labelKey: 'tools.brush' },
     { id: 'eraser', name: 'Eraser', icon: 'eraser', labelKey: 'tools.eraser' },
     { id: 'line', name: 'Line', icon: 'line', labelKey: 'tools.line' },
     { id: 'circle', name: 'Circle', icon: 'circle', labelKey: 'tools.circle' },
@@ -49,6 +51,7 @@ export class EditorStateService {
   ]);
 
   readonly currentTool = signal<ToolId>('select-layer');
+  private readonly STORAGE_KEY = 'picart.editor.settings.v1';
 
   // Layers (top is last)
   readonly layers = signal<LayerItem[]>([
@@ -70,6 +73,14 @@ export class EditorStateService {
   readonly canvasHeight = signal<number>(64);
   readonly canvasSaved = signal<boolean>(true);
 
+  // Brush state
+  readonly brushSize = signal<number>(1);
+  readonly brushColor = signal<string>('#000000');
+
+  constructor() {
+    this.loadFromStorage();
+  }
+
   // Derived
   readonly selectedLayer: Signal<LayerItem | undefined> = computed(() =>
     this.layers().find((l) => l.id === this.selectedLayerId())
@@ -77,6 +88,7 @@ export class EditorStateService {
 
   selectTool(id: ToolId) {
     this.currentTool.set(id);
+    this.saveToStorage();
   }
 
   selectLayer(id: string) {
@@ -91,6 +103,57 @@ export class EditorStateService {
   setCanvasSize(width: number, height: number) {
     this.canvasWidth.set(width);
     this.canvasHeight.set(height);
+  }
+
+  setBrushSize(size: number) {
+    const s = Math.max(1, Math.min(size, Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()))));
+    this.brushSize.set(Math.floor(s));
+    this.saveToStorage();
+  }
+
+  setBrushColor(color: string) {
+    // Basic validation: ensure it's a string and not empty
+    if (typeof color === 'string' && color.length) {
+      this.brushColor.set(color);
+      this.saveToStorage();
+    }
+  }
+
+  private saveToStorage() {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      const data = {
+        currentTool: this.currentTool(),
+        brushSize: this.brushSize(),
+        brushColor: this.brushColor(),
+      } as const;
+      window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+
+  private loadFromStorage() {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      const raw = window.localStorage.getItem(this.STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<{ currentTool: ToolId; brushSize: number; brushColor: string }> | null;
+      if (!parsed) return;
+      if (parsed.currentTool && typeof parsed.currentTool === 'string') {
+        // validate tool id exists in tools list
+        const exists = this.tools().some((t) => t.id === parsed.currentTool);
+        if (exists) this.currentTool.set(parsed.currentTool as ToolId);
+      }
+      if (parsed.brushSize && typeof parsed.brushSize === 'number') {
+        this.brushSize.set(Math.max(1, Math.floor(parsed.brushSize)));
+      }
+      if (parsed.brushColor && typeof parsed.brushColor === 'string') {
+        this.brushColor.set(parsed.brushColor);
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
   }
 
   setCanvasSaved(saved: boolean) {

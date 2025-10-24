@@ -18,7 +18,8 @@
     "eraser": "Tẩy",
     "line": "Vẽ đường",
     "circle": "Hình tròn",
-    "square": "Hình vuông"
+    "square": "Hình vuông",
+    "brush": "Cọ vẽ"
   },
   "layers": {
     "title": "Danh sách layer",
@@ -29,16 +30,24 @@
   },
   "timeline": {
     "title": "Timeline"
-  }
-  ,"theme": {
+  },
+  "theme": {
     "toggle": "Chuyển chủ đề"
-  }
-  ,
+  },
   "canvas": {
     "zoom": "Thu phóng",
     "zoomIncrease": "Tăng thu phóng",
     "zoomDecrease": "Giảm thu phóng",
     "rotate": "Nghiêng",
-    "resetRotation": "Đặt lại nghiêng"
+    "resetRotation": "Đặt lại nghiêng",
+    "height": "Chiều cao",
+    "saved": "Đã lưu",
+    "size": "Kích thước vải",
+    "width": "Chiều rộng"
+  },
+  "brush": {
+    "color": "Màu sắc",
+    "size": "Kích cỡ",
+    "title": "Chải"
   }
 }

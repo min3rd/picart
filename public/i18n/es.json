@@ -1,9 +1,0 @@
-{
-	"canvas": {
-		"zoom": "Zoom",
-		"zoomIncrease": "Aumentar zoom",
-		"zoomDecrease": "Disminuir zoom",
-		"rotate": "Rotar",
-		"resetRotation": "Restablecer rotación"
-	}
-}

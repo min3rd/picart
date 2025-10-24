@@ -1,4 +1,19 @@
 <div class="p-2 text-sm">
+  @if (state.currentTool() === 'brush') {
+    <div class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50">
+      <div class="font-semibold text-sm mb-2">{{ 'brush.title' | transloco }}</div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs opacity-80 w-12">{{ 'brush.size' | transloco }}</label>
+        <input type="range" min="1" [max]="maxCanvasDim" [value]="state.brushSize()" (input)="onBrushSizeInput($event)" class="flex-1">
+        <input type="number" [value]="state.brushSize()" (input)="onBrushSizeInput($event)" class="w-16 text-xs border rounded px-1">
+      </div>
+      <div class="flex items-center gap-2 mt-2">
+        <label class="text-xs opacity-80 w-12">{{ 'brush.color' | transloco }}</label>
+        <input type="color" [value]="state.brushColor()" (input)="onBrushColorInput($event)" class="w-10 h-8 p-0 border rounded">
+        <div class="text-xs ml-2">{{ state.brushColor() }}</div>
+      </div>
+    </div>
+  }
   <div class="font-semibold mb-2">{{ 'layers.title' | transloco }}</div>
   <div class="flex flex-col gap-1">
     @for (l of state.layers(); let i = $index; track l.id) {

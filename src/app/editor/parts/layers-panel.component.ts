@@ -16,6 +16,21 @@ import { NgIcon } from '@ng-icons/core';
 export class LayersPanel {
   readonly state = inject(EditorStateService);
 
+  get maxCanvasDim() {
+    return Math.max(1, Math.max(this.state.canvasWidth(), this.state.canvasHeight()));
+  }
+
+  onBrushSizeInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.state.setBrushSize(Math.floor(n));
+  }
+
+  onBrushColorInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.state.setBrushColor(v);
+  }
+
   private dragIndex: number | null = null;
 
   select(id: string) {
