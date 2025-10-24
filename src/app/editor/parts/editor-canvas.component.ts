@@ -47,12 +47,28 @@ export class EditorCanvas {
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
   private resizeListener: (() => void) | null = null;
+  // cursor assets (from public/cursors)
+  private readonly defaultCursor = `url('/cursors/link.png') 12 12, grab`;
+  private readonly brushCursor = `url('/cursors/handwriting.png') 12 12, crosshair`;
+  private readonly eraserCursor = `url('/cursors/unavailable.png') 12 12, cell`;
+  private readonly handGrabbingCursor = `url('/cursors/grab.png') 12 12, grabbing`;
 
   constructor() {
+    // Use static cursor images placed in public/cursors directory.
+    // Expected files (add to public/cursors): brush.png, eraser.png, hand-grabbing.png
     this.stopRenderEffect = effect(() => {
       this.drawCanvas();
       return null as any;
     });
+  }
+
+  // compute the CSS cursor for the canvas based on current tool and state
+  cursor(): string {
+    if (this.panning) return this.handGrabbingCursor;
+    const tool = this.state.currentTool();
+    if (tool === 'brush') return this.brushCursor;
+    if (tool === 'eraser') return this.eraserCursor;
+    return this.defaultCursor;
   }
 
   ngAfterViewInit(): void {
@@ -99,12 +115,7 @@ export class EditorCanvas {
     const logicalX = Math.floor(visX * ratioX);
     const logicalY = Math.floor(visY * ratioY);
 
-    if (
-      logicalX >= 0 &&
-      logicalX < w &&
-      logicalY >= 0 &&
-      logicalY < h
-    ) {
+    if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
       this.hoverX.set(logicalX);
       this.hoverY.set(logicalY);
     } else {
@@ -125,17 +136,20 @@ export class EditorCanvas {
 
     // Painting: if left button pressed and current tool is brush/eraser, apply
     if (this.painting) {
-      if (
-        logicalX >= 0 &&
-        logicalX < w &&
-        logicalY >= 0 &&
-        logicalY < h
-      ) {
+      if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
         const layerId = this.state.selectedLayerId();
         const tool = this.state.currentTool();
         const color = tool === 'eraser' ? null : this.state.brushColor();
         if (this.lastPaintPos) {
-          this.drawLinePaint(layerId, this.lastPaintPos.x, this.lastPaintPos.y, logicalX, logicalY, this.state.brushSize(), color);
+          this.drawLinePaint(
+            layerId,
+            this.lastPaintPos.x,
+            this.lastPaintPos.y,
+            logicalX,
+            logicalY,
+            this.state.brushSize(),
+            color
+          );
         } else {
           this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
         }

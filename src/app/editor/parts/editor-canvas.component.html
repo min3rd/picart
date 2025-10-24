@@ -12,6 +12,7 @@
             #canvasEl
             [attr.width]="state.canvasWidth()"
             [attr.height]="state.canvasHeight()"
+            [style.cursor]="cursor()"
             class="border border-neutral-300 dark:border-neutral-700 block"
             (pointermove)="onPointerMove($event)"
             (pointerdown)="onPointerDown($event)"
