@@ -40,6 +40,8 @@ export class EditorCanvas {
 
   private panning = false;
   private rotating = false;
+  // painting state
+  private painting = false;
   private lastPointer = { x: 0, y: 0 };
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
@@ -55,6 +57,11 @@ export class EditorCanvas {
   ngAfterViewInit(): void {
     // Auto-scale to fit the viewport and center the canvas.
     this.centerAndFitCanvas();
+
+    // ensure pixel buffers exist for all layers
+    for (const l of this.state.layers()) {
+      this.state.ensureLayerBuffer(l.id, this.state.canvasWidth(), this.state.canvasHeight());
+    }
 
     // Recenter on window resize
     this.resizeListener = () => this.centerAndFitCanvas();
@@ -114,6 +121,24 @@ export class EditorCanvas {
       this.rotation.set(this.rotation() + dx * 0.2);
       this.lastPointer.x = ev.clientX;
     }
+
+    // Painting: if left button pressed and current tool is brush/eraser, apply
+    if (this.painting) {
+      const s = Math.max(0.001, this.scale());
+      const logicalX = Math.floor(visX / s);
+      const logicalY = Math.floor(visY / s);
+      if (
+        logicalX >= 0 &&
+        logicalX < this.state.canvasWidth() &&
+        logicalY >= 0 &&
+        logicalY < this.state.canvasHeight()
+      ) {
+        const layerId = this.state.selectedLayerId();
+        const tool = this.state.currentTool();
+        const color = tool === 'eraser' ? null : this.state.brushColor();
+        this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
+      }
+    }
   }
 
   onPointerLeave() {
@@ -129,6 +154,7 @@ export class EditorCanvas {
   }
 
   onPointerDown(ev: PointerEvent) {
+    // Middle-click (button 1) or Shift/Ctrl for panning
     if (ev.button === 1 || ev.shiftKey || ev.ctrlKey) {
       this.panning = true;
       this.lastPointer.x = ev.clientX;
@@ -139,11 +165,36 @@ export class EditorCanvas {
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
     }
+
+    // Left-button painting start (draw into selected layer)
+    if (ev.button === 0) {
+      const rect = this.canvasEl.nativeElement.getBoundingClientRect();
+      const visX = ev.clientX - rect.left;
+      const visY = ev.clientY - rect.top;
+      const s = Math.max(0.001, this.scale());
+      const logicalX = Math.floor(visX / s);
+      const logicalY = Math.floor(visY / s);
+      const tool = this.state.currentTool();
+      if (
+        (tool === 'brush' || tool === 'eraser') &&
+        logicalX >= 0 &&
+        logicalX < this.state.canvasWidth() &&
+        logicalY >= 0 &&
+        logicalY < this.state.canvasHeight()
+      ) {
+        this.painting = true;
+        const layerId = this.state.selectedLayerId();
+        const color = tool === 'eraser' ? null : this.state.brushColor();
+        this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
+      }
+    }
   }
 
   onPointerUp(ev: PointerEvent) {
     this.panning = false;
     this.rotating = false;
+    // stop painting on any pointer up
+    this.painting = false;
   }
 
   infoVisible = signal(true);
@@ -153,6 +204,10 @@ export class EditorCanvas {
     const width = parseInt(target.value, 10);
     if (width > 0) {
       this.state.setCanvasSize(width, this.state.canvasHeight());
+      // ensure buffers for all layers
+      for (const l of this.state.layers()) {
+        this.state.ensureLayerBuffer(l.id, width, this.state.canvasHeight());
+      }
     }
   }
 
@@ -161,8 +216,17 @@ export class EditorCanvas {
     const height = parseInt(target.value, 10);
     if (height > 0) {
       this.state.setCanvasSize(this.state.canvasWidth(), height);
+      // ensure buffers for all layers
+      for (const l of this.state.layers()) {
+        this.state.ensureLayerBuffer(l.id, this.state.canvasWidth(), height);
+      }
     }
   }
+
+  // Note: per-layer pixel buffers are stored in EditorStateService; ensureLayerBuffer
+  // calls that service method when needed.
+
+  // applyBrush removed: logic delegated to EditorStateService.applyBrushToLayer
 
   onScaleInput(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -268,6 +332,31 @@ export class EditorCanvas {
       }
     }
     ctx.restore();
+
+    // depend on layer pixel version so effect reruns when any layer buffer changes
+    this.state.layerPixelsVersion();
+
+    // draw layers in reverse order so the first layer in the UI (layers()[0])
+    // is treated as the topmost and drawn last. Iterate from last -> first to
+    // draw bottom layers first and top layers last (so top overlays lower ones).
+    const layers = this.state.layers();
+    for (let li = layers.length - 1; li >= 0; li--) {
+      const layer = layers[li];
+      if (!layer.visible) continue;
+      const buf = this.state.getLayerBuffer(layer.id);
+      if (!buf || buf.length !== w * h) continue;
+      ctx.save();
+      for (let yy = 0; yy < h; yy++) {
+        for (let xx = 0; xx < w; xx++) {
+          const col = buf[yy * w + xx];
+          if (col && col.length) {
+            ctx.fillStyle = col;
+            ctx.fillRect(xx, yy, 1, 1);
+          }
+        }
+      }
+      ctx.restore();
+    }
 
     const hx = this.hoverX();
     const hy = this.hoverY();

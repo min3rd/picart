@@ -53,9 +53,8 @@ export class EditorStateService {
   readonly currentTool = signal<ToolId>('select-layer');
   private readonly STORAGE_KEY = 'picart.editor.settings.v1';
 
-  // Layers (top is last)
+  // Layers: default to a single layer named "Layer 1" (no separate background)
   readonly layers = signal<LayerItem[]>([
-    { id: 'bg', name: 'Background', visible: true, locked: false },
     { id: 'l1', name: 'Layer 1', visible: true, locked: false },
   ]);
   readonly selectedLayerId = signal<string>('l1');
@@ -76,6 +75,12 @@ export class EditorStateService {
   // Brush state
   readonly brushSize = signal<number>(1);
   readonly brushColor = signal<string>('#000000');
+
+  // Per-layer pixel buffers (simple, in-memory). Each buffer is a flat array of
+  // color strings ('' means transparent). We expose a version signal that
+  // components can depend on to redraw when any layer buffer changes.
+  readonly layerPixelsVersion = signal(0);
+  private layerPixels = new Map<string, string[]>();
 
   constructor() {
     this.loadFromStorage();
@@ -103,6 +108,11 @@ export class EditorStateService {
   setCanvasSize(width: number, height: number) {
     this.canvasWidth.set(width);
     this.canvasHeight.set(height);
+    // Ensure all existing layer buffers match the new canvas dimensions
+    const layers = this.layers();
+    for (const l of layers) {
+      this.ensureLayerBuffer(l.id, width, height);
+    }
   }
 
   setBrushSize(size: number) {
@@ -117,6 +127,62 @@ export class EditorStateService {
       this.brushColor.set(color);
       this.saveToStorage();
     }
+  }
+
+  // Ensure a pixel buffer exists for a layer with given dimensions. Preserves
+  // top-left content when resizing smaller/larger.
+  ensureLayerBuffer(layerId: string, width: number, height: number) {
+    const need = Math.max(1, width) * Math.max(1, height);
+    const existing = this.layerPixels.get(layerId) || [];
+    if (existing.length === need) return;
+    const next = new Array<string>(need).fill('');
+    const oldW = existing.length > 0 && height > 0 ? Math.floor(existing.length / height) : 0;
+    // Copy what we can (best-effort); assume top-left alignment
+    if (oldW > 0) {
+      const oldH = Math.floor(existing.length / oldW);
+      const copyH = Math.min(oldH, height);
+      const copyW = Math.min(oldW, width);
+      for (let y = 0; y < copyH; y++) {
+        for (let x = 0; x < copyW; x++) {
+          const oi = y * oldW + x;
+          const ni = y * width + x;
+          next[ni] = existing[oi] || '';
+        }
+      }
+    }
+    this.layerPixels.set(layerId, next);
+    this.layerPixelsVersion.update((v) => v + 1);
+  }
+
+  // Get the pixel buffer for a layer. Returns a live reference (caller should
+  // not replace the array) or an empty array if none.
+  getLayerBuffer(layerId: string): string[] {
+    return this.layerPixels.get(layerId) || [];
+  }
+
+  // Apply a square brush/eraser to a given layer at logical pixel x,y.
+  applyBrushToLayer(layerId: string, x: number, y: number, brushSize: number, color: string | null) {
+    const buf = this.layerPixels.get(layerId);
+    if (!buf) return false;
+    const w = Math.max(1, this.canvasWidth());
+    const h = Math.max(1, this.canvasHeight());
+    const half = Math.floor((Math.max(1, brushSize) - 1) / 2);
+    let changed = false;
+    for (let yy = Math.max(0, y - half); yy <= Math.min(h - 1, y + half); yy++) {
+      for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
+        const idx = yy * w + xx;
+        const newVal = color === null ? '' : color;
+        if (buf[idx] !== newVal) {
+          buf[idx] = newVal;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(false);
+    }
+    return changed;
   }
 
   private saveToStorage() {
@@ -164,6 +230,8 @@ export class EditorStateService {
     this.layers.update((arr) =>
       arr.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
     );
+    // trigger redraw
+    this.layerPixelsVersion.update((v) => v + 1);
   }
 
   removeLayer(id: string): boolean {
@@ -175,6 +243,9 @@ export class EditorStateService {
     if (idx === -1) return false;
     const next = arr.filter((l) => l.id !== id);
     this.layers.set(next);
+    // remove pixel buffer for this layer
+    this.layerPixels.delete(id);
+    this.layerPixelsVersion.update((v) => v + 1);
     if (this.selectedLayerId() === id) {
       const newIdx = Math.max(0, idx - 1);
       this.selectedLayerId.set(next[newIdx]?.id ?? next[0].id);
@@ -185,9 +256,11 @@ export class EditorStateService {
   addLayer(name?: string) {
     const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const item: LayerItem = { id, name: name || `Layer ${this.layers().length + 1}`, visible: true, locked: false };
-    // Add to top
-    this.layers.update((arr) => [...arr, item]);
+  // Add to top (insert at index 0 so the new layer becomes the topmost in the UI)
+  this.layers.update((arr) => [item, ...arr]);
     this.selectedLayerId.set(item.id);
+    // create pixel buffer for new layer matching current canvas size
+    this.ensureLayerBuffer(item.id, this.canvasWidth(), this.canvasHeight());
     return item;
   }
 
