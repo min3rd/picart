@@ -29,7 +29,13 @@ export class EditorHeader {
     await this.fileService.openProjectFromPicker();
   }
   async onSave() {
-    // Placeholder: serialize minimal state later
+    // Save current project to localStorage via EditorStateService
+    try {
+      const ok = this.state.saveProjectToLocalStorage();
+      if (ok) console.info('Project saved to localStorage');
+    } catch (e) {
+      console.error('Save failed', e);
+    }
   }
 
   onUndo() {
@@ -47,6 +53,7 @@ export class EditorHeader {
   private keydownHandler = (ev: KeyboardEvent) => {
     const z = ev.key.toLowerCase() === 'z';
     const y = ev.key.toLowerCase() === 'y';
+    const s = ev.key.toLowerCase() === 's';
     const meta = ev.ctrlKey || ev.metaKey;
     if (!meta) return;
     if (z) {
@@ -55,6 +62,14 @@ export class EditorHeader {
     } else if (y) {
       ev.preventDefault();
       this.onRedo();
+    } else if (s) {
+      ev.preventDefault();
+      try {
+        const ok = this.state.saveProjectToLocalStorage();
+        if (ok) console.info('Project saved to localStorage');
+      } catch (e) {
+        console.error('Save to localStorage failed', e);
+      }
     }
   };
 

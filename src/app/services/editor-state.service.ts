@@ -78,6 +78,7 @@ export class EditorStateService {
 
   readonly currentTool = signal<ToolId>('select-layer');
   private readonly STORAGE_KEY = 'picart.editor.settings.v1';
+  private readonly PROJECT_STORAGE_KEY = 'picart.project.local.v1';
 
   // Layers: default to a single layer named "Layer 1" (no separate background)
   readonly layers = signal<LayerItem[]>([
@@ -124,6 +125,47 @@ export class EditorStateService {
 
   constructor() {
     this.loadFromStorage();
+  }
+
+  // Export the current editor state into a serializable project-like object
+  exportProjectSnapshot() {
+    const now = new Date().toISOString();
+    const layers = this.layers().map((l) => ({ ...l }));
+    const buffers: Record<string, string[]> = {};
+    for (const [id, buf] of this.layerPixels.entries()) {
+      buffers[id] = buf.slice();
+    }
+    return {
+      id: `local_${Date.now()}`,
+      name: `Local Project ${new Date().toISOString()}`,
+      created: now,
+      modified: now,
+      canvas: {
+        width: this.canvasWidth(),
+        height: this.canvasHeight(),
+      },
+      layers,
+      layerBuffers: buffers,
+      selectedLayerId: this.selectedLayerId(),
+      currentTool: this.currentTool(),
+      brush: { size: this.brushSize(), color: this.brushColor() },
+      selection: this.selectionRect(),
+      frames: this.frames(),
+    } as const;
+  }
+
+  // Save a serialized snapshot of the current project into localStorage.
+  saveProjectToLocalStorage(): boolean {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return false;
+      const snapshot = this.exportProjectSnapshot();
+      window.localStorage.setItem(this.PROJECT_STORAGE_KEY, JSON.stringify(snapshot));
+      this.setCanvasSaved(true);
+      return true;
+    } catch (e) {
+      console.error('Failed to save project to localStorage', e);
+      return false;
+    }
   }
 
   // Derived
