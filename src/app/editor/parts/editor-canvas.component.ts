@@ -42,6 +42,7 @@ export class EditorCanvas {
   private rotating = false;
   // painting state
   private painting = false;
+  private lastPaintPos: { x: number; y: number } | null = null;
   private lastPointer = { x: 0, y: 0 };
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
@@ -91,14 +92,18 @@ export class EditorCanvas {
     this.mouseX.set(Math.round(visX));
     this.mouseY.set(Math.round(visY));
 
-    const s = Math.max(0.001, this.scale());
-    const logicalX = Math.floor(visX / s);
-    const logicalY = Math.floor(visY / s);
+    const w = this.state.canvasWidth();
+    const h = this.state.canvasHeight();
+    const ratioX = w / Math.max(1, rect.width);
+    const ratioY = h / Math.max(1, rect.height);
+    const logicalX = Math.floor(visX * ratioX);
+    const logicalY = Math.floor(visY * ratioY);
+
     if (
       logicalX >= 0 &&
-      logicalX < this.state.canvasWidth() &&
+      logicalX < w &&
       logicalY >= 0 &&
-      logicalY < this.state.canvasHeight()
+      logicalY < h
     ) {
       this.hoverX.set(logicalX);
       this.hoverY.set(logicalY);
@@ -124,19 +129,21 @@ export class EditorCanvas {
 
     // Painting: if left button pressed and current tool is brush/eraser, apply
     if (this.painting) {
-      const s = Math.max(0.001, this.scale());
-      const logicalX = Math.floor(visX / s);
-      const logicalY = Math.floor(visY / s);
       if (
         logicalX >= 0 &&
-        logicalX < this.state.canvasWidth() &&
+        logicalX < w &&
         logicalY >= 0 &&
-        logicalY < this.state.canvasHeight()
+        logicalY < h
       ) {
         const layerId = this.state.selectedLayerId();
         const tool = this.state.currentTool();
         const color = tool === 'eraser' ? null : this.state.brushColor();
-        this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
+        if (this.lastPaintPos) {
+          this.drawLinePaint(layerId, this.lastPaintPos.x, this.lastPaintPos.y, logicalX, logicalY, this.state.brushSize(), color);
+        } else {
+          this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
+        }
+        this.lastPaintPos = { x: logicalX, y: logicalY };
       }
     }
   }
@@ -171,9 +178,12 @@ export class EditorCanvas {
       const rect = this.canvasEl.nativeElement.getBoundingClientRect();
       const visX = ev.clientX - rect.left;
       const visY = ev.clientY - rect.top;
-      const s = Math.max(0.001, this.scale());
-      const logicalX = Math.floor(visX / s);
-      const logicalY = Math.floor(visY / s);
+      const w = this.state.canvasWidth();
+      const h = this.state.canvasHeight();
+      const ratioX = w / Math.max(1, rect.width);
+      const ratioY = h / Math.max(1, rect.height);
+      const logicalX = Math.floor(visX * ratioX);
+      const logicalY = Math.floor(visY * ratioY);
       const tool = this.state.currentTool();
       if (
         (tool === 'brush' || tool === 'eraser') &&
@@ -183,6 +193,7 @@ export class EditorCanvas {
         logicalY < this.state.canvasHeight()
       ) {
         this.painting = true;
+        this.lastPaintPos = { x: logicalX, y: logicalY };
         const layerId = this.state.selectedLayerId();
         const color = tool === 'eraser' ? null : this.state.brushColor();
         this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
@@ -195,6 +206,7 @@ export class EditorCanvas {
     this.rotating = false;
     // stop painting on any pointer up
     this.painting = false;
+    this.lastPaintPos = null;
   }
 
   infoVisible = signal(true);
@@ -227,6 +239,40 @@ export class EditorCanvas {
   // calls that service method when needed.
 
   // applyBrush removed: logic delegated to EditorStateService.applyBrushToLayer
+
+  // Draw a straight line between two logical pixel coordinates and apply the
+  // brush/eraser at each step so fast pointer movement produces continuous
+  // strokes. Uses Bresenham's line algorithm for integer rasterization.
+  private drawLinePaint(
+    layerId: string,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    brushSize: number,
+    color: string | null
+  ) {
+    const dx = Math.abs(x1 - x0);
+    const sx = x0 < x1 ? 1 : -1;
+    const dy = -Math.abs(y1 - y0);
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    let x = x0;
+    let y = y0;
+    while (true) {
+      this.state.applyBrushToLayer(layerId, x, y, brushSize, color);
+      if (x === x1 && y === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y += sy;
+      }
+    }
+  }
 
   onScaleInput(event: Event) {
     const target = event.target as HTMLInputElement;
