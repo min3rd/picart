@@ -43,6 +43,9 @@ export class EditorCanvas {
   // painting state
   private painting = false;
   private lastPaintPos: { x: number; y: number } | null = null;
+  // rectangle selection drag state
+  private selectionStart: { x: number; y: number } | null = null;
+  private selectionDragging = false;
   private lastPointer = { x: 0, y: 0 };
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
@@ -66,6 +69,7 @@ export class EditorCanvas {
   cursor(): string {
     if (this.panning) return this.handGrabbingCursor;
     const tool = this.state.currentTool();
+    if (tool === 'rect-select') return `crosshair`;
     if (tool === 'brush') return this.brushCursor;
     if (tool === 'eraser') return this.eraserCursor;
     return this.defaultCursor;
@@ -130,6 +134,14 @@ export class EditorCanvas {
       this.panY.set(this.panY() + dy);
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
+    }
+
+    // If dragging a rectangle selection, update selection
+    if (this.selectionDragging) {
+      if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
+        this.state.updateSelection(logicalX, logicalY);
+      }
+      return;
     }
 
     // rotation disabled: no-op
@@ -197,6 +209,13 @@ export class EditorCanvas {
       const logicalX = Math.floor(visX * ratioX);
       const logicalY = Math.floor(visY * ratioY);
       const tool = this.state.currentTool();
+      // Rectangle selection handling
+      if (tool === 'rect-select' && logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
+        this.selectionStart = { x: logicalX, y: logicalY };
+        this.selectionDragging = true;
+        this.state.beginSelection(logicalX, logicalY);
+        return;
+      }
       if (tool === 'fill' && logicalX >= 0 && logicalX < this.state.canvasWidth() && logicalY >= 0 && logicalY < this.state.canvasHeight()) {
         // One-shot fill action
         this.state.beginAction('fill');
@@ -231,6 +250,12 @@ export class EditorCanvas {
       this.painting = false;
       this.lastPaintPos = null;
       this.state.endAction();
+    }
+
+    if (this.selectionDragging) {
+      this.selectionDragging = false;
+      this.selectionStart = null;
+      this.state.endSelection();
     }
   }
 
@@ -459,6 +484,21 @@ export class EditorCanvas {
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
         ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
       }
+      ctx.restore();
+    }
+
+    // Draw active selection rectangle if present
+    const sel = this.state.selectionRect();
+    if (sel && sel.width > 0 && sel.height > 0) {
+      ctx.save();
+      // translucent fill
+      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+      ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
+      // dashed stroke
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+      ctx.lineWidth = 1 / dpr;
+      ctx.strokeRect(sel.x + 0.5, sel.y + 0.5, Math.max(0, sel.width - 1), Math.max(0, sel.height - 1));
       ctx.restore();
     }
   }

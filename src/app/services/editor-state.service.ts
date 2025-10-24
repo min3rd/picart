@@ -101,6 +101,8 @@ export class EditorStateService {
   // Brush state
   readonly brushSize = signal<number>(1);
   readonly brushColor = signal<string>('#000000');
+  // Rectangular selection in logical pixel coords (x,y,width,height) or null
+  readonly selectionRect = signal<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Per-layer pixel buffers (simple, in-memory). Each buffer is a flat array of
   // color strings ('' means transparent). We expose a version signal that
@@ -223,6 +225,12 @@ export class EditorStateService {
         const idx = yy * w + xx;
         const newVal = color === null ? '' : color;
         const oldVal = buf[idx] || '';
+        // If a selection exists, skip pixels outside the selection
+        const sel = this.selectionRect();
+        if (sel) {
+          if (xx < sel.x || xx >= sel.x + sel.width || yy < sel.y || yy >= sel.y + sel.height) continue;
+        }
+
         if (oldVal !== newVal) {
           // If a current action is open, record the change (previous + new)
           if (this.currentAction) {
@@ -260,6 +268,7 @@ export class EditorStateService {
     if (target === newVal) return 0;
 
     let changed = 0;
+    const sel = this.selectionRect();
     const stack: number[] = [idx0];
     while (stack.length > 0) {
       const idx = stack.pop() as number;
@@ -281,10 +290,18 @@ export class EditorStateService {
       const y0 = Math.floor(idx / w);
       const x0 = idx - y0 * w;
       // neighbors: left, right, up, down
-      if (x0 > 0) stack.push(idx - 1);
-      if (x0 < w - 1) stack.push(idx + 1);
-      if (y0 > 0) stack.push(idx - w);
-      if (y0 < h - 1) stack.push(idx + w);
+      if (sel) {
+        // only push neighbors inside selection
+        if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x) stack.push(idx - 1);
+        if (x0 < sel.x + sel.width - 1 && buf[idx + 1] === target && x0 + 1 < sel.x + sel.width) stack.push(idx + 1);
+        if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y) stack.push(idx - w);
+        if (y0 < sel.y + sel.height - 1 && buf[idx + w] === target && y0 + 1 < sel.y + sel.height) stack.push(idx + w);
+      } else {
+        if (x0 > 0) stack.push(idx - 1);
+        if (x0 < w - 1) stack.push(idx + 1);
+        if (y0 > 0) stack.push(idx - w);
+        if (y0 < h - 1) stack.push(idx + w);
+      }
     }
 
     if (changed > 0) {
@@ -328,6 +345,39 @@ export class EditorStateService {
     }
     const entry: HistoryEntry = { metaChanges: [meta], description: meta.key };
     this.pushUndo(entry);
+  }
+
+  // Selection APIs
+  beginSelection(x: number, y: number) {
+    // start a temporary selection; caller should call updateSelection/endSelection
+    this.selectionRect.set({ x, y, width: 0, height: 0 });
+  }
+
+  updateSelection(x: number, y: number) {
+    const start = this.selectionRect();
+    if (!start) return;
+    // compute rect from start.x,start.y to x,y
+    const sx = start.x;
+    const sy = start.y;
+    const nx = Math.min(sx, x);
+    const ny = Math.min(sy, y);
+    const w = Math.abs(x - sx) + 1;
+    const h = Math.abs(y - sy) + 1;
+    this.selectionRect.set({ x: nx, y: ny, width: w, height: h });
+  }
+
+  endSelection() {
+    const rect = this.selectionRect();
+    if (!rect) return;
+    // record selection into history as a meta change so undo/redo restores it
+    this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: rect });
+  }
+
+  clearSelection() {
+    const prev = this.selectionRect();
+    if (!prev) return;
+    this.selectionRect.set(null);
+    this.commitMetaChange({ key: 'selectionSnapshot', previous: prev, next: null });
   }
 
   // Snapshot current buffers and layers for structural operations
@@ -388,6 +438,15 @@ export class EditorStateService {
             // ensure buffers match new size
             for (const l of this.layers()) this.ensureLayerBuffer(l.id, w, h);
           }
+        }
+        break;
+      case 'selectionSnapshot':
+        // restore selection rectangle
+        if (val === null) {
+          this.selectionRect.set(null);
+        } else if (val && typeof val === 'object') {
+          const r = val as { x: number; y: number; width: number; height: number };
+          this.selectionRect.set({ x: Math.max(0, Math.floor(r.x)), y: Math.max(0, Math.floor(r.y)), width: Math.max(0, Math.floor(r.width)), height: Math.max(0, Math.floor(r.height)) });
         }
         break;
       default:
