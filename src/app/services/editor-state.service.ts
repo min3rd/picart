@@ -387,13 +387,8 @@ export class EditorStateService {
         this.applyMetaChange(m, /*useNext*/ false);
       }
     }
-    // push to redo as inverse (swap previous/next)
-    const redoEntry: HistoryEntry = {
-      pixelChanges: entry.pixelChanges ? entry.pixelChanges.map((c) => ({ layerId: c.layerId, indices: c.indices.slice(), previous: c.next.slice(), next: c.previous.slice() })) : undefined,
-      metaChanges: entry.metaChanges ? entry.metaChanges.map((m) => ({ key: m.key, previous: m.next, next: m.previous })) : undefined,
-      description: entry.description,
-    };
-    this.redoStack.push(redoEntry);
+    // push the original entry to redo stack so redo can re-apply entry.next values
+    this.redoStack.push(entry);
     this.layerPixelsVersion.update((v) => v + 1);
     this.setCanvasSaved(false);
     this.undoVersion.update((v) => v + 1);
@@ -418,13 +413,8 @@ export class EditorStateService {
         this.applyMetaChange(m, /*useNext*/ true);
       }
     }
-    // push inverse back to undo
-    const undoEntry: HistoryEntry = {
-      pixelChanges: entry.pixelChanges ? entry.pixelChanges.map((c) => ({ layerId: c.layerId, indices: c.indices.slice(), previous: c.next.slice(), next: c.previous.slice() })) : undefined,
-      metaChanges: entry.metaChanges ? entry.metaChanges.map((m) => ({ key: m.key, previous: m.next, next: m.previous })) : undefined,
-      description: entry.description,
-    };
-    this.undoStack.push(undoEntry);
+    // push the same entry back to undo stack so undo can restore previous values again
+    this.undoStack.push(entry);
     this.layerPixelsVersion.update((v) => v + 1);
     this.setCanvasSaved(false);
     this.undoVersion.update((v) => v + 1);
