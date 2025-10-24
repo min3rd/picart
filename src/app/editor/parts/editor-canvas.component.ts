@@ -1,4 +1,5 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
@@ -24,6 +25,7 @@ import { NgIcon } from '@ng-icons/core';
 })
 export class EditorCanvas {
   @ViewChild('canvasEl', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef<HTMLDivElement>;
   readonly state = inject(EditorStateService);
 
   readonly mouseX = signal<number | null>(null);
@@ -41,12 +43,24 @@ export class EditorCanvas {
   private lastPointer = { x: 0, y: 0 };
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
+  private resizeListener: (() => void) | null = null;
 
   constructor() {
     this.stopRenderEffect = effect(() => {
       this.drawCanvas();
       return null as any;
     });
+  }
+
+  ngAfterViewInit(): void {
+    // Auto-scale to fit the viewport and center the canvas.
+    this.centerAndFitCanvas();
+
+    // Recenter on window resize
+    this.resizeListener = () => this.centerAndFitCanvas();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.resizeListener as EventListener);
+    }
   }
 
   get maxScale(): number {
@@ -182,6 +196,45 @@ export class EditorCanvas {
         }
       } catch {}
       this.stopRenderEffect = null;
+    }
+
+    if (this.resizeListener && typeof window !== 'undefined') {
+      try {
+        window.removeEventListener('resize', this.resizeListener as EventListener);
+      } catch {}
+      this.resizeListener = null;
+    }
+  }
+
+  private centerAndFitCanvas() {
+    try {
+      const canvas = this.canvasEl?.nativeElement;
+      if (!canvas) return;
+      const w = Math.max(1, this.state.canvasWidth());
+      const h = Math.max(1, this.state.canvasHeight());
+
+      const padding = 32; // leave some space around UI chrome
+      const availW =
+        (typeof this.canvasContainer.nativeElement !== 'undefined'
+          ? this.canvasContainer.nativeElement.clientWidth
+          : w) - padding;
+      const availH =
+        (typeof this.canvasContainer.nativeElement !== 'undefined'
+          ? this.canvasContainer.nativeElement.clientHeight
+          : h) - padding;
+
+      const fitScale = Math.max(0.01, Math.min(availW / w, availH / h));
+      // avoid extremely tiny scales; clamp a reasonable minimum
+      const initialScale = Number(Math.max(0.01, fitScale).toFixed(2));
+      this.scale.set(initialScale);
+
+      // Center in viewport (coordinates for translate before scale)
+      const panX = 0;
+      const panY = Math.round((h * initialScale) / 2) - padding;
+      this.panX.set(panX);
+      this.panY.set(panY);
+    } catch (e) {
+      // best-effort: ignore errors
     }
   }
 
