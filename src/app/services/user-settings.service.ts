@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 
 export interface PanelSizes {
@@ -22,6 +22,8 @@ export class UserSettingsService {
     lang: 'en',
     panels: { left: 220, right: 260, bottom: 112 },
   });
+
+  readonly theme = computed(() => this._state().theme);
 
   constructor() {
     try {

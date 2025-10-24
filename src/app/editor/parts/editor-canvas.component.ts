@@ -84,4 +84,20 @@ export class EditorCanvas {
 
   // Toggleable info panel visibility - controlled by state in header via settings in previous work
   infoVisible = signal(true);
+
+  setCanvasWidth(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const width = parseInt(target.value, 10);
+    if (width > 0) {
+      this.state.setCanvasSize(width, this.state.canvasHeight());
+    }
+  }
+
+  setCanvasHeight(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const height = parseInt(target.value, 10);
+    if (height > 0) {
+      this.state.setCanvasSize(this.state.canvasWidth(), height);
+    }
+  }
 }

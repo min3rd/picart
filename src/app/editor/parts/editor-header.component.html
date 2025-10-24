@@ -12,7 +12,7 @@
       <button type="button" class="px-2 py-0.5 rounded-sm border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="setLang('vi')">VI</button>
       <button type="button" class="px-2 py-0.5 rounded-sm border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="setLang('en')">EN</button>
       <button type="button" class="px-2 py-0.5 rounded-sm border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="toggleTheme()" title="{{ 'theme.toggle' | transloco }}">
-        <ng-icon [name]="userSettings.theme === 'dark' ? 'moon' : 'sun'" class="w-4 h-4"></ng-icon>
+        <ng-icon [name]="settings.theme() === 'dark' ? 'moon' : 'sun'" class="w-4 h-4"></ng-icon>
       </button>
     </div>
   </div>

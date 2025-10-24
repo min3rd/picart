@@ -6,7 +6,7 @@
           class="transform-origin-center"
           [style.transform]="'translate(' + panX() + 'px,' + panY() + 'px) scale(' + scale() + ') rotate(' + rotation() + 'deg)'"
         >
-          <canvas #canvasEl width="640" height="360" class="border border-neutral-300 dark:border-neutral-700 block" 
+          <canvas #canvasEl [attr.width]="state.canvasWidth()" [attr.height]="state.canvasHeight()" class="border border-neutral-300 dark:border-neutral-700 block" 
             (pointermove)="onPointerMove($event)" (pointerdown)="onPointerDown($event)" (pointerup)="onPointerUp($event)" (contextmenu)="$event.preventDefault()" (wheel)="onWheel($event)"></canvas>
         </div>
       </div>
@@ -29,8 +29,14 @@
       </div>
     </div>
     <div class="mt-2 text-xs">
-      <div>{{ 'canvas.width' | transloco }}: {{ state.canvasWidth() }}</div>
-      <div>{{ 'canvas.height' | transloco }}: {{ state.canvasHeight() }}</div>
+      <div class="flex items-center gap-2">
+        <span>{{ 'canvas.width' | transloco }}:</span>
+        <input type="number" [value]="state.canvasWidth()" (input)="setCanvasWidth($event)" class="w-12 text-xs border rounded px-1" min="1" max="1024">
+      </div>
+      <div class="flex items-center gap-2">
+        <span>{{ 'canvas.height' | transloco }}:</span>
+        <input type="number" [value]="state.canvasHeight()" (input)="setCanvasHeight($event)" class="w-12 text-xs border rounded px-1" min="1" max="1024">
+      </div>
       <div>{{ 'canvas.saved' | transloco }}: {{ state.canvasSaved() ? ('yes' | transloco) : ('no' | transloco) }}</div>
     </div>
   </div>

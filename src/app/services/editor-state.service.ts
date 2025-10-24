@@ -66,8 +66,8 @@ export class EditorStateService {
   readonly currentFrameIndex = signal<number>(0);
 
   // Canvas metadata
-  readonly canvasWidth = signal<number>(640);
-  readonly canvasHeight = signal<number>(360);
+  readonly canvasWidth = signal<number>(64);
+  readonly canvasHeight = signal<number>(64);
   readonly canvasSaved = signal<boolean>(true);
 
   // Derived

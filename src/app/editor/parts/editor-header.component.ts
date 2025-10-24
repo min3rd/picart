@@ -16,13 +16,10 @@ import { NgIcon } from '@ng-icons/core';
   }
 })
 export class EditorHeader {
-  private readonly fileService = inject(FileService);
+  readonly fileService = inject(FileService);
   readonly state = inject(EditorStateService);
-  private readonly i18n = inject(TranslocoService);
-  private readonly settings = inject(UserSettingsService);
-  get userSettings() {
-    return this.settings.settings;
-  }
+  readonly i18n = inject(TranslocoService);
+  readonly settings = inject(UserSettingsService);
 
   async onNewProject() {
     // Minimal new project; in future wire modal
@@ -40,7 +37,7 @@ export class EditorHeader {
   }
 
   toggleTheme() {
-    const next = this.settings.settings.theme === 'dark' ? 'light' : 'dark';
+    const next = this.settings.theme() === 'dark' ? 'light' : 'dark';
     this.settings.setTheme(next);
   }
 }
