@@ -33,4 +33,12 @@
   ,"theme": {
     "toggle": "Chuyển chủ đề"
   }
+  ,
+  "canvas": {
+    "zoom": "Thu phóng",
+    "zoomIncrease": "Tăng thu phóng",
+    "zoomDecrease": "Giảm thu phóng",
+    "rotate": "Nghiêng",
+    "resetRotation": "Đặt lại nghiêng"
+  }
 }

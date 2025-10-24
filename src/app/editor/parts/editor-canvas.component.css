@@ -4,8 +4,12 @@
 }
 
 canvas {
-  background-image: 
-    linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
-  background-size: 1px 1px;
+  /* Canvas will draw its own pixel grid and highlight via JS to keep grid aligned with the canvas bitmap. */
+  background: transparent;
+}
+
+/* Ensure nearest-neighbor scaling so zoomed canvas remains crisp (no blur) */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }

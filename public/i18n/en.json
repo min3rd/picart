@@ -33,4 +33,12 @@
 	,"theme": {
 		"toggle": "Toggle theme"
 	}
+	,
+	"canvas": {
+		"zoom": "Zoom",
+		"zoomIncrease": "Increase zoom",
+		"zoomDecrease": "Decrease zoom",
+		"rotate": "Rotate",
+		"resetRotation": "Reset rotation"
+	}
 }
