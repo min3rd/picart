@@ -180,6 +180,7 @@ export class EditorCanvas {
         const layerId = this.state.selectedLayerId();
         const tool = this.state.currentTool();
         const color = tool === 'eraser' ? null : this.state.brushColor();
+        const size = tool === 'eraser' ? this.state.eraserSize() : this.state.brushSize();
         if (this.lastPaintPos) {
           this.drawLinePaint(
             layerId,
@@ -187,11 +188,11 @@ export class EditorCanvas {
             this.lastPaintPos.y,
             logicalX,
             logicalY,
-            this.state.brushSize(),
+            size,
             color
           );
         } else {
-          this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
+          this.state.applyBrushToLayer(layerId, logicalX, logicalY, size, color);
         }
         this.lastPaintPos = { x: logicalX, y: logicalY };
       }
@@ -309,7 +310,8 @@ export class EditorCanvas {
         this.lastPaintPos = { x: logicalX, y: logicalY };
         const layerId = this.state.selectedLayerId();
         const color = tool === 'eraser' ? null : this.state.brushColor();
-        this.state.applyBrushToLayer(layerId, logicalX, logicalY, this.state.brushSize(), color);
+        const size = tool === 'eraser' ? this.state.eraserSize() : this.state.brushSize();
+        this.state.applyBrushToLayer(layerId, logicalX, logicalY, size, color);
       }
     }
   }
@@ -539,7 +541,8 @@ export class EditorCanvas {
       const tool = this.state.currentTool();
       if (tool === 'brush' || tool === 'eraser') {
         ctx.save();
-        const bSize = Math.max(1, this.state.brushSize());
+  const size = tool === 'eraser' ? this.state.eraserSize() : this.state.brushSize();
+  const bSize = Math.max(1, size);
 
         // center the brush highlight on the hovered pixel
         const half = Math.floor((bSize - 1) / 2);

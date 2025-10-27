@@ -31,6 +31,18 @@ export class LayersPanel {
     this.state.setBrushColor(v);
   }
 
+  onEraserSizeInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.state.setEraserSize(Math.floor(n));
+  }
+
+  onEraserStrengthInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.state.setEraserStrength(Math.floor(n));
+  }
+
   private dragIndex: number | null = null;
 
   select(id: string) {

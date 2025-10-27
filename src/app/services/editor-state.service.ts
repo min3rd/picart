@@ -123,6 +123,7 @@ export class EditorStateService {
   // Brush state
   readonly brushSize = signal<number>(1);
   readonly brushColor = signal<string>('#000000');
+  readonly eraserSize = signal<number>(1);
   // Eraser strength (0-100 percent). Currently stored for UI and future use.
   readonly eraserStrength = signal<number>(100);
   // Rectangular selection in logical pixel coords (x,y,width,height) or null
@@ -221,6 +222,12 @@ export class EditorStateService {
       if (parsed.eraser && typeof parsed.eraser === 'object') {
         if (typeof parsed.eraser.strength === 'number')
           this.eraserStrength.set(Math.max(0, Math.min(100, Math.floor(parsed.eraser.strength))));
+        if (typeof parsed.eraser.size === 'number') {
+          const maxDim = Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()));
+          this.eraserSize.set(
+            Math.max(1, Math.min(Math.floor(parsed.eraser.size), maxDim))
+          );
+        }
       }
 
       // restore selection if present
@@ -294,7 +301,7 @@ export class EditorStateService {
       selectedLayerId: this.selectedLayerId(),
       currentTool: this.currentTool(),
       brush: { size: this.brushSize(), color: this.brushColor() },
-  eraser: { strength: this.eraserStrength() },
+      eraser: { strength: this.eraserStrength(), size: this.eraserSize() },
       selection: this.selectionRect(),
       selectionPolygon: this.selectionPolygon(),
       frames: this.frames(),
@@ -352,6 +359,12 @@ export class EditorStateService {
       if (parsed.eraser && typeof parsed.eraser === 'object') {
         if (typeof parsed.eraser.strength === 'number')
           this.eraserStrength.set(Math.max(0, Math.min(100, Math.floor(parsed.eraser.strength))));
+        if (typeof parsed.eraser.size === 'number') {
+          const maxDim = Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()));
+          this.eraserSize.set(
+            Math.max(1, Math.min(Math.floor(parsed.eraser.size), maxDim))
+          );
+        }
       }
 
       if (parsed.selection) {
@@ -459,6 +472,16 @@ export class EditorStateService {
     this.saveToStorage();
   }
 
+  setEraserSize(size: number) {
+    const maxDim = Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()));
+    const clamped = Math.max(1, Math.min(Math.floor(size), maxDim));
+    const prev = this.eraserSize();
+    const next = clamped;
+    this.commitMetaChange({ key: 'eraserSize', previous: prev, next });
+    this.eraserSize.set(next);
+    this.saveToStorage();
+  }
+
   setEraserStrength(strength: number) {
     const s = Math.max(0, Math.min(100, Math.floor(strength)));
     const prev = this.eraserStrength();
@@ -509,6 +532,69 @@ export class EditorStateService {
     return this.layerPixels.get(layerId) || [];
   }
 
+  private clampByte(value: number) {
+    return Math.max(0, Math.min(255, Math.round(value)));
+  }
+
+  private clampUnit(value: number) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  private parseColor(value: string) {
+    if (!value) return { r: 0, g: 0, b: 0, a: 0 };
+    const trimmed = value.trim();
+    if (trimmed.startsWith('#')) {
+      const hex = trimmed.slice(1);
+      if (hex.length === 3) {
+        const r = Number.parseInt(hex[0] + hex[0], 16);
+        const g = Number.parseInt(hex[1] + hex[1], 16);
+        const b = Number.parseInt(hex[2] + hex[2], 16);
+        return { r, g, b, a: 1 };
+      }
+      if (hex.length === 6) {
+        const r = Number.parseInt(hex.slice(0, 2), 16);
+        const g = Number.parseInt(hex.slice(2, 4), 16);
+        const b = Number.parseInt(hex.slice(4, 6), 16);
+        return { r, g, b, a: 1 };
+      }
+    }
+    const match = trimmed.match(/^rgba?\((.+)\)$/i);
+    if (match) {
+      const parts = match[1].split(',').map((p) => p.trim());
+      if (parts.length >= 3) {
+        const r = Number.parseFloat(parts[0]);
+        const g = Number.parseFloat(parts[1]);
+        const b = Number.parseFloat(parts[2]);
+        if ([r, g, b].some((v) => Number.isNaN(v))) return { r: 0, g: 0, b: 0, a: 0 };
+        let a = 1;
+        if (parts.length > 3) {
+          const alpha = Number.parseFloat(parts[3]);
+          if (!Number.isNaN(alpha)) a = alpha;
+        }
+        return {
+          r: this.clampByte(r),
+          g: this.clampByte(g),
+          b: this.clampByte(b),
+          a: this.clampUnit(a),
+        };
+      }
+    }
+    return { r: 0, g: 0, b: 0, a: 0 };
+  }
+
+  private computeEraserValue(existing: string, strength: number) {
+    const pct = Math.max(0, Math.min(100, Math.floor(strength)));
+    if (pct <= 0) return existing || '';
+    if (pct >= 100) return '';
+    if (!existing) return '';
+    const rgba = this.parseColor(existing);
+    if (rgba.a <= 0) return '';
+    const nextAlpha = rgba.a * (1 - pct / 100);
+    if (nextAlpha <= 0.001) return '';
+    const alpha = Number.parseFloat(nextAlpha.toFixed(3));
+    return `rgba(${rgba.r},${rgba.g},${rgba.b},${alpha})`;
+  }
+
   // Apply a square brush/eraser to a given layer at logical pixel x,y.
   applyBrushToLayer(
     layerId: string,
@@ -526,11 +612,16 @@ export class EditorStateService {
     const sel = this.selectionRect();
     const selShape = this.selectionShape();
     const selPoly = this.selectionPolygon();
+    const erasing = color === null;
+    const eraserStrength = erasing ? this.eraserStrength() : 0;
+    const brushColor = color ?? '';
     for (let yy = Math.max(0, y - half); yy <= Math.min(h - 1, y + half); yy++) {
       for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
         const idx = yy * w + xx;
-        const newVal = color === null ? '' : color;
         const oldVal = buf[idx] || '';
+        const newVal = erasing
+          ? this.computeEraserValue(oldVal, eraserStrength)
+          : brushColor;
         // If a selection exists, skip pixels outside the selection
         if (sel) {
           if (selShape === 'ellipse') {
@@ -838,6 +929,16 @@ export class EditorStateService {
       case 'brushColor':
         if (typeof val === 'string') this.brushColor.set(val);
         break;
+      case 'eraserStrength':
+        if (typeof val === 'number')
+          this.eraserStrength.set(Math.max(0, Math.min(100, Math.floor(val))));
+        break;
+      case 'eraserSize':
+        if (typeof val === 'number') {
+          const maxDim = Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()));
+          this.eraserSize.set(Math.max(1, Math.min(Math.floor(val), maxDim)));
+        }
+        break;
       case 'layersSnapshot':
         if (val && typeof val === 'object') {
           const layers = (val.layers as LayerItem[]) || [];
@@ -991,6 +1092,8 @@ export class EditorStateService {
         currentTool: this.currentTool(),
         brushSize: this.brushSize(),
         brushColor: this.brushColor(),
+        eraserStrength: this.eraserStrength(),
+        eraserSize: this.eraserSize(),
       } as const;
       window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
@@ -1007,6 +1110,8 @@ export class EditorStateService {
         currentTool: ToolId;
         brushSize: number;
         brushColor: string;
+        eraserStrength: number;
+        eraserSize: number;
       }> | null;
       if (!parsed) return;
       if (parsed.currentTool && typeof parsed.currentTool === 'string') {
@@ -1019,6 +1124,13 @@ export class EditorStateService {
       }
       if (parsed.brushColor && typeof parsed.brushColor === 'string') {
         this.brushColor.set(parsed.brushColor);
+      }
+      if (typeof parsed.eraserStrength === 'number') {
+        this.eraserStrength.set(Math.max(0, Math.min(100, Math.floor(parsed.eraserStrength))));
+      }
+      if (typeof parsed.eraserSize === 'number') {
+        const maxDim = Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()));
+        this.eraserSize.set(Math.max(1, Math.min(Math.floor(parsed.eraserSize), maxDim)));
       }
     } catch (e) {
       // ignore parse errors

@@ -54,6 +54,11 @@
     "size": "Size",
     "color": "Color"
   },
+  "eraser": {
+    "title": "Eraser",
+    "size": "Size",
+    "strength": "Strength"
+  },
   "file": {
     "new": "New",
     "openFromComputer": "Open from computer",

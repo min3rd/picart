@@ -33,6 +33,51 @@
     </div>
   </div>
   }
+  @if (state.currentTool() === 'eraser') {
+  <div
+    class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
+  >
+    <div class="font-semibold text-sm mb-2">{{ 'eraser.title' | transloco }}</div>
+    <div class="flex items-center gap-2">
+      <label class="text-xs opacity-80 w-12">{{ 'eraser.size' | transloco }}</label>
+      <input
+        type="range"
+        min="1"
+        [max]="maxCanvasDim"
+        [value]="state.eraserSize()"
+        (input)="onEraserSizeInput($event)"
+        class="flex-1"
+      />
+      <input
+        type="number"
+        min="1"
+        [attr.max]="maxCanvasDim"
+        [value]="state.eraserSize()"
+        (input)="onEraserSizeInput($event)"
+        class="w-16 text-xs border rounded px-1"
+      />
+    </div>
+    <div class="flex items-center gap-2 mt-2">
+      <label class="text-xs opacity-80 w-12">{{ 'eraser.strength' | transloco }}</label>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        [value]="state.eraserStrength()"
+        (input)="onEraserStrengthInput($event)"
+        class="flex-1"
+      />
+      <input
+        type="number"
+        min="0"
+        max="100"
+        [value]="state.eraserStrength()"
+        (input)="onEraserStrengthInput($event)"
+        class="w-16 text-xs border rounded px-1"
+      />
+    </div>
+  </div>
+  }
   <div class="font-semibold mb-2">{{ 'layers.title' | transloco }}</div>
   <div class="flex flex-col gap-1">
     @for (l of state.layers(); let i = $index; track l.id) {

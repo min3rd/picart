@@ -54,6 +54,11 @@
     "size": "Kích cỡ",
     "title": "Chải"
   },
+  "eraser": {
+    "title": "Tẩy",
+    "size": "Kích cỡ",
+    "strength": "Độ đậm"
+  },
   "file": {
     "new": "Tạo mới",
     "openFromComputer": "Mở từ máy tính",
