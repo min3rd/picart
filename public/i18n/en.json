@@ -3,7 +3,9 @@
     "file": "File",
     "edit": "Edit",
     "tool": "Tool",
-    "help": "Help"
+    "help": "Help",
+    "undo": "Undo",
+    "redo": "Redo"
   },
   "badges": {
     "title": "2D Editor • Alpha"

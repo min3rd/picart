@@ -1,13 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  ViewChild,
-  inject,
-  signal,
-  effect,
-  EffectRef,
-} from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, signal, effect, EffectRef } from '@angular/core';
 import { EditorStateService } from '../../services/editor-state.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
@@ -16,7 +7,6 @@ import { NgIcon } from '@ng-icons/core';
   selector: 'pa-editor-canvas',
   templateUrl: './editor-canvas.component.html',
   styleUrl: './editor-canvas.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe, NgIcon],
   host: {
     class: 'block h-full w-full',

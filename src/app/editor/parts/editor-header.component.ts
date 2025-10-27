@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, inject, OnDestroy, signal } from '@
 import { FileService } from '../../services/file.service';
 import { EditorStateService } from '../../services/editor-state.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { NgIf } from '@angular/common';
 import { UserSettingsService } from '../../services/user-settings.service';
 import { NgIcon } from '@ng-icons/core';
 
@@ -11,10 +10,11 @@ import { NgIcon } from '@ng-icons/core';
   templateUrl: './editor-header.component.html',
   styleUrl: './editor-header.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, NgIcon, NgIf],
+  imports: [TranslocoPipe, NgIcon],
   host: {
-    class: 'block w-full bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-800'
-  }
+    class:
+      'block w-full bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-800',
+  },
 })
 export class EditorHeader {
   readonly fileService = inject(FileService);
@@ -42,7 +42,7 @@ export class EditorHeader {
     }
     this.showFileMenu.set(false);
   }
-  
+
   async onOpenFromComputer() {
     // Use FileService open picker which falls back to input file when needed
     await this.onOpen();

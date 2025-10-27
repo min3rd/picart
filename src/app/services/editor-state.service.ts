@@ -123,6 +123,8 @@ export class EditorStateService {
   // Brush state
   readonly brushSize = signal<number>(1);
   readonly brushColor = signal<string>('#000000');
+  // Eraser strength (0-100 percent). Currently stored for UI and future use.
+  readonly eraserStrength = signal<number>(100);
   // Rectangular selection in logical pixel coords (x,y,width,height) or null
   readonly selectionRect = signal<{ x: number; y: number; width: number; height: number } | null>(
     null
@@ -216,6 +218,10 @@ export class EditorStateService {
           this.brushSize.set(Math.max(1, Math.floor(parsed.brush.size)));
         if (typeof parsed.brush.color === 'string') this.brushColor.set(parsed.brush.color);
       }
+      if (parsed.eraser && typeof parsed.eraser === 'object') {
+        if (typeof parsed.eraser.strength === 'number')
+          this.eraserStrength.set(Math.max(0, Math.min(100, Math.floor(parsed.eraser.strength))));
+      }
 
       // restore selection if present
       if (parsed.selection) {
@@ -288,6 +294,7 @@ export class EditorStateService {
       selectedLayerId: this.selectedLayerId(),
       currentTool: this.currentTool(),
       brush: { size: this.brushSize(), color: this.brushColor() },
+  eraser: { strength: this.eraserStrength() },
       selection: this.selectionRect(),
       selectionPolygon: this.selectionPolygon(),
       frames: this.frames(),
@@ -341,6 +348,10 @@ export class EditorStateService {
       if (parsed.brush && typeof parsed.brush === 'object') {
         if (typeof parsed.brush.size === 'number') this.brushSize.set(Math.max(1, Math.floor(parsed.brush.size)));
         if (typeof parsed.brush.color === 'string') this.brushColor.set(parsed.brush.color);
+      }
+      if (parsed.eraser && typeof parsed.eraser === 'object') {
+        if (typeof parsed.eraser.strength === 'number')
+          this.eraserStrength.set(Math.max(0, Math.min(100, Math.floor(parsed.eraser.strength))));
       }
 
       if (parsed.selection) {
@@ -445,6 +456,15 @@ export class EditorStateService {
     const next = Math.floor(s);
     this.commitMetaChange({ key: 'brushSize', previous: prev, next });
     this.brushSize.set(next);
+    this.saveToStorage();
+  }
+
+  setEraserStrength(strength: number) {
+    const s = Math.max(0, Math.min(100, Math.floor(strength)));
+    const prev = this.eraserStrength();
+    const next = s;
+    this.commitMetaChange({ key: 'eraserStrength', previous: prev, next });
+    this.eraserStrength.set(next);
     this.saveToStorage();
   }
 
