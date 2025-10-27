@@ -16,8 +16,8 @@ import { UserSettingsService } from '../services/user-settings.service';
   host: {
     class: 'block h-dvh w-dvw',
     '(window:pointermove)': 'onWindowMove($event)',
-    '(window:pointerup)': 'onWindowUp()'
-  }
+    '(window:pointerup)': 'onWindowUp()',
+  },
 })
 export class EditorPage {
   private readonly state = inject(EditorStateService);
@@ -72,7 +72,11 @@ export class EditorPage {
   onWindowUp() {
     this.dragging = null;
     // persist panels sizes
-    this.settings.setPanelSizes({ left: this.leftWidth(), right: this.rightWidth(), bottom: this.bottomHeight() });
+    this.settings.setPanelSizes({
+      left: this.leftWidth(),
+      right: this.rightWidth(),
+      bottom: this.bottomHeight(),
+    });
   }
 
   private clamp(v: number, min: number, max: number) {

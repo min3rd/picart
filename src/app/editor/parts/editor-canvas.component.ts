@@ -1,5 +1,4 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
@@ -569,7 +568,7 @@ export class EditorCanvas {
         } else {
           // Brush: use current brush color with translucency and border
           ctx.fillStyle = this.state.brushColor();
-          ctx.globalAlpha = 0.35;
+          ctx.globalAlpha = 0.9;
           ctx.fillRect(x0, y0, wRect, hRect);
           ctx.globalAlpha = 1;
           ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';

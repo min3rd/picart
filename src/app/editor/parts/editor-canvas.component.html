@@ -35,46 +35,69 @@
   <!-- Info panel -->
   @if (infoVisible()) {
   <div
-    class="absolute right-2 top-2 text-sm p-2 bg-neutral-50/90 dark:bg-neutral-900/70 rounded-sm shadow-sm"
+    #canvasInfoPanel
+    class="absolute right-2 top-2 w-56 text-sm bg-white/80 dark:bg-neutral-900/70 backdrop-blur-md rounded-lg shadow-lg border border-neutral-200/60 dark:border-neutral-800/60 overflow-hidden"
   >
-    <div class="flex items-center gap-2">
-      <div class="text-xs opacity-80">{{ 'canvas.size' | transloco }}</div>
+    <div class="flex items-center px-3 py-2">
+      <div class="flex items-center gap-2">
+        <ng-icon
+          name="bootstrapInfoCircle"
+          class="w-5 h-5 text-neutral-700 dark:text-neutral-200"
+        ></ng-icon>
+        <div class="text-sm font-medium text-neutral-800 dark:text-neutral-100">
+          {{ 'canvas.infoTitle' | transloco }}
+        </div>
+      </div>
       <div class="ml-auto flex items-center gap-2">
+        <div
+          class="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200"
+        >
+          {{ scale().toFixed(2) }}x
+        </div>
         <button
           type="button"
-          class="w-6 h-6 grid place-items-center"
-          (click)="infoVisible.set(!infoVisible())"
+          class="w-7 h-7 grid place-items-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          (click)="infoVisible.set(false)"
+          aria-label="Close info"
         >
-          <ng-icon name="eye" class="w-4 h-4"></ng-icon>
+          <ng-icon name="featherMinus" class="w-4 h-4 text-neutral-700 dark:text-neutral-200"></ng-icon>
         </button>
       </div>
     </div>
-    <div class="mt-2 text-xs">
-      <div class="flex items-center gap-2">
-        <span>{{ 'canvas.width' | transloco }}:</span>
+
+    <div class="border-t border-neutral-200/50 dark:border-neutral-800/50 px-3 py-3">
+      <div class="grid grid-cols-2 gap-2 items-center">
+        <label class="text-xs text-neutral-600 dark:text-neutral-300">{{
+          'canvas.width' | transloco
+        }}</label>
         <input
           type="number"
           [value]="state.canvasWidth()"
           (input)="setCanvasWidth($event)"
-          class="w-12 text-xs border rounded px-1"
+          class="w-full text-sm rounded-md border border-neutral-200 dark:border-neutral-800 px-2 py-1 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100"
           min="1"
-          max="1024"
+          max="4096"
         />
-      </div>
-      <div class="flex items-center gap-2">
-        <span>{{ 'canvas.height' | transloco }}:</span>
+
+        <label class="text-xs text-neutral-600 dark:text-neutral-300">{{
+          'canvas.height' | transloco
+        }}</label>
         <input
           type="number"
           [value]="state.canvasHeight()"
           (input)="setCanvasHeight($event)"
-          class="w-12 text-xs border rounded px-1"
+          class="w-full text-sm rounded-md border border-neutral-200 dark:border-neutral-800 px-2 py-1 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100"
           min="1"
-          max="1024"
+          max="4096"
         />
       </div>
-      <div>
-        {{ 'canvas.saved' | transloco }}:
-        {{ state.canvasSaved() ? ('yes' | transloco) : ('no' | transloco) }}
+
+      <div class="mt-3 text-xs text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
+        <ng-icon name="check" class="w-4 h-4 text-green-500" *ngIf="state.canvasSaved()"></ng-icon>
+        <ng-icon name="clock" class="w-4 h-4 text-amber-400" *ngIf="!state.canvasSaved()"></ng-icon>
+        <div>
+          {{ state.canvasSaved() ? ('canvas.saved' | transloco) : ('canvas.unsaved' | transloco) }}
+        </div>
       </div>
     </div>
   </div>
@@ -89,7 +112,7 @@
       (click)="infoVisible.set(true)"
       aria-label="Open info"
     >
-      <ng-icon name="eye" class="w-5 h-5 text-neutral-800 dark:text-neutral-200"></ng-icon>
+      <ng-icon name="bootstrapChevronLeft" class="w-5 h-5 text-neutral-800 dark:text-neutral-200"></ng-icon>
     </button>
   </div>
   }
