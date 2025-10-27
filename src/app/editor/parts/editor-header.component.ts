@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnDestroy, signal } from '@angular/core';
 import { FileService } from '../../services/file.service';
 import { EditorStateService } from '../../services/editor-state.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { NgIf } from '@angular/common';
 import { UserSettingsService } from '../../services/user-settings.service';
 import { NgIcon } from '@ng-icons/core';
 
@@ -10,7 +11,7 @@ import { NgIcon } from '@ng-icons/core';
   templateUrl: './editor-header.component.html',
   styleUrl: './editor-header.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, NgIcon],
+  imports: [TranslocoPipe, NgIcon, NgIf],
   host: {
     class: 'block w-full bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-800'
   }
@@ -20,13 +21,31 @@ export class EditorHeader {
   readonly state = inject(EditorStateService);
   readonly i18n = inject(TranslocoService);
   readonly settings = inject(UserSettingsService);
+  readonly showFileMenu = signal(false);
+  private hoverOpenTimer?: number;
+  private hoverCloseTimer?: number;
 
   async onNewProject() {
-    // Minimal new project; in future wire modal
-    // No-op here, just placeholder
+    // Reset to a minimal new project
+    this.state.resetToNewProject();
+    this.showFileMenu.set(false);
   }
   async onOpen() {
-    await this.fileService.openProjectFromPicker();
+    const parsed = await this.fileService.openProjectFromPicker();
+    if (parsed) {
+      // try to restore using editor snapshot shape; fallback to raw project
+      try {
+        this.state.restoreProjectSnapshot(parsed as any);
+      } catch (e) {
+        console.warn('Open returned project but failed to restore into editor state', e);
+      }
+    }
+    this.showFileMenu.set(false);
+  }
+  
+  async onOpenFromComputer() {
+    // Use FileService open picker which falls back to input file when needed
+    await this.onOpen();
   }
   async onSave() {
     // Save current project to localStorage via EditorStateService
@@ -36,6 +55,68 @@ export class EditorHeader {
     } catch (e) {
       console.error('Save failed', e);
     }
+  }
+
+  async onSaveToComputer() {
+    try {
+      const snapshot = this.state.exportProjectSnapshot();
+      const name = `${(snapshot as any).name || 'project'}.picart`;
+      this.fileService.exportProjectToDownload(snapshot as any, name);
+    } catch (e) {
+      console.error('Save to computer failed', e);
+    }
+    this.showFileMenu.set(false);
+  }
+
+  // Open the file menu when user hovers over the header. A short delay avoids
+  // accidental flicker when moving the pointer across the header.
+  openFileMenuHover() {
+    // clear any pending close
+    if (this.hoverCloseTimer) {
+      clearTimeout(this.hoverCloseTimer);
+      this.hoverCloseTimer = undefined;
+    }
+    // schedule open
+    if (!this.showFileMenu()) {
+      this.hoverOpenTimer = window.setTimeout(() => {
+        this.showFileMenu.set(true);
+        this.hoverOpenTimer = undefined;
+      }, 150);
+    }
+  }
+
+  // Close the file menu when pointer leaves; use a slight delay so submenu can
+  // be focused without immediately closing.
+  closeFileMenuHover() {
+    if (this.hoverOpenTimer) {
+      clearTimeout(this.hoverOpenTimer);
+      this.hoverOpenTimer = undefined;
+    }
+    if (this.showFileMenu()) {
+      this.hoverCloseTimer = window.setTimeout(() => {
+        this.showFileMenu.set(false);
+        this.hoverCloseTimer = undefined;
+      }, 200);
+    }
+  }
+
+  // Keep menu open if it receives focus (keyboard navigation); close when it
+  // loses focus.
+  onMenuFocusIn() {
+    if (this.hoverCloseTimer) {
+      clearTimeout(this.hoverCloseTimer);
+      this.hoverCloseTimer = undefined;
+    }
+    this.showFileMenu.set(true);
+  }
+
+  onMenuFocusOut() {
+    // close shortly after focus leaves
+    if (this.hoverCloseTimer) clearTimeout(this.hoverCloseTimer);
+    this.hoverCloseTimer = window.setTimeout(() => {
+      this.showFileMenu.set(false);
+      this.hoverCloseTimer = undefined;
+    }, 150);
   }
 
   onUndo() {
@@ -82,6 +163,14 @@ export class EditorHeader {
   ngOnDestroy(): void {
     if (typeof window !== 'undefined') {
       window.removeEventListener('keydown', this.keydownHandler as EventListener);
+    }
+    if (this.hoverOpenTimer) {
+      clearTimeout(this.hoverOpenTimer);
+      this.hoverOpenTimer = undefined;
+    }
+    if (this.hoverCloseTimer) {
+      clearTimeout(this.hoverCloseTimer);
+      this.hoverCloseTimer = undefined;
     }
   }
 

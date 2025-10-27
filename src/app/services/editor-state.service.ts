@@ -294,6 +294,94 @@ export class EditorStateService {
     } as const;
   }
 
+  /**
+   * Restore an arbitrary project-like snapshot into the editor state.
+   * Accepts the same shape produced by exportProjectSnapshot() and used for localStorage.
+   */
+  restoreProjectSnapshot(parsed: any): boolean {
+    if (!parsed || typeof parsed !== 'object') return false;
+    try {
+      const canvas = parsed.canvas || {};
+      const w = Number(canvas.width) || this.canvasWidth();
+      const h = Number(canvas.height) || this.canvasHeight();
+      this.canvasWidth.set(Math.max(1, Math.floor(w)));
+      this.canvasHeight.set(Math.max(1, Math.floor(h)));
+
+      if (parsed.layers && Array.isArray(parsed.layers) && parsed.layers.length > 0) {
+        const layers = (parsed.layers as any[]).map((l) => ({ id: l.id, name: l.name, visible: !!l.visible, locked: !!l.locked }));
+        this.layers.set(layers);
+      }
+
+      // restore buffers if present
+      this.layerPixels = new Map<string, string[]>();
+      if (parsed.layerBuffers && typeof parsed.layerBuffers === 'object') {
+        for (const k of Object.keys(parsed.layerBuffers)) {
+          const buf = parsed.layerBuffers[k];
+          if (Array.isArray(buf)) {
+            const need = Math.max(1, this.canvasWidth()) * Math.max(1, this.canvasHeight());
+            const next = new Array<string>(need).fill('');
+            for (let i = 0; i < Math.min(buf.length, need); i++) next[i] = buf[i] || '';
+            this.layerPixels.set(k, next);
+          }
+        }
+      }
+      for (const l of this.layers()) {
+        if (!this.layerPixels.has(l.id)) this.ensureLayerBuffer(l.id, this.canvasWidth(), this.canvasHeight());
+      }
+
+      if (parsed.selectedLayerId && typeof parsed.selectedLayerId === 'string') {
+        const exists = this.layers().some((x) => x.id === parsed.selectedLayerId);
+        if (exists) this.selectedLayerId.set(parsed.selectedLayerId);
+      }
+
+      if (parsed.currentTool && typeof parsed.currentTool === 'string') {
+        const exists = this.tools().some((t) => t.id === parsed.currentTool);
+        if (exists) this.currentTool.set(parsed.currentTool as any);
+      }
+      if (parsed.brush && typeof parsed.brush === 'object') {
+        if (typeof parsed.brush.size === 'number') this.brushSize.set(Math.max(1, Math.floor(parsed.brush.size)));
+        if (typeof parsed.brush.color === 'string') this.brushColor.set(parsed.brush.color);
+      }
+
+      if (parsed.selection) {
+        const s = parsed.selection as any;
+        if (s && typeof s === 'object' && typeof s.x === 'number') {
+          this.selectionRect.set({ x: Math.max(0, Math.floor(s.x)), y: Math.max(0, Math.floor(s.y)), width: Math.max(0, Math.floor(s.width || 0)), height: Math.max(0, Math.floor(s.height || 0)) });
+        }
+      }
+      if (parsed.selectionPolygon && Array.isArray(parsed.selectionPolygon)) {
+        this.selectionPolygon.set((parsed.selectionPolygon as any[]).map((p) => ({ x: Math.floor(p.x), y: Math.floor(p.y) })));
+        if (this.selectionPolygon()) this.selectionShape.set('lasso');
+      }
+
+      if (parsed.frames && Array.isArray(parsed.frames)) this.frames.set((parsed.frames as any[]).map((f) => ({ id: f.id, name: f.name, duration: Number(f.duration) || 100 })));
+
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(true);
+      return true;
+    } catch (e) {
+      console.warn('Failed to restore project snapshot', e);
+      return false;
+    }
+  }
+
+  resetToNewProject(width = 64, height = 64) {
+    this.canvasWidth.set(Math.max(1, Math.floor(width)));
+    this.canvasHeight.set(Math.max(1, Math.floor(height)));
+    const id = `l_${Date.now().toString(36).slice(2, 8)}`;
+    const item: LayerItem = { id, name: 'Layer 1', visible: true, locked: false };
+    this.layers.set([item]);
+    this.selectedLayerId.set(item.id);
+    this.layerPixels = new Map<string, string[]>();
+    this.ensureLayerBuffer(item.id, this.canvasWidth(), this.canvasHeight());
+    this.selectionRect.set(null);
+    this.selectionPolygon.set(null);
+    this.selectionShape.set('rect');
+    this.clearHistory();
+    this.layerPixelsVersion.update((v) => v + 1);
+    this.setCanvasSaved(true);
+  }
+
   // Save a serialized snapshot of the current project into localStorage.
   saveProjectToLocalStorage(): boolean {
     try {

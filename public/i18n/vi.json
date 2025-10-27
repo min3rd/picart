@@ -44,11 +44,18 @@
     "saved": "Đã lưu",
     "size": "Kích thước vải",
     "width": "Chiều rộng",
-    "infoTitle": "Thông tin"
+    "infoTitle": "Thông tin",
+    "unsaved": "Chưa lưu"
   },
   "brush": {
     "color": "Màu sắc",
     "size": "Kích cỡ",
     "title": "Chải"
+  },
+  "file": {
+    "new": "Tạo mới",
+    "openFromComputer": "Mở từ máy tính",
+    "saveToComputer": "Lưu về máy tính",
+    "saveLocal": "Lưu"
   }
 }

@@ -44,11 +44,18 @@
     "width": "Width",
     "height": "Height",
     "saved": "Saved",
-    "infoTitle": "Properties"
+    "infoTitle": "Properties",
+    "unsaved": "Unsaved"
   },
   "brush": {
     "title": "Brush",
     "size": "Size",
     "color": "Color"
+  },
+  "file": {
+    "new": "New",
+    "openFromComputer": "Open from computer",
+    "saveToComputer": "Save to computer",
+    "saveLocal": "Save"
   }
 }

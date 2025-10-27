@@ -1,7 +1,16 @@
 <div class="flex items-center gap-4 px-3 h-10 text-sm select-none">
   <div class="font-semibold tracking-wide">Picart</div>
   <nav class="flex items-center gap-2">
-    <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700">{{ 'menu.file' | transloco }}</button>
+    <div class="relative" (mouseenter)="openFileMenuHover()" (mouseleave)="closeFileMenuHover()">
+      <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="showFileMenu.set(!showFileMenu())" [attr.aria-expanded]="showFileMenu()">{{ 'menu.file' | transloco }}</button>
+      <div *ngIf="showFileMenu()" class="absolute mt-1 left-0 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded shadow-md z-50 w-44" tabindex="0" (focusin)="onMenuFocusIn()" (focusout)="onMenuFocusOut()">
+        <button class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" (click)="onNewProject()">{{ 'file.new' | transloco }}</button>
+        <button class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" (click)="onOpenFromComputer()">{{ 'file.openFromComputer' | transloco }}</button>
+        <button class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" (click)="onSaveToComputer()">{{ 'file.saveToComputer' | transloco }}</button>
+        <div class="border-t border-neutral-100 dark:border-neutral-700"></div>
+        <button class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" (click)="onSave()">{{ 'file.saveLocal' | transloco }}</button>
+      </div>
+    </div>
     <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700">{{ 'menu.edit' | transloco }}</button>
     <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="onUndo()" title="Undo (Ctrl+Z)">Undo</button>
     <button type="button" class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700" (click)="onRedo()" title="Redo (Ctrl+Y)">Redo</button>
