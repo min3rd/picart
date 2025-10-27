@@ -1,4 +1,5 @@
 import { Injectable, Signal, computed, signal } from '@angular/core';
+import { Observable, of } from 'rxjs';
 
 export type ToolId =
   | 'select-layer'
@@ -149,8 +150,120 @@ export class EditorStateService {
   // Current in-progress action (null when not recording)
   private currentAction: CurrentAction | null = null;
 
-  constructor() {
-    this.loadFromStorage();
+  // Attempt to load a full project snapshot from localStorage (if present).
+  // This complements the lightweight editor settings loaded by loadFromStorage().
+  loadProjectFromLocalStorage(): Observable<boolean> {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return of(false);
+      const raw = window.localStorage.getItem(this.PROJECT_STORAGE_KEY);
+
+      if (!raw) return of(false);
+      const parsed = JSON.parse(raw) as any;
+      if (!parsed) return of(false);
+
+      // Basic validation and restore
+      const canvas = parsed.canvas || {};
+      const w = Number(canvas.width) || this.canvasWidth();
+      const h = Number(canvas.height) || this.canvasHeight();
+      this.canvasWidth.set(Math.max(1, Math.floor(w)));
+      this.canvasHeight.set(Math.max(1, Math.floor(h)));
+
+      // Restore layers if provided
+      if (parsed.layers && Array.isArray(parsed.layers) && parsed.layers.length > 0) {
+        const layers = (parsed.layers as any[]).map((l) => ({
+          id: l.id,
+          name: l.name,
+          visible: !!l.visible,
+          locked: !!l.locked,
+        }));
+        this.layers.set(layers);
+      }
+
+      // Restore pixel buffers if provided (expecting object map)
+      this.layerPixels = new Map<string, string[]>();
+      if (parsed.layerBuffers && typeof parsed.layerBuffers === 'object') {
+        for (const k of Object.keys(parsed.layerBuffers)) {
+          const buf = parsed.layerBuffers[k];
+          if (Array.isArray(buf)) {
+            // ensure length matches w*h by resizing/padding/truncating
+            const need = Math.max(1, this.canvasWidth()) * Math.max(1, this.canvasHeight());
+            const next = new Array<string>(need).fill('');
+            for (let i = 0; i < Math.min(buf.length, need); i++) next[i] = buf[i] || '';
+            this.layerPixels.set(k, next);
+          }
+        }
+      }
+
+      // Ensure every layer has a buffer
+      for (const l of this.layers()) {
+        if (!this.layerPixels.has(l.id))
+          this.ensureLayerBuffer(l.id, this.canvasWidth(), this.canvasHeight());
+      }
+
+      // restore selected layer if provided
+      if (parsed.selectedLayerId && typeof parsed.selectedLayerId === 'string') {
+        const exists = this.layers().some((x) => x.id === parsed.selectedLayerId);
+        if (exists) this.selectedLayerId.set(parsed.selectedLayerId);
+      }
+
+      // restore tool + brush
+      if (parsed.currentTool && typeof parsed.currentTool === 'string') {
+        const exists = this.tools().some((t) => t.id === parsed.currentTool);
+        if (exists) this.currentTool.set(parsed.currentTool as any);
+      }
+      if (parsed.brush && typeof parsed.brush === 'object') {
+        if (typeof parsed.brush.size === 'number')
+          this.brushSize.set(Math.max(1, Math.floor(parsed.brush.size)));
+        if (typeof parsed.brush.color === 'string') this.brushColor.set(parsed.brush.color);
+      }
+
+      // restore selection if present
+      if (parsed.selection) {
+        const s = parsed.selection as any;
+        if (s && typeof s === 'object') {
+          const rect = s;
+          if (rect && typeof rect.x === 'number') {
+            this.selectionRect.set({
+              x: Math.max(0, Math.floor(rect.x)),
+              y: Math.max(0, Math.floor(rect.y)),
+              width: Math.max(0, Math.floor(rect.width || 0)),
+              height: Math.max(0, Math.floor(rect.height || 0)),
+            });
+          }
+        }
+      }
+      if (parsed.selectionPolygon && Array.isArray(parsed.selectionPolygon)) {
+        this.selectionPolygon.set(
+          (parsed.selectionPolygon as any[]).map((p) => ({
+            x: Math.floor(p.x),
+            y: Math.floor(p.y),
+          }))
+        );
+        // if polygon exists, set shape
+        if (this.selectionPolygon()) this.selectionShape.set('lasso');
+      }
+
+      // frames
+      if (parsed.frames && Array.isArray(parsed.frames))
+        this.frames.set(
+          (parsed.frames as any[]).map((f) => ({
+            id: f.id,
+            name: f.name,
+            duration: Number(f.duration) || 100,
+          }))
+        );
+
+      // bump version so UI redraws
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(true);
+      return of(true);
+    } catch (e) {
+      // ignore parse errors but log
+      try {
+        console.warn('Failed to load project from localStorage', e);
+      } catch {}
+      return of(false);
+    }
   }
 
   // Export the current editor state into a serializable project-like object
