@@ -63,17 +63,37 @@ interface CurrentAction {
 export class EditorStateService {
   // Tools
   readonly tools = signal<ToolDef[]>([
-    { id: 'select-layer', name: 'Select layer', icon: 'cursor', labelKey: 'tools.selectLayer' },
-    { id: 'rect-select', name: 'Rect select', icon: 'rectSelect', labelKey: 'tools.rectSelect' },
-    { id: 'ellipse-select', name: 'Ellipse select', icon: 'ellipseSelect', labelKey: 'tools.ellipseSelect' },
-    { id: 'lasso-select', name: 'Lasso select', icon: 'lassoSelect', labelKey: 'tools.lassoSelect' },
-    { id: 'eyedropper', name: 'Eyedropper', icon: 'eyedropper', labelKey: 'tools.eyedropper' },
-    { id: 'fill', name: 'Fill', icon: 'fill', labelKey: 'tools.fill' },
-  { id: 'brush', name: 'Brush', icon: 'fill', labelKey: 'tools.brush' },
-    { id: 'eraser', name: 'Eraser', icon: 'eraser', labelKey: 'tools.eraser' },
-    { id: 'line', name: 'Line', icon: 'line', labelKey: 'tools.line' },
-    { id: 'circle', name: 'Circle', icon: 'circle', labelKey: 'tools.circle' },
-    { id: 'square', name: 'Square', icon: 'square', labelKey: 'tools.square' },
+    {
+      id: 'select-layer',
+      name: 'Select layer',
+      icon: 'featherMousePointer',
+      labelKey: 'tools.selectLayer',
+    },
+    { id: 'rect-select', name: 'Rect select', icon: 'featherSquare', labelKey: 'tools.rectSelect' },
+    {
+      id: 'ellipse-select',
+      name: 'Ellipse select',
+      icon: 'featherCircle',
+      labelKey: 'tools.ellipseSelect',
+    },
+    {
+      id: 'lasso-select',
+      name: 'Lasso select',
+      icon: 'featherOctagon',
+      labelKey: 'tools.lassoSelect',
+    },
+    {
+      id: 'eyedropper',
+      name: 'Eyedropper',
+      icon: 'bootstrapEyedropper',
+      labelKey: 'tools.eyedropper',
+    },
+    { id: 'fill', name: 'Fill', icon: 'bootstrapDroplet', labelKey: 'tools.fill' },
+    { id: 'brush', name: 'Brush', icon: 'bootstrapBrush', labelKey: 'tools.brush' },
+    { id: 'eraser', name: 'Eraser', icon: 'bootstrapEraser', labelKey: 'tools.eraser' },
+    { id: 'line', name: 'Line', icon: 'bootstrapVectorPen', labelKey: 'tools.line' },
+    { id: 'circle', name: 'Circle', icon: 'bootstrapCircle', labelKey: 'tools.circle' },
+    { id: 'square', name: 'Square', icon: 'bootstrapSquare', labelKey: 'tools.square' },
   ]);
 
   readonly currentTool = signal<ToolId>('select-layer');
@@ -103,7 +123,9 @@ export class EditorStateService {
   readonly brushSize = signal<number>(1);
   readonly brushColor = signal<string>('#000000');
   // Rectangular selection in logical pixel coords (x,y,width,height) or null
-  readonly selectionRect = signal<{ x: number; y: number; width: number; height: number } | null>(null);
+  readonly selectionRect = signal<{ x: number; y: number; width: number; height: number } | null>(
+    null
+  );
   // selection shape: 'rect' | 'ellipse' | 'lasso'
   readonly selectionShape = signal<'rect' | 'ellipse' | 'lasso'>('rect');
   // For lasso selections we store the polygon as an array of logical points
@@ -153,8 +175,8 @@ export class EditorStateService {
       selectedLayerId: this.selectedLayerId(),
       currentTool: this.currentTool(),
       brush: { size: this.brushSize(), color: this.brushColor() },
-  selection: this.selectionRect(),
-  selectionPolygon: this.selectionPolygon(),
+      selection: this.selectionRect(),
+      selectionPolygon: this.selectionPolygon(),
       frames: this.frames(),
     } as const;
   }
@@ -196,7 +218,11 @@ export class EditorStateService {
 
   setCanvasSize(width: number, height: number) {
     const prevSnapshot = this.snapshotLayersAndBuffers();
-    const prevSize = { width: this.canvasWidth(), height: this.canvasHeight(), buffers: prevSnapshot.buffers };
+    const prevSize = {
+      width: this.canvasWidth(),
+      height: this.canvasHeight(),
+      buffers: prevSnapshot.buffers,
+    };
     this.canvasWidth.set(width);
     this.canvasHeight.set(height);
     // Ensure all existing layer buffers match the new canvas dimensions
@@ -210,7 +236,10 @@ export class EditorStateService {
   }
 
   setBrushSize(size: number) {
-    const s = Math.max(1, Math.min(size, Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()))));
+    const s = Math.max(
+      1,
+      Math.min(size, Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight())))
+    );
     const prev = this.brushSize();
     const next = Math.floor(s);
     this.commitMetaChange({ key: 'brushSize', previous: prev, next });
@@ -260,16 +289,22 @@ export class EditorStateService {
   }
 
   // Apply a square brush/eraser to a given layer at logical pixel x,y.
-  applyBrushToLayer(layerId: string, x: number, y: number, brushSize: number, color: string | null) {
+  applyBrushToLayer(
+    layerId: string,
+    x: number,
+    y: number,
+    brushSize: number,
+    color: string | null
+  ) {
     const buf = this.layerPixels.get(layerId);
     if (!buf) return false;
     const w = Math.max(1, this.canvasWidth());
     const h = Math.max(1, this.canvasHeight());
     const half = Math.floor((Math.max(1, brushSize) - 1) / 2);
     let changed = false;
-  const sel = this.selectionRect();
-  const selShape = this.selectionShape();
-  const selPoly = this.selectionPolygon();
+    const sel = this.selectionRect();
+    const selShape = this.selectionShape();
+    const selPoly = this.selectionPolygon();
     for (let yy = Math.max(0, y - half); yy <= Math.min(h - 1, y + half); yy++) {
       for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
         const idx = yy * w + xx;
@@ -291,7 +326,8 @@ export class EditorStateService {
             const py = yy + 0.5;
             if (!this._pointInPolygon(px, py, selPoly)) continue;
           } else {
-            if (xx < sel.x || xx >= sel.x + sel.width || yy < sel.y || yy >= sel.y + sel.height) continue;
+            if (xx < sel.x || xx >= sel.x + sel.width || yy < sel.y || yy >= sel.y + sel.height)
+              continue;
           }
         }
 
@@ -332,9 +368,9 @@ export class EditorStateService {
     if (target === newVal) return 0;
 
     let changed = 0;
-  const sel = this.selectionRect();
-  const shape = this.selectionShape();
-  const selPoly = this.selectionPolygon();
+    const sel = this.selectionRect();
+    const shape = this.selectionShape();
+    const selPoly = this.selectionPolygon();
     const stack: number[] = [idx0];
     while (stack.length > 0) {
       const idx = stack.pop() as number;
@@ -356,8 +392,8 @@ export class EditorStateService {
       const y0 = Math.floor(idx / w);
       const x0 = idx - y0 * w;
       // neighbors: left, right, up, down
-  if (sel) {
-  if (shape === 'ellipse') {
+      if (sel) {
+        if (shape === 'ellipse') {
           // push neighbor only if inside ellipse bounds
           const cx = sel.x + sel.width / 2 - 0.5;
           const cy = sel.y + sel.height / 2 - 0.5;
@@ -377,7 +413,8 @@ export class EditorStateService {
           const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
             const px = nx + 0.5;
             const py = ny + 0.5;
-            if (this._pointInPolygon(px, py, selPoly) && buf[idxToPush] === target) stack.push(idxToPush);
+            if (this._pointInPolygon(px, py, selPoly) && buf[idxToPush] === target)
+              stack.push(idxToPush);
           };
           if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
           if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
@@ -386,9 +423,11 @@ export class EditorStateService {
         } else {
           // rect selection
           if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x) stack.push(idx - 1);
-          if (x0 < sel.x + sel.width - 1 && buf[idx + 1] === target && x0 + 1 < sel.x + sel.width) stack.push(idx + 1);
+          if (x0 < sel.x + sel.width - 1 && buf[idx + 1] === target && x0 + 1 < sel.x + sel.width)
+            stack.push(idx + 1);
           if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y) stack.push(idx - w);
-          if (y0 < sel.y + sel.height - 1 && buf[idx + w] === target && y0 + 1 < sel.y + sel.height) stack.push(idx + w);
+          if (y0 < sel.y + sel.height - 1 && buf[idx + w] === target && y0 + 1 < sel.y + sel.height)
+            stack.push(idx + w);
         }
       } else {
         if (x0 > 0) stack.push(idx - 1);
@@ -420,12 +459,24 @@ export class EditorStateService {
     // collect pixel changes
     const pixelChanges: LayerChange[] = [];
     for (const [layerId, v] of map.entries()) {
-      pixelChanges.push({ layerId, indices: v.indices.slice(), previous: v.previous.slice(), next: v.next.slice() });
+      pixelChanges.push({
+        layerId,
+        indices: v.indices.slice(),
+        previous: v.previous.slice(),
+        next: v.next.slice(),
+      });
     }
-    const metaChanges = this.currentAction.meta && this.currentAction.meta.length ? this.currentAction.meta.slice() : undefined;
+    const metaChanges =
+      this.currentAction.meta && this.currentAction.meta.length
+        ? this.currentAction.meta.slice()
+        : undefined;
     // Only push an entry if there are pixel changes or meta changes
     if (pixelChanges.length > 0 || (metaChanges && metaChanges.length > 0)) {
-      const entry: HistoryEntry = { pixelChanges: pixelChanges.length > 0 ? pixelChanges : undefined, metaChanges, description: this.currentAction.description };
+      const entry: HistoryEntry = {
+        pixelChanges: pixelChanges.length > 0 ? pixelChanges : undefined,
+        metaChanges,
+        description: this.currentAction.description,
+      };
       this.pushUndo(entry);
     }
     this.currentAction = null;
@@ -474,7 +525,12 @@ export class EditorStateService {
       if (p.x > maxX) maxX = p.x;
       if (p.y > maxY) maxY = p.y;
     }
-    this.selectionRect.set({ x: Math.max(0, Math.floor(minX)), y: Math.max(0, Math.floor(minY)), width: Math.max(1, Math.ceil(maxX - minX) + 1), height: Math.max(1, Math.ceil(maxY - minY) + 1) });
+    this.selectionRect.set({
+      x: Math.max(0, Math.floor(minX)),
+      y: Math.max(0, Math.floor(minY)),
+      width: Math.max(1, Math.ceil(maxX - minX) + 1),
+      height: Math.max(1, Math.ceil(maxY - minY) + 1),
+    });
   }
 
   // Point-in-polygon test (ray-casting). px/py are in same coordinate space as polygon points.
@@ -485,7 +541,8 @@ export class EditorStateService {
         yi = poly[i].y;
       const xj = poly[j].x,
         yj = poly[j].y;
-      const intersect = yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi + Number.EPSILON) + xi;
+      const intersect =
+        yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi + Number.EPSILON) + xi;
       if (intersect) inside = !inside;
     }
     return inside;
@@ -512,7 +569,11 @@ export class EditorStateService {
     const shape = this.selectionShape();
     if (shape === 'lasso') {
       const poly = this.selectionPolygon();
-      this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: { rect, shape, polygon: poly } });
+      this.commitMetaChange({
+        key: 'selectionSnapshot',
+        previous: null,
+        next: { rect, shape, polygon: poly },
+      });
     } else {
       this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: { rect, shape } });
     }
@@ -526,7 +587,11 @@ export class EditorStateService {
     this.selectionRect.set(null);
     this.selectionShape.set('rect');
     this.selectionPolygon.set(null);
-    this.commitMetaChange({ key: 'selectionSnapshot', previous: { rect: prev, shape: prevShape, polygon: prevPoly }, next: null });
+    this.commitMetaChange({
+      key: 'selectionSnapshot',
+      previous: { rect: prev, shape: prevShape, polygon: prevPoly },
+      next: null,
+    });
   }
 
   // Snapshot current buffers and layers for structural operations
@@ -602,7 +667,12 @@ export class EditorStateService {
             this.selectionRect.set(null);
             this.selectionShape.set('rect');
           } else {
-            this.selectionRect.set({ x: Math.max(0, Math.floor(rr.x)), y: Math.max(0, Math.floor(rr.y)), width: Math.max(0, Math.floor(rr.width)), height: Math.max(0, Math.floor(rr.height)) });
+            this.selectionRect.set({
+              x: Math.max(0, Math.floor(rr.x)),
+              y: Math.max(0, Math.floor(rr.y)),
+              width: Math.max(0, Math.floor(rr.width)),
+              height: Math.max(0, Math.floor(rr.height)),
+            });
             this.selectionShape.set(shape === 'ellipse' ? 'ellipse' : 'rect');
           }
         }
@@ -712,7 +782,11 @@ export class EditorStateService {
       if (typeof window === 'undefined' || !window.localStorage) return;
       const raw = window.localStorage.getItem(this.STORAGE_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<{ currentTool: ToolId; brushSize: number; brushColor: string }> | null;
+      const parsed = JSON.parse(raw) as Partial<{
+        currentTool: ToolId;
+        brushSize: number;
+        brushColor: string;
+      }> | null;
       if (!parsed) return;
       if (parsed.currentTool && typeof parsed.currentTool === 'string') {
         // validate tool id exists in tools list
@@ -768,7 +842,12 @@ export class EditorStateService {
   addLayer(name?: string) {
     const prevSnapshot = this.snapshotLayersAndBuffers();
     const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    const item: LayerItem = { id, name: name || `Layer ${this.layers().length + 1}`, visible: true, locked: false };
+    const item: LayerItem = {
+      id,
+      name: name || `Layer ${this.layers().length + 1}`,
+      visible: true,
+      locked: false,
+    };
     // Add to top (insert at index 0 so the new layer becomes the topmost in the UI)
     this.layers.update((arr) => [item, ...arr]);
     this.selectedLayerId.set(item.id);

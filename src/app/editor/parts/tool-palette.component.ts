@@ -10,8 +10,8 @@ import { TranslocoPipe } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgIcon, TranslocoPipe],
   host: {
-    class: 'block h-full'
-  }
+    class: 'block h-full',
+  },
 })
 export class ToolPalette {
   readonly state = inject(EditorStateService);

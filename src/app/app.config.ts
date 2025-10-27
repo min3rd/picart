@@ -11,24 +11,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideTransloco } from '@jsverse/transloco';
 import { TranslocoHttpLoader } from './i18n/transloco-loader';
 import { provideIcons } from '@ng-icons/core';
-import {
-  heroEye,
-  heroEyeSlash,
-  heroTrash,
-  heroPlus,
-  heroCursorArrowRays,
-  heroRectangleGroup,
-  heroCircleStack,
-  heroSparkles,
-  heroEyeDropper,
-  heroPaintBrush,
-  heroBackspace,
-  heroMinus,
-  heroSquare2Stack,
-  heroBars3,
-  heroSun,
-  heroMoon,
-} from '@ng-icons/heroicons/outline';
+import * as heroIcons from '@ng-icons/heroicons/outline';
+import * as featherIcons from '@ng-icons/feather-icons';
+import * as bootstrapIcons from '@ng-icons/bootstrap-icons';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -36,25 +21,7 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(),
-    provideIcons({
-      eye: heroEye,
-      eyeSlash: heroEyeSlash,
-      trash: heroTrash,
-      cursor: heroCursorArrowRays,
-      rectSelect: heroRectangleGroup,
-      ellipseSelect: heroCircleStack,
-      lassoSelect: heroSparkles,
-      eyedropper: heroEyeDropper,
-      fill: heroPaintBrush,
-      eraser: heroBackspace,
-      line: heroMinus,
-      circle: heroCircleStack,
-      square: heroSquare2Stack,
-      plus: heroPlus,
-      drag: heroBars3,
-      sun: heroSun,
-      moon: heroMoon,
-    }),
+    provideIcons({ ...heroIcons, ...featherIcons, ...bootstrapIcons }),
     provideTransloco({
       config: {
         availableLangs: ['en', 'vi'],
