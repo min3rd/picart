@@ -104,6 +104,8 @@ export class EditorStateService {
   readonly brushColor = signal<string>('#000000');
   // Rectangular selection in logical pixel coords (x,y,width,height) or null
   readonly selectionRect = signal<{ x: number; y: number; width: number; height: number } | null>(null);
+  // selection shape: 'rect' or 'ellipse'
+  readonly selectionShape = signal<'rect' | 'ellipse'>('rect');
 
   // Per-layer pixel buffers (simple, in-memory). Each buffer is a flat array of
   // color strings ('' means transparent). We expose a version signal that
@@ -262,15 +264,26 @@ export class EditorStateService {
     const h = Math.max(1, this.canvasHeight());
     const half = Math.floor((Math.max(1, brushSize) - 1) / 2);
     let changed = false;
+    const sel = this.selectionRect();
+    const selShape = this.selectionShape();
     for (let yy = Math.max(0, y - half); yy <= Math.min(h - 1, y + half); yy++) {
       for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
         const idx = yy * w + xx;
         const newVal = color === null ? '' : color;
         const oldVal = buf[idx] || '';
         // If a selection exists, skip pixels outside the selection
-        const sel = this.selectionRect();
         if (sel) {
-          if (xx < sel.x || xx >= sel.x + sel.width || yy < sel.y || yy >= sel.y + sel.height) continue;
+          if (selShape === 'ellipse') {
+            const cx = sel.x + sel.width / 2 - 0.5;
+            const cy = sel.y + sel.height / 2 - 0.5;
+            const rx = Math.max(0.5, sel.width / 2);
+            const ry = Math.max(0.5, sel.height / 2);
+            const dx = (xx - cx) / rx;
+            const dy = (yy - cy) / ry;
+            if (dx * dx + dy * dy > 1) continue;
+          } else {
+            if (xx < sel.x || xx >= sel.x + sel.width || yy < sel.y || yy >= sel.y + sel.height) continue;
+          }
         }
 
         if (oldVal !== newVal) {
@@ -311,6 +324,7 @@ export class EditorStateService {
 
     let changed = 0;
     const sel = this.selectionRect();
+    const shape = this.selectionShape();
     const stack: number[] = [idx0];
     while (stack.length > 0) {
       const idx = stack.pop() as number;
@@ -333,11 +347,28 @@ export class EditorStateService {
       const x0 = idx - y0 * w;
       // neighbors: left, right, up, down
       if (sel) {
-        // only push neighbors inside selection
-        if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x) stack.push(idx - 1);
-        if (x0 < sel.x + sel.width - 1 && buf[idx + 1] === target && x0 + 1 < sel.x + sel.width) stack.push(idx + 1);
-        if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y) stack.push(idx - w);
-        if (y0 < sel.y + sel.height - 1 && buf[idx + w] === target && y0 + 1 < sel.y + sel.height) stack.push(idx + w);
+        if (shape === 'ellipse') {
+          // push neighbor only if inside ellipse bounds
+          const cx = sel.x + sel.width / 2 - 0.5;
+          const cy = sel.y + sel.height / 2 - 0.5;
+          const rx = Math.max(0.5, sel.width / 2);
+          const ry = Math.max(0.5, sel.height / 2);
+          const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
+            const dx = (nx - cx) / rx;
+            const dy = (ny - cy) / ry;
+            if (dx * dx + dy * dy <= 1 && buf[idxToPush] === target) stack.push(idxToPush);
+          };
+          if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
+          if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
+          if (y0 > sel.y) pushIfInside(x0, y0 - 1, idx - w);
+          if (y0 < sel.y + sel.height - 1) pushIfInside(x0, y0 + 1, idx + w);
+        } else {
+          // rect selection
+          if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x) stack.push(idx - 1);
+          if (x0 < sel.x + sel.width - 1 && buf[idx + 1] === target && x0 + 1 < sel.x + sel.width) stack.push(idx + 1);
+          if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y) stack.push(idx - w);
+          if (y0 < sel.y + sel.height - 1 && buf[idx + w] === target && y0 + 1 < sel.y + sel.height) stack.push(idx + w);
+        }
       } else {
         if (x0 > 0) stack.push(idx - 1);
         if (x0 < w - 1) stack.push(idx + 1);
@@ -390,8 +421,9 @@ export class EditorStateService {
   }
 
   // Selection APIs
-  beginSelection(x: number, y: number) {
+  beginSelection(x: number, y: number, shape: 'rect' | 'ellipse' = 'rect') {
     // start a temporary selection; caller should call updateSelection/endSelection
+    this.selectionShape.set(shape);
     this.selectionRect.set({ x, y, width: 0, height: 0 });
   }
 
@@ -412,14 +444,17 @@ export class EditorStateService {
     const rect = this.selectionRect();
     if (!rect) return;
     // record selection into history as a meta change so undo/redo restores it
-    this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: rect });
+    const shape = this.selectionShape();
+    this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: { rect, shape } });
   }
 
   clearSelection() {
     const prev = this.selectionRect();
     if (!prev) return;
+    const prevShape = this.selectionShape();
     this.selectionRect.set(null);
-    this.commitMetaChange({ key: 'selectionSnapshot', previous: prev, next: null });
+    this.selectionShape.set('rect');
+    this.commitMetaChange({ key: 'selectionSnapshot', previous: { rect: prev, shape: prevShape }, next: null });
   }
 
   // Snapshot current buffers and layers for structural operations
@@ -483,12 +518,21 @@ export class EditorStateService {
         }
         break;
       case 'selectionSnapshot':
-        // restore selection rectangle
+        // restore selection (rect + shape)
         if (val === null) {
           this.selectionRect.set(null);
+          this.selectionShape.set('rect');
         } else if (val && typeof val === 'object') {
-          const r = val as { x: number; y: number; width: number; height: number };
-          this.selectionRect.set({ x: Math.max(0, Math.floor(r.x)), y: Math.max(0, Math.floor(r.y)), width: Math.max(0, Math.floor(r.width)), height: Math.max(0, Math.floor(r.height)) });
+          // expected { rect: {x,y,width,height}, shape: 'rect'|'ellipse' }
+          const rr = (val as any).rect;
+          const shape = (val as any).shape || 'rect';
+          if (!rr) {
+            this.selectionRect.set(null);
+            this.selectionShape.set('rect');
+          } else {
+            this.selectionRect.set({ x: Math.max(0, Math.floor(rr.x)), y: Math.max(0, Math.floor(rr.y)), width: Math.max(0, Math.floor(rr.width)), height: Math.max(0, Math.floor(rr.height)) });
+            this.selectionShape.set(shape === 'ellipse' ? 'ellipse' : 'rect');
+          }
         }
         break;
       default:

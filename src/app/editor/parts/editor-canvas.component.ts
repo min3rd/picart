@@ -69,7 +69,7 @@ export class EditorCanvas {
   cursor(): string {
     if (this.panning) return this.handGrabbingCursor;
     const tool = this.state.currentTool();
-    if (tool === 'rect-select') return `crosshair`;
+    if (tool === 'rect-select' || tool === 'ellipse-select') return `crosshair`;
     if (tool === 'brush') return this.brushCursor;
     if (tool === 'eraser') return this.eraserCursor;
     return this.defaultCursor;
@@ -136,10 +136,28 @@ export class EditorCanvas {
       this.lastPointer.y = ev.clientY;
     }
 
-    // If dragging a rectangle selection, update selection
+    // If dragging a rectangle/ellipse selection, update selection.
+    // If Shift is held, constrain to a square so ellipse-select becomes a circle.
     if (this.selectionDragging) {
       if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
-        this.state.updateSelection(logicalX, logicalY);
+        let endX = logicalX;
+        let endY = logicalY;
+        if (ev.shiftKey && this.selectionStart) {
+          // Constrain to a square anchored at the selection start.
+          const dx = logicalX - this.selectionStart.x;
+          const dy = logicalY - this.selectionStart.y;
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+          const max = Math.max(absDx, absDy);
+          const sx = dx >= 0 ? 1 : -1;
+          const sy = dy >= 0 ? 1 : -1;
+          endX = this.selectionStart.x + sx * max;
+          endY = this.selectionStart.y + sy * max;
+          // clamp to canvas bounds
+          endX = Math.max(0, Math.min(endX, w - 1));
+          endY = Math.max(0, Math.min(endY, h - 1));
+        }
+        this.state.updateSelection(endX, endY);
       }
       return;
     }
@@ -189,8 +207,9 @@ export class EditorCanvas {
   }
 
   onPointerDown(ev: PointerEvent) {
-    // Middle-click (button 1) or Shift/Ctrl for panning
-    if (ev.button === 1 || ev.shiftKey || ev.ctrlKey) {
+    // Middle-click (button 1) or Ctrl for panning. Shift no longer starts panning
+    // so Shift can be used for other modifiers like constraining selection to a circle.
+    if (ev.button === 1) {
       this.panning = true;
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
@@ -209,14 +228,27 @@ export class EditorCanvas {
       const logicalX = Math.floor(visX * ratioX);
       const logicalY = Math.floor(visY * ratioY);
       const tool = this.state.currentTool();
-      // Rectangle selection handling
-      if (tool === 'rect-select' && logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
+      // Rectangle / Ellipse selection handling
+      if (
+        (tool === 'rect-select' || tool === 'ellipse-select') &&
+        logicalX >= 0 &&
+        logicalX < w &&
+        logicalY >= 0 &&
+        logicalY < h
+      ) {
         this.selectionStart = { x: logicalX, y: logicalY };
         this.selectionDragging = true;
-        this.state.beginSelection(logicalX, logicalY);
+        const shape = tool === 'ellipse-select' ? 'ellipse' : 'rect';
+        this.state.beginSelection(logicalX, logicalY, shape as any);
         return;
       }
-      if (tool === 'fill' && logicalX >= 0 && logicalX < this.state.canvasWidth() && logicalY >= 0 && logicalY < this.state.canvasHeight()) {
+      if (
+        tool === 'fill' &&
+        logicalX >= 0 &&
+        logicalX < this.state.canvasWidth() &&
+        logicalY >= 0 &&
+        logicalY < this.state.canvasHeight()
+      ) {
         // One-shot fill action
         this.state.beginAction('fill');
         const layerId = this.state.selectedLayerId();
@@ -487,18 +519,39 @@ export class EditorCanvas {
       ctx.restore();
     }
 
-    // Draw active selection rectangle if present
+    // Draw active selection if present
     const sel = this.state.selectionRect();
+    const selShape = this.state.selectionShape();
     if (sel && sel.width > 0 && sel.height > 0) {
       ctx.save();
       // translucent fill
       ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
-      ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
-      // dashed stroke
-      ctx.setLineDash([4, 3]);
-      ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
-      ctx.lineWidth = 1 / dpr;
-      ctx.strokeRect(sel.x + 0.5, sel.y + 0.5, Math.max(0, sel.width - 1), Math.max(0, sel.height - 1));
+      if (selShape === 'ellipse') {
+        const cx = sel.x + sel.width / 2 - 0.5;
+        const cy = sel.y + sel.height / 2 - 0.5;
+        const rx = Math.max(0.5, sel.width / 2);
+        const ry = Math.max(0.5, sel.height / 2);
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // dashed stroke
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+        ctx.lineWidth = 1 / dpr;
+        ctx.stroke();
+      } else {
+        ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
+        // dashed stroke
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+        ctx.lineWidth = 1 / dpr;
+        ctx.strokeRect(
+          sel.x + 0.5,
+          sel.y + 0.5,
+          Math.max(0, sel.width - 1),
+          Math.max(0, sel.height - 1)
+        );
+      }
       ctx.restore();
     }
   }
