@@ -50,11 +50,12 @@ export class EditorCanvas {
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
   private resizeListener: (() => void) | null = null;
+  private keyListener: ((e: KeyboardEvent) => void) | null = null;
   // cursor assets (from public/cursors)
-  private readonly defaultCursor = `url('/cursors/link.png') 12 12, grab`;
+  private readonly defaultCursor = `url('/cursors/link.png') 12 12, link`;
   private readonly brushCursor = `url('/cursors/handwriting.png') 12 12, crosshair`;
   private readonly eraserCursor = `url('/cursors/unavailable.png') 12 12, cell`;
-  private readonly handGrabbingCursor = `url('/cursors/grab.png') 12 12, grabbing`;
+  private readonly handGrabbingCursor = `url('/cursors/grab.png') 12 12, grab`;
 
   constructor() {
     // Use static cursor images placed in public/cursors directory.
@@ -69,7 +70,8 @@ export class EditorCanvas {
   cursor(): string {
     if (this.panning) return this.handGrabbingCursor;
     const tool = this.state.currentTool();
-    if (tool === 'rect-select' || tool === 'ellipse-select') return `crosshair`;
+    if (tool === 'rect-select' || tool === 'ellipse-select' || tool === 'lasso-select')
+      return `crosshair`;
     if (tool === 'brush') return this.brushCursor;
     if (tool === 'eraser') return this.eraserCursor;
     return this.defaultCursor;
@@ -88,6 +90,21 @@ export class EditorCanvas {
     this.resizeListener = () => this.centerAndFitCanvas();
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', this.resizeListener as EventListener);
+      // listen for Escape to cancel in-progress lasso selections
+      this.keyListener = (ev: KeyboardEvent) => {
+        if (ev.key === 'Escape') {
+          const tool = this.state.currentTool();
+          if (tool === 'lasso-select') {
+            // cancel any in-progress lasso without recording history
+            this.state.selectionPolygon.set(null as any);
+            this.state.selectionRect.set(null as any);
+            this.state.selectionShape.set('rect');
+            this.selectionDragging = false;
+            this.selectionStart = null;
+          }
+        }
+      };
+      window.addEventListener('keydown', this.keyListener as EventListener);
     }
   }
 
@@ -138,26 +155,30 @@ export class EditorCanvas {
 
     // If dragging a rectangle/ellipse selection, update selection.
     // If Shift is held, constrain to a square so ellipse-select becomes a circle.
+    // NOTE: lasso-select does NOT add points on pointermove; vertices are added on click.
     if (this.selectionDragging) {
       if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
-        let endX = logicalX;
-        let endY = logicalY;
-        if (ev.shiftKey && this.selectionStart) {
-          // Constrain to a square anchored at the selection start.
-          const dx = logicalX - this.selectionStart.x;
-          const dy = logicalY - this.selectionStart.y;
-          const absDx = Math.abs(dx);
-          const absDy = Math.abs(dy);
-          const max = Math.max(absDx, absDy);
-          const sx = dx >= 0 ? 1 : -1;
-          const sy = dy >= 0 ? 1 : -1;
-          endX = this.selectionStart.x + sx * max;
-          endY = this.selectionStart.y + sy * max;
-          // clamp to canvas bounds
-          endX = Math.max(0, Math.min(endX, w - 1));
-          endY = Math.max(0, Math.min(endY, h - 1));
+        const tool = this.state.currentTool();
+        if (tool !== 'lasso-select') {
+          let endX = logicalX;
+          let endY = logicalY;
+          if (ev.shiftKey && this.selectionStart) {
+            // Constrain to a square anchored at the selection start.
+            const dx = logicalX - this.selectionStart.x;
+            const dy = logicalY - this.selectionStart.y;
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            const max = Math.max(absDx, absDy);
+            const sx = dx >= 0 ? 1 : -1;
+            const sy = dy >= 0 ? 1 : -1;
+            endX = this.selectionStart.x + sx * max;
+            endY = this.selectionStart.y + sy * max;
+            // clamp to canvas bounds
+            endX = Math.max(0, Math.min(endX, w - 1));
+            endY = Math.max(0, Math.min(endY, h - 1));
+          }
+          this.state.updateSelection(endX, endY);
         }
-        this.state.updateSelection(endX, endY);
       }
       return;
     }
@@ -209,7 +230,7 @@ export class EditorCanvas {
   onPointerDown(ev: PointerEvent) {
     // Middle-click (button 1) or Ctrl for panning. Shift no longer starts panning
     // so Shift can be used for other modifiers like constraining selection to a circle.
-    if (ev.button === 1) {
+    if (ev.button === 1 || ev.ctrlKey) {
       this.panning = true;
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
@@ -228,14 +249,44 @@ export class EditorCanvas {
       const logicalX = Math.floor(visX * ratioX);
       const logicalY = Math.floor(visY * ratioY);
       const tool = this.state.currentTool();
-      // Rectangle / Ellipse selection handling
+      // Rectangle / Ellipse / Lasso selection handling
       if (
-        (tool === 'rect-select' || tool === 'ellipse-select') &&
+        (tool === 'rect-select' || tool === 'ellipse-select' || tool === 'lasso-select') &&
         logicalX >= 0 &&
         logicalX < w &&
         logicalY >= 0 &&
         logicalY < h
       ) {
+        // Lasso behaves as click-to-add-vertex: each click adds a vertex.
+        if (tool === 'lasso-select') {
+          const poly = this.state.selectionPolygon();
+          // If no polygon yet, start one
+          if (!poly || poly.length === 0) {
+            this.selectionStart = { x: logicalX, y: logicalY };
+            this.selectionDragging = true;
+            this.state.beginSelection(logicalX, logicalY, 'lasso' as any);
+            this.state.addLassoPoint(logicalX, logicalY);
+            return;
+          }
+          // If clicking near the first vertex, close the polygon and finish selection
+          const first = poly[0];
+          const dx = logicalX - first.x;
+          const dy = logicalY - first.y;
+          const distSq = dx * dx + dy * dy;
+          const closeThreshold = 4 * 4; // 4px radius
+          if (poly.length >= 3 && distSq <= closeThreshold) {
+            // finalize selection
+            this.selectionDragging = false;
+            this.selectionStart = null;
+            this.state.endSelection();
+            return;
+          }
+          // otherwise add a new vertex
+          this.state.addLassoPoint(logicalX, logicalY);
+          return;
+        }
+
+        // rect/ellipse start drag behavior
         this.selectionStart = { x: logicalX, y: logicalY };
         this.selectionDragging = true;
         const shape = tool === 'ellipse-select' ? 'ellipse' : 'rect';
@@ -396,6 +447,12 @@ export class EditorCanvas {
       } catch {}
       this.resizeListener = null;
     }
+    if (this.keyListener && typeof window !== 'undefined') {
+      try {
+        window.removeEventListener('keydown', this.keyListener as EventListener);
+      } catch {}
+      this.keyListener = null;
+    }
   }
 
   private centerAndFitCanvas() {
@@ -539,6 +596,32 @@ export class EditorCanvas {
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
         ctx.lineWidth = 1 / dpr;
         ctx.stroke();
+      } else if (selShape === 'lasso') {
+        const poly = this.state.selectionPolygon();
+        if (poly && poly.length > 0) {
+          ctx.beginPath();
+          ctx.moveTo(poly[0].x + 0.5, poly[0].y + 0.5);
+          for (let i = 1; i < poly.length; i++) {
+            ctx.lineTo(poly[i].x + 0.5, poly[i].y + 0.5);
+          }
+          // Optionally close the path for visual completeness
+          ctx.closePath();
+          ctx.fill();
+          ctx.setLineDash([4, 3]);
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+          ctx.lineWidth = 1 / dpr;
+          ctx.stroke();
+          // Draw a small marker on the first vertex to help users close the polygon
+          const first = poly[0];
+          const markerR = 1; // px radius
+          ctx.beginPath();
+          ctx.arc(first.x + 0.5, first.y + 0.5, markerR, 0, Math.PI * 2);
+          ctx.fillStyle = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)';
+          ctx.fill();
+          ctx.lineWidth = 1 / dpr;
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
+          ctx.stroke();
+        }
       } else {
         ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
         // dashed stroke

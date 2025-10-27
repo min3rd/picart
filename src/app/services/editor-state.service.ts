@@ -104,8 +104,10 @@ export class EditorStateService {
   readonly brushColor = signal<string>('#000000');
   // Rectangular selection in logical pixel coords (x,y,width,height) or null
   readonly selectionRect = signal<{ x: number; y: number; width: number; height: number } | null>(null);
-  // selection shape: 'rect' or 'ellipse'
-  readonly selectionShape = signal<'rect' | 'ellipse'>('rect');
+  // selection shape: 'rect' | 'ellipse' | 'lasso'
+  readonly selectionShape = signal<'rect' | 'ellipse' | 'lasso'>('rect');
+  // For lasso selections we store the polygon as an array of logical points
+  readonly selectionPolygon = signal<{ x: number; y: number }[] | null>(null);
 
   // Per-layer pixel buffers (simple, in-memory). Each buffer is a flat array of
   // color strings ('' means transparent). We expose a version signal that
@@ -151,7 +153,8 @@ export class EditorStateService {
       selectedLayerId: this.selectedLayerId(),
       currentTool: this.currentTool(),
       brush: { size: this.brushSize(), color: this.brushColor() },
-      selection: this.selectionRect(),
+  selection: this.selectionRect(),
+  selectionPolygon: this.selectionPolygon(),
       frames: this.frames(),
     } as const;
   }
@@ -264,8 +267,9 @@ export class EditorStateService {
     const h = Math.max(1, this.canvasHeight());
     const half = Math.floor((Math.max(1, brushSize) - 1) / 2);
     let changed = false;
-    const sel = this.selectionRect();
-    const selShape = this.selectionShape();
+  const sel = this.selectionRect();
+  const selShape = this.selectionShape();
+  const selPoly = this.selectionPolygon();
     for (let yy = Math.max(0, y - half); yy <= Math.min(h - 1, y + half); yy++) {
       for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
         const idx = yy * w + xx;
@@ -281,6 +285,11 @@ export class EditorStateService {
             const dx = (xx - cx) / rx;
             const dy = (yy - cy) / ry;
             if (dx * dx + dy * dy > 1) continue;
+          } else if (selShape === 'lasso' && selPoly && selPoly.length > 2) {
+            // point-in-polygon test using pixel center
+            const px = xx + 0.5;
+            const py = yy + 0.5;
+            if (!this._pointInPolygon(px, py, selPoly)) continue;
           } else {
             if (xx < sel.x || xx >= sel.x + sel.width || yy < sel.y || yy >= sel.y + sel.height) continue;
           }
@@ -323,8 +332,9 @@ export class EditorStateService {
     if (target === newVal) return 0;
 
     let changed = 0;
-    const sel = this.selectionRect();
-    const shape = this.selectionShape();
+  const sel = this.selectionRect();
+  const shape = this.selectionShape();
+  const selPoly = this.selectionPolygon();
     const stack: number[] = [idx0];
     while (stack.length > 0) {
       const idx = stack.pop() as number;
@@ -346,8 +356,8 @@ export class EditorStateService {
       const y0 = Math.floor(idx / w);
       const x0 = idx - y0 * w;
       // neighbors: left, right, up, down
-      if (sel) {
-        if (shape === 'ellipse') {
+  if (sel) {
+  if (shape === 'ellipse') {
           // push neighbor only if inside ellipse bounds
           const cx = sel.x + sel.width / 2 - 0.5;
           const cy = sel.y + sel.height / 2 - 0.5;
@@ -357,6 +367,17 @@ export class EditorStateService {
             const dx = (nx - cx) / rx;
             const dy = (ny - cy) / ry;
             if (dx * dx + dy * dy <= 1 && buf[idxToPush] === target) stack.push(idxToPush);
+          };
+          if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
+          if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
+          if (y0 > sel.y) pushIfInside(x0, y0 - 1, idx - w);
+          if (y0 < sel.y + sel.height - 1) pushIfInside(x0, y0 + 1, idx + w);
+        } else if (shape === 'lasso' && selPoly && selPoly.length > 2) {
+          // push neighbor only if inside polygon bounds
+          const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
+            const px = nx + 0.5;
+            const py = ny + 0.5;
+            if (this._pointInPolygon(px, py, selPoly) && buf[idxToPush] === target) stack.push(idxToPush);
           };
           if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
           if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
@@ -421,16 +442,59 @@ export class EditorStateService {
   }
 
   // Selection APIs
-  beginSelection(x: number, y: number, shape: 'rect' | 'ellipse' = 'rect') {
+  beginSelection(x: number, y: number, shape: 'rect' | 'ellipse' | 'lasso' = 'rect') {
     // start a temporary selection; caller should call updateSelection/endSelection
     this.selectionShape.set(shape);
-    this.selectionRect.set({ x, y, width: 0, height: 0 });
+    if (shape === 'lasso') {
+      this.selectionPolygon.set([{ x, y }]);
+      this.selectionRect.set({ x, y, width: 1, height: 1 });
+    } else {
+      this.selectionPolygon.set(null);
+      this.selectionRect.set({ x, y, width: 0, height: 0 });
+    }
+  }
+
+  // Add a point to the current lasso polygon (called while dragging)
+  addLassoPoint(x: number, y: number) {
+    const poly = this.selectionPolygon();
+    if (!poly) return;
+    // avoid duplicating consecutive identical points
+    const last = poly[poly.length - 1];
+    if (last && last.x === x && last.y === y) return;
+    const next = poly.concat([{ x, y }]);
+    this.selectionPolygon.set(next);
+    // update bounding rect for quick rejection tests
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const p of next) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    this.selectionRect.set({ x: Math.max(0, Math.floor(minX)), y: Math.max(0, Math.floor(minY)), width: Math.max(1, Math.ceil(maxX - minX) + 1), height: Math.max(1, Math.ceil(maxY - minY) + 1) });
+  }
+
+  // Point-in-polygon test (ray-casting). px/py are in same coordinate space as polygon points.
+  private _pointInPolygon(px: number, py: number, poly: { x: number; y: number }[]) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x,
+        yi = poly[i].y;
+      const xj = poly[j].x,
+        yj = poly[j].y;
+      const intersect = yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi + Number.EPSILON) + xi;
+      if (intersect) inside = !inside;
+    }
+    return inside;
   }
 
   updateSelection(x: number, y: number) {
     const start = this.selectionRect();
     if (!start) return;
-    // compute rect from start.x,start.y to x,y
+    // compute rect from start.x,start.y to x,y (rect/ellipse use this)
     const sx = start.x;
     const sy = start.y;
     const nx = Math.min(sx, x);
@@ -438,6 +502,7 @@ export class EditorStateService {
     const w = Math.abs(x - sx) + 1;
     const h = Math.abs(y - sy) + 1;
     this.selectionRect.set({ x: nx, y: ny, width: w, height: h });
+    // if shape is lasso this method is a no-op; lasso uses addLassoPoint
   }
 
   endSelection() {
@@ -445,16 +510,23 @@ export class EditorStateService {
     if (!rect) return;
     // record selection into history as a meta change so undo/redo restores it
     const shape = this.selectionShape();
-    this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: { rect, shape } });
+    if (shape === 'lasso') {
+      const poly = this.selectionPolygon();
+      this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: { rect, shape, polygon: poly } });
+    } else {
+      this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: { rect, shape } });
+    }
   }
 
   clearSelection() {
     const prev = this.selectionRect();
     if (!prev) return;
     const prevShape = this.selectionShape();
+    const prevPoly = this.selectionPolygon();
     this.selectionRect.set(null);
     this.selectionShape.set('rect');
-    this.commitMetaChange({ key: 'selectionSnapshot', previous: { rect: prev, shape: prevShape }, next: null });
+    this.selectionPolygon.set(null);
+    this.commitMetaChange({ key: 'selectionSnapshot', previous: { rect: prev, shape: prevShape, polygon: prevPoly }, next: null });
   }
 
   // Snapshot current buffers and layers for structural operations
