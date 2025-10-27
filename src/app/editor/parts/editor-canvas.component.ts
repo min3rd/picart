@@ -545,35 +545,38 @@ export class EditorCanvas {
 
     const hx = this.hoverX();
     const hy = this.hoverY();
+    // Only show brush/eraser highlight when using the brush or eraser tool.
     if (hx !== null && hy !== null) {
-      ctx.save();
       const tool = this.state.currentTool();
-      const bSize = Math.max(1, this.state.brushSize());
+      if (tool === 'brush' || tool === 'eraser') {
+        ctx.save();
+        const bSize = Math.max(1, this.state.brushSize());
 
-      // center the brush highlight on the hovered pixel
-      const half = Math.floor((bSize - 1) / 2);
-      const x0 = Math.max(0, hx - half);
-      const y0 = Math.max(0, hy - half);
-      const wRect = Math.min(bSize, w - x0);
-      const hRect = Math.min(bSize, h - y0);
+        // center the brush highlight on the hovered pixel
+        const half = Math.floor((bSize - 1) / 2);
+        const x0 = Math.max(0, hx - half);
+        const y0 = Math.max(0, hy - half);
+        const wRect = Math.min(bSize, w - x0);
+        const hRect = Math.min(bSize, h - y0);
 
-      ctx.lineWidth = Math.max(1 / dpr, 1 / dpr);
-      if (tool === 'eraser') {
-        // Eraser: light overlay + visible border depending on theme
-        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
-        ctx.fillRect(x0, y0, wRect, hRect);
-        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
-        ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
-      } else {
-        // Brush: use current brush color with translucency and border
-        ctx.fillStyle = this.state.brushColor();
-        ctx.globalAlpha = 0.35;
-        ctx.fillRect(x0, y0, wRect, hRect);
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
-        ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
+        ctx.lineWidth = Math.max(1 / dpr, 1 / dpr);
+        if (tool === 'eraser') {
+          // Eraser: light overlay + visible border depending on theme
+          ctx.fillStyle = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+          ctx.fillRect(x0, y0, wRect, hRect);
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+          ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
+        } else {
+          // Brush: use current brush color with translucency and border
+          ctx.fillStyle = this.state.brushColor();
+          ctx.globalAlpha = 0.35;
+          ctx.fillRect(x0, y0, wRect, hRect);
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+          ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
+        }
+        ctx.restore();
       }
-      ctx.restore();
     }
 
     // Draw active selection if present
