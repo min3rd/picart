@@ -4,9 +4,7 @@
       <div class="canvas-wrap">
         <div
           class="transform-origin-center"
-          [style.transform]="
-            'translate(' + panX() + 'px,' + panY() + 'px) scale(' + scale() + ')'
-          "
+          [style.transform]="'translate(' + panX() + 'px,' + panY() + 'px) scale(' + scale() + ')'"
         >
           <canvas
             #canvasEl
@@ -108,7 +106,7 @@
         (click)="decreaseZoom()"
         aria-label="{{ 'canvas.zoomDecrease' | transloco }}"
       >
-        <ng-icon name="minus" class="w-4 h-4"></ng-icon>
+        <ng-icon name="featherMinus" class="w-4 h-4"></ng-icon>
       </button>
       <input
         type="range"
@@ -125,7 +123,7 @@
         (click)="increaseZoom()"
         aria-label="{{ 'canvas.zoomIncrease' | transloco }}"
       >
-        <ng-icon name="plus" class="w-4 h-4"></ng-icon>
+        <ng-icon name="featherPlus" class="w-4 h-4"></ng-icon>
       </button>
       <div class="text-xs ml-2 w-14 text-right">{{ scale().toFixed(2) }}x</div>
     </div>
