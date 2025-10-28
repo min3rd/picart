@@ -1,4 +1,13 @@
-import { Component, ElementRef, ViewChild, inject, signal, effect, EffectRef } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  ViewChild,
+  inject,
+  signal,
+  effect,
+  EffectRef,
+  EnvironmentInjector,
+} from '@angular/core';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { EditorToolsService } from '../../../services/editor-tools.service';
 import { TranslocoPipe } from '@jsverse/transloco';
@@ -34,8 +43,8 @@ export class EditorCanvas {
   // rotation feature disabled temporarily
   readonly rotation = signal(0);
   readonly minScale = 0.05;
-  private layoutEffect: EffectRef | null = null;
-  private viewReady = false;
+  private readonly injector = inject(EnvironmentInjector);
+  private readonly viewReady = signal(false);
 
   private panning = false;
   // painting state
@@ -63,6 +72,20 @@ export class EditorCanvas {
       return null as any;
     });
   }
+
+  private readonly layoutEffect = effect(
+    () => {
+      if (!this.viewReady()) return;
+      this.document.canvasWidth();
+      this.document.canvasHeight();
+      const scheduler =
+        typeof queueMicrotask === 'function'
+          ? queueMicrotask
+          : (cb: () => void) => Promise.resolve().then(cb);
+      scheduler(() => this.centerAndFitCanvas());
+    },
+    { injector: this.injector },
+  );
 
   // compute the CSS cursor for the canvas based on current tool and state
   cursor(): string {
@@ -113,17 +136,7 @@ export class EditorCanvas {
       window.addEventListener('keydown', this.keyListener as EventListener);
     }
 
-    this.viewReady = true;
-    this.layoutEffect = effect(() => {
-      if (!this.viewReady) return;
-      this.document.canvasWidth();
-      this.document.canvasHeight();
-      const scheduler =
-        typeof queueMicrotask === 'function'
-          ? queueMicrotask
-          : (cb: () => void) => Promise.resolve().then(cb);
-      scheduler(() => this.centerAndFitCanvas());
-    });
+    this.viewReady.set(true);
   }
 
   get maxScale(): number {
@@ -494,17 +507,7 @@ export class EditorCanvas {
   }
 
   ngOnDestroy(): void {
-    this.viewReady = false;
-    if (this.layoutEffect) {
-      try {
-        if ((this.layoutEffect as any).destroy) {
-          (this.layoutEffect as any).destroy();
-        } else if (typeof (this.layoutEffect as any) === 'function') {
-          (this.layoutEffect as any)();
-        }
-      } catch {}
-      this.layoutEffect = null;
-    }
+    this.viewReady.set(false);
     if (this.stopRenderEffect) {
       try {
         if ((this.stopRenderEffect as any).destroy) {

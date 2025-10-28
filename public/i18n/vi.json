@@ -64,5 +64,9 @@
     "openFromComputer": "Mở từ máy tính",
     "saveToComputer": "Lưu về máy tính",
     "saveLocal": "Lưu"
+  },
+  "fill": {
+    "color": "Màu sắc",
+    "title": "Đổ màu"
   }
 }

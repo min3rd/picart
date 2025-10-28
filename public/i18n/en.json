@@ -64,5 +64,9 @@
     "openFromComputer": "Open from computer",
     "saveToComputer": "Save to computer",
     "saveLocal": "Save"
+  },
+  "fill": {
+    "title": "Fill",
+    "color": "Color"
   }
 }

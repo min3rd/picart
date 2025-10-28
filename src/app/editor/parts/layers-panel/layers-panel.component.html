@@ -33,6 +33,33 @@
       </div>
     </div>
   }
+  @if (tools.currentTool() === 'fill') {
+    <div
+      id="layers-fill-panel"
+      class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
+    >
+      <div id="layers-fill-header" class="font-semibold text-sm mb-2">
+        {{ 'fill.title' | transloco }}
+      </div>
+      <div id="layers-fill-color-row" class="flex items-center gap-2">
+        <label
+          id="layers-fill-color-label"
+          class="text-xs opacity-80 w-12"
+          for="layers-fill-color-input"
+        >
+          {{ 'fill.color' | transloco }}
+        </label>
+        <input
+          id="layers-fill-color-input"
+          type="color"
+          [value]="tools.brushColor()"
+          (input)="onBrushColorInput($event)"
+          class="w-10 h-8 p-0 border rounded"
+        />
+        <div id="layers-fill-color-value" class="text-xs ml-2">{{ tools.brushColor() }}</div>
+      </div>
+    </div>
+  }
   @if (tools.currentTool() === 'eraser') {
     <div
       class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
