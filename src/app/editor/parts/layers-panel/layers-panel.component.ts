@@ -45,6 +45,79 @@ export class LayersPanel {
     if (!Number.isNaN(n)) this.tools.setEraserStrength(Math.floor(n));
   }
 
+  onLineThicknessInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.tools.setLineThickness(Math.floor(n), this.maxCanvasDim);
+  }
+
+  onLineColorInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setLineColor(v);
+  }
+
+  onCircleStrokeThicknessInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.tools.setCircleStrokeThickness(Math.floor(n), this.maxCanvasDim);
+  }
+
+  onCircleStrokeColorInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setCircleStrokeColor(v);
+  }
+
+  onCircleFillModeChange(event: Event) {
+    const v = (event.target as HTMLSelectElement).value;
+    this.tools.setCircleFillMode(v === 'gradient' ? 'gradient' : 'solid');
+  }
+
+  onCircleFillColorInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setCircleFillColor(v);
+  }
+
+  onCircleGradientStartInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setCircleGradientStartColor(v);
+  }
+
+  onCircleGradientEndInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setCircleGradientEndColor(v);
+  }
+
+  onSquareStrokeThicknessInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.tools.setSquareStrokeThickness(Math.floor(n), this.maxCanvasDim);
+  }
+
+  onSquareStrokeColorInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setSquareStrokeColor(v);
+  }
+
+  onSquareFillModeChange(event: Event) {
+    const v = (event.target as HTMLSelectElement).value;
+    this.tools.setSquareFillMode(v === 'gradient' ? 'gradient' : 'solid');
+  }
+
+  onSquareFillColorInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setSquareFillColor(v);
+  }
+
+  onSquareGradientStartInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setSquareGradientStartColor(v);
+  }
+
+  onSquareGradientEndInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setSquareGradientEndColor(v);
+  }
+
   private dragIndex: number | null = null;
 
   select(id: string) {

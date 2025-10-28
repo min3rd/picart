@@ -23,7 +23,23 @@ export type ToolMetaKey =
   | 'brushSize'
   | 'brushColor'
   | 'eraserStrength'
-  | 'eraserSize';
+  | 'eraserSize'
+  | 'lineThickness'
+  | 'lineColor'
+  | 'circleStrokeThickness'
+  | 'circleStrokeColor'
+  | 'circleFillMode'
+  | 'circleFillColor'
+  | 'circleGradientStart'
+  | 'circleGradientEnd'
+  | 'squareStrokeThickness'
+  | 'squareStrokeColor'
+  | 'squareFillMode'
+  | 'squareFillColor'
+  | 'squareGradientStart'
+  | 'squareGradientEnd';
+
+export type ShapeFillMode = 'solid' | 'gradient';
 
 export interface ToolRestoreContext {
   maxBrush?: number;
@@ -49,8 +65,34 @@ export interface EraserToolSnapshot {
   strength: number;
 }
 
+export interface LineToolSnapshot {
+  thickness: number;
+  color: string;
+}
+
+export interface CircleToolSnapshot {
+  strokeThickness: number;
+  strokeColor: string;
+  fillMode: ShapeFillMode;
+  fillColor: string;
+  gradientStartColor: string;
+  gradientEndColor: string;
+}
+
+export interface SquareToolSnapshot {
+  strokeThickness: number;
+  strokeColor: string;
+  fillMode: ShapeFillMode;
+  fillColor: string;
+  gradientStartColor: string;
+  gradientEndColor: string;
+}
+
 export interface ToolSnapshot {
   currentTool: ToolId;
   brush: BrushToolSnapshot;
   eraser: EraserToolSnapshot;
+  line: LineToolSnapshot;
+  circle: CircleToolSnapshot;
+  square: SquareToolSnapshot;
 }

@@ -1,12 +1,18 @@
-<div class="p-2 text-sm">
+<div id="layers-panel-root" class="p-2 text-sm">
   @if (tools.currentTool() === 'brush') {
     <div
+      id="layers-brush-panel"
       class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
     >
-      <div class="font-semibold text-sm mb-2">{{ 'brush.title' | transloco }}</div>
-      <div class="flex items-center gap-2">
-        <label class="text-xs opacity-80 w-12">{{ 'brush.size' | transloco }}</label>
+      <div id="layers-brush-heading" class="font-semibold text-sm mb-2">
+        {{ 'editor.tools.brush.title' | transloco }}
+      </div>
+      <div id="layers-brush-size-row" class="flex items-center gap-2">
+        <label id="layers-brush-size-label" class="text-xs opacity-80 w-12" for="layers-brush-size-range">
+          {{ 'editor.tools.brush.size' | transloco }}
+        </label>
         <input
+          id="layers-brush-size-range"
           type="range"
           min="1"
           [max]="maxCanvasDim"
@@ -15,39 +21,303 @@
           class="flex-1"
         />
         <input
+          id="layers-brush-size-number"
           type="number"
+          min="1"
+          [attr.max]="maxCanvasDim"
           [value]="tools.brushSize()"
           (input)="onBrushSizeInput($event)"
           class="w-16 text-xs border rounded px-1"
         />
       </div>
-      <div class="flex items-center gap-2 mt-2">
-        <label class="text-xs opacity-80 w-12">{{ 'brush.color' | transloco }}</label>
+      <div id="layers-brush-color-row" class="flex items-center gap-2 mt-2">
+        <label id="layers-brush-color-label" class="text-xs opacity-80 w-12" for="layers-brush-color-input">
+          {{ 'editor.tools.brush.color' | transloco }}
+        </label>
         <input
+          id="layers-brush-color-input"
           type="color"
           [value]="tools.brushColor()"
           (input)="onBrushColorInput($event)"
           class="w-10 h-8 p-0 border rounded"
         />
-        <div class="text-xs ml-2">{{ tools.brushColor() }}</div>
+        <div id="layers-brush-color-value" class="text-xs ml-2">{{ tools.brushColor() }}</div>
       </div>
     </div>
   }
+
+  @if (tools.currentTool() === 'line') {
+    <div
+      id="layers-line-panel"
+      class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
+    >
+      <div id="layers-line-heading" class="font-semibold text-sm mb-2">
+        {{ 'editor.tools.line.title' | transloco }}
+      </div>
+      <div id="layers-line-thickness-row" class="flex items-center gap-2">
+        <label id="layers-line-thickness-label" class="text-xs opacity-80 w-16" for="layers-line-thickness-range">
+          {{ 'editor.tools.line.thickness' | transloco }}
+        </label>
+        <input
+          id="layers-line-thickness-range"
+          type="range"
+          min="1"
+          [max]="maxCanvasDim"
+          [value]="tools.lineThickness()"
+          (input)="onLineThicknessInput($event)"
+          class="flex-1"
+        />
+        <input
+          id="layers-line-thickness-number"
+          type="number"
+          min="1"
+          [attr.max]="maxCanvasDim"
+          [value]="tools.lineThickness()"
+          (input)="onLineThicknessInput($event)"
+          class="w-16 text-xs border rounded px-1"
+        />
+      </div>
+      <div id="layers-line-color-row" class="flex items-center gap-2 mt-2">
+        <label id="layers-line-color-label" class="text-xs opacity-80 w-16" for="layers-line-color-input">
+          {{ 'editor.tools.line.color' | transloco }}
+        </label>
+        <input
+          id="layers-line-color-input"
+          type="color"
+          [value]="tools.lineColor()"
+          (input)="onLineColorInput($event)"
+          class="w-10 h-8 p-0 border rounded"
+        />
+        <div id="layers-line-color-value" class="text-xs ml-2">{{ tools.lineColor() }}</div>
+      </div>
+    </div>
+  }
+
+  @if (tools.currentTool() === 'circle') {
+    <div
+      id="layers-circle-panel"
+      class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
+    >
+      <div id="layers-circle-heading" class="font-semibold text-sm mb-2">
+        {{ 'editor.tools.circle.title' | transloco }}
+      </div>
+      <div id="layers-circle-stroke-row" class="flex items-center gap-2">
+        <label id="layers-circle-stroke-label" class="text-xs opacity-80 w-20" for="layers-circle-stroke-range">
+          {{ 'editor.tools.circle.strokeThickness' | transloco }}
+        </label>
+        <input
+          id="layers-circle-stroke-range"
+          type="range"
+          min="0"
+          [max]="maxCanvasDim"
+          [value]="tools.circleStrokeThickness()"
+          (input)="onCircleStrokeThicknessInput($event)"
+          class="flex-1"
+        />
+        <input
+          id="layers-circle-stroke-number"
+          type="number"
+          min="0"
+          [attr.max]="maxCanvasDim"
+          [value]="tools.circleStrokeThickness()"
+          (input)="onCircleStrokeThicknessInput($event)"
+          class="w-16 text-xs border rounded px-1"
+        />
+      </div>
+      <div id="layers-circle-stroke-color-row" class="flex items-center gap-2 mt-2">
+        <label id="layers-circle-stroke-color-label" class="text-xs opacity-80 w-20" for="layers-circle-stroke-color-input">
+          {{ 'editor.tools.circle.strokeColor' | transloco }}
+        </label>
+        <input
+          id="layers-circle-stroke-color-input"
+          type="color"
+          [value]="tools.circleStrokeColor()"
+          (input)="onCircleStrokeColorInput($event)"
+          class="w-10 h-8 p-0 border rounded"
+        />
+        <div id="layers-circle-stroke-color-value" class="text-xs ml-2">{{ tools.circleStrokeColor() }}</div>
+      </div>
+      <div id="layers-circle-fill-mode-row" class="flex items-center gap-2 mt-2">
+        <label id="layers-circle-fill-mode-label" class="text-xs opacity-80 w-20" for="layers-circle-fill-mode-select">
+          {{ 'editor.tools.circle.fillMode' | transloco }}
+        </label>
+        <select
+          id="layers-circle-fill-mode-select"
+          [value]="tools.circleFillMode()"
+          (change)="onCircleFillModeChange($event)"
+          class="flex-1 text-xs border rounded px-2 py-1 bg-white dark:bg-neutral-900"
+        >
+          <option id="layers-circle-fill-mode-option-solid" value="solid">
+            {{ 'editor.tools.circle.fillSolid' | transloco }}
+          </option>
+          <option id="layers-circle-fill-mode-option-gradient" value="gradient">
+            {{ 'editor.tools.circle.fillGradient' | transloco }}
+          </option>
+        </select>
+      </div>
+      @if (tools.circleFillMode() === 'solid') {
+        <div id="layers-circle-fill-color-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-circle-fill-color-label" class="text-xs opacity-80 w-20" for="layers-circle-fill-color-input">
+            {{ 'editor.tools.circle.fillColor' | transloco }}
+          </label>
+          <input
+            id="layers-circle-fill-color-input"
+            type="color"
+            [value]="tools.circleFillColor()"
+            (input)="onCircleFillColorInput($event)"
+            class="w-10 h-8 p-0 border rounded"
+          />
+          <div id="layers-circle-fill-color-value" class="text-xs ml-2">{{ tools.circleFillColor() }}</div>
+        </div>
+      } @else {
+        <div id="layers-circle-gradient-start-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-circle-gradient-start-label" class="text-xs opacity-80 w-20" for="layers-circle-gradient-start-input">
+            {{ 'editor.tools.circle.gradientStart' | transloco }}
+          </label>
+          <input
+            id="layers-circle-gradient-start-input"
+            type="color"
+            [value]="tools.circleGradientStartColor()"
+            (input)="onCircleGradientStartInput($event)"
+            class="w-10 h-8 p-0 border rounded"
+          />
+          <div id="layers-circle-gradient-start-value" class="text-xs ml-2">{{ tools.circleGradientStartColor() }}</div>
+        </div>
+        <div id="layers-circle-gradient-end-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-circle-gradient-end-label" class="text-xs opacity-80 w-20" for="layers-circle-gradient-end-input">
+            {{ 'editor.tools.circle.gradientEnd' | transloco }}
+          </label>
+          <input
+            id="layers-circle-gradient-end-input"
+            type="color"
+            [value]="tools.circleGradientEndColor()"
+            (input)="onCircleGradientEndInput($event)"
+            class="w-10 h-8 p-0 border rounded"
+          />
+          <div id="layers-circle-gradient-end-value" class="text-xs ml-2">{{ tools.circleGradientEndColor() }}</div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (tools.currentTool() === 'square') {
+    <div
+      id="layers-square-panel"
+      class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
+    >
+      <div id="layers-square-heading" class="font-semibold text-sm mb-2">
+        {{ 'editor.tools.square.title' | transloco }}
+      </div>
+      <div id="layers-square-stroke-row" class="flex items-center gap-2">
+        <label id="layers-square-stroke-label" class="text-xs opacity-80 w-20" for="layers-square-stroke-range">
+          {{ 'editor.tools.square.strokeThickness' | transloco }}
+        </label>
+        <input
+          id="layers-square-stroke-range"
+          type="range"
+          min="0"
+          [max]="maxCanvasDim"
+          [value]="tools.squareStrokeThickness()"
+          (input)="onSquareStrokeThicknessInput($event)"
+          class="flex-1"
+        />
+        <input
+          id="layers-square-stroke-number"
+          type="number"
+          min="0"
+          [attr.max]="maxCanvasDim"
+          [value]="tools.squareStrokeThickness()"
+          (input)="onSquareStrokeThicknessInput($event)"
+          class="w-16 text-xs border rounded px-1"
+        />
+      </div>
+      <div id="layers-square-stroke-color-row" class="flex items-center gap-2 mt-2">
+        <label id="layers-square-stroke-color-label" class="text-xs opacity-80 w-20" for="layers-square-stroke-color-input">
+          {{ 'editor.tools.square.strokeColor' | transloco }}
+        </label>
+        <input
+          id="layers-square-stroke-color-input"
+          type="color"
+          [value]="tools.squareStrokeColor()"
+          (input)="onSquareStrokeColorInput($event)"
+          class="w-10 h-8 p-0 border rounded"
+        />
+        <div id="layers-square-stroke-color-value" class="text-xs ml-2">{{ tools.squareStrokeColor() }}</div>
+      </div>
+      <div id="layers-square-fill-mode-row" class="flex items-center gap-2 mt-2">
+        <label id="layers-square-fill-mode-label" class="text-xs opacity-80 w-20" for="layers-square-fill-mode-select">
+          {{ 'editor.tools.square.fillMode' | transloco }}
+        </label>
+        <select
+          id="layers-square-fill-mode-select"
+          [value]="tools.squareFillMode()"
+          (change)="onSquareFillModeChange($event)"
+          class="flex-1 text-xs border rounded px-2 py-1 bg-white dark:bg-neutral-900"
+        >
+          <option id="layers-square-fill-mode-option-solid" value="solid">
+            {{ 'editor.tools.square.fillSolid' | transloco }}
+          </option>
+          <option id="layers-square-fill-mode-option-gradient" value="gradient">
+            {{ 'editor.tools.square.fillGradient' | transloco }}
+          </option>
+        </select>
+      </div>
+      @if (tools.squareFillMode() === 'solid') {
+        <div id="layers-square-fill-color-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-square-fill-color-label" class="text-xs opacity-80 w-20" for="layers-square-fill-color-input">
+            {{ 'editor.tools.square.fillColor' | transloco }}
+          </label>
+          <input
+            id="layers-square-fill-color-input"
+            type="color"
+            [value]="tools.squareFillColor()"
+            (input)="onSquareFillColorInput($event)"
+            class="w-10 h-8 p-0 border rounded"
+          />
+          <div id="layers-square-fill-color-value" class="text-xs ml-2">{{ tools.squareFillColor() }}</div>
+        </div>
+      } @else {
+        <div id="layers-square-gradient-start-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-square-gradient-start-label" class="text-xs opacity-80 w-20" for="layers-square-gradient-start-input">
+            {{ 'editor.tools.square.gradientStart' | transloco }}
+          </label>
+          <input
+            id="layers-square-gradient-start-input"
+            type="color"
+            [value]="tools.squareGradientStartColor()"
+            (input)="onSquareGradientStartInput($event)"
+            class="w-10 h-8 p-0 border rounded"
+          />
+          <div id="layers-square-gradient-start-value" class="text-xs ml-2">{{ tools.squareGradientStartColor() }}</div>
+        </div>
+        <div id="layers-square-gradient-end-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-square-gradient-end-label" class="text-xs opacity-80 w-20" for="layers-square-gradient-end-input">
+            {{ 'editor.tools.square.gradientEnd' | transloco }}
+          </label>
+          <input
+            id="layers-square-gradient-end-input"
+            type="color"
+            [value]="tools.squareGradientEndColor()"
+            (input)="onSquareGradientEndInput($event)"
+            class="w-10 h-8 p-0 border rounded"
+          />
+          <div id="layers-square-gradient-end-value" class="text-xs ml-2">{{ tools.squareGradientEndColor() }}</div>
+        </div>
+      }
+    </div>
+  }
+
   @if (tools.currentTool() === 'fill') {
     <div
       id="layers-fill-panel"
       class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
     >
-      <div id="layers-fill-header" class="font-semibold text-sm mb-2">
-        {{ 'fill.title' | transloco }}
+      <div id="layers-fill-heading" class="font-semibold text-sm mb-2">
+        {{ 'editor.tools.fill.title' | transloco }}
       </div>
       <div id="layers-fill-color-row" class="flex items-center gap-2">
-        <label
-          id="layers-fill-color-label"
-          class="text-xs opacity-80 w-12"
-          for="layers-fill-color-input"
-        >
-          {{ 'fill.color' | transloco }}
+        <label id="layers-fill-color-label" class="text-xs opacity-80 w-16" for="layers-fill-color-input">
+          {{ 'editor.tools.fill.color' | transloco }}
         </label>
         <input
           id="layers-fill-color-input"
@@ -60,14 +330,21 @@
       </div>
     </div>
   }
+
   @if (tools.currentTool() === 'eraser') {
     <div
+      id="layers-eraser-panel"
       class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
     >
-      <div class="font-semibold text-sm mb-2">{{ 'eraser.title' | transloco }}</div>
-      <div class="flex items-center gap-2">
-        <label class="text-xs opacity-80 w-12">{{ 'eraser.size' | transloco }}</label>
+      <div id="layers-eraser-heading" class="font-semibold text-sm mb-2">
+        {{ 'editor.tools.eraser.title' | transloco }}
+      </div>
+      <div id="layers-eraser-size-row" class="flex items-center gap-2">
+        <label id="layers-eraser-size-label" class="text-xs opacity-80 w-12" for="layers-eraser-size-range">
+          {{ 'editor.tools.eraser.size' | transloco }}
+        </label>
         <input
+          id="layers-eraser-size-range"
           type="range"
           min="1"
           [max]="maxCanvasDim"
@@ -76,6 +353,7 @@
           class="flex-1"
         />
         <input
+          id="layers-eraser-size-number"
           type="number"
           min="1"
           [attr.max]="maxCanvasDim"
@@ -84,9 +362,12 @@
           class="w-16 text-xs border rounded px-1"
         />
       </div>
-      <div class="flex items-center gap-2 mt-2">
-        <label class="text-xs opacity-80 w-12">{{ 'eraser.strength' | transloco }}</label>
+      <div id="layers-eraser-strength-row" class="flex items-center gap-2 mt-2">
+        <label id="layers-eraser-strength-label" class="text-xs opacity-80 w-12" for="layers-eraser-strength-range">
+          {{ 'editor.tools.eraser.strength' | transloco }}
+        </label>
         <input
+          id="layers-eraser-strength-range"
           type="range"
           min="0"
           max="100"
@@ -95,6 +376,7 @@
           class="flex-1"
         />
         <input
+          id="layers-eraser-strength-number"
           type="number"
           min="0"
           max="100"
@@ -105,56 +387,71 @@
       </div>
     </div>
   }
-  <div class="font-semibold mb-2">{{ 'layers.title' | transloco }}</div>
-  <div class="flex flex-col gap-1">
-    @for (l of document.layers(); let i = $index; track l.id) {
+
+  <div id="layers-list-heading" class="font-semibold mb-2">{{ 'editor.layers.title' | transloco }}</div>
+  <div id="layers-list-container" class="flex flex-col gap-1">
+    @for (layer of document.layers(); let layerIndex = $index; track layer.id) {
       <div
+        id="layers-list-item-{{ layer.id }}"
         class="px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center"
         draggable="true"
-        (dragstart)="onDragStart($event, i)"
-        (dragover)="onDragOver($event, i)"
-        (drop)="onDrop($event, i)"
+        (dragstart)="onDragStart($event, layerIndex)"
+        (dragover)="onDragOver($event, layerIndex)"
+        (drop)="onDrop($event, layerIndex)"
         [class]="
-          document.selectedLayerId() === l.id
-            ? 'bg-neutral-200 dark:bg-neutral-700'
-            : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'
+          document.selectedLayerId() === layer.id
+            ? 'px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center bg-neutral-200 dark:bg-neutral-700'
+            : 'px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'
         "
       >
-        <div class="w-4 h-6 flex items-center justify-center cursor-grab mr-2">
-          <ng-icon name="featherAlignJustify" class="w-4 h-4" />
+        <div id="layers-list-item-handle-{{ layer.id }}" class="w-4 h-6 flex items-center justify-center cursor-grab mr-2">
+          <ng-icon id="layers-list-item-handle-icon-{{ layer.id }}" name="featherAlignJustify" class="w-4 h-4"></ng-icon>
         </div>
         <button
           type="button"
+          id="layers-list-item-visibility-{{ layer.id }}"
           class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center"
-          (click)="document.toggleLayerVisibility(l.id)"
-          [title]="l.visible ? ('layers.hide' | transloco) : ('layers.show' | transloco)"
+          (click)="document.toggleLayerVisibility(layer.id)"
+          [title]="layer.visible ? ('editor.layers.hide' | transloco) : ('editor.layers.show' | transloco)"
         >
-          <ng-icon [name]="l.visible ? 'featherEye' : 'featherEyeOff'" class="w-4 h-4"></ng-icon>
-        </button>
-        <button type="button" class="flex-1 text-left ml-2" (click)="select(l.id)">
-          <span class="truncate opacity-90">{{ l.name }}</span>
+          <ng-icon
+            id="layers-list-item-visibility-icon-{{ layer.id }}"
+            [name]="layer.visible ? 'featherEye' : 'featherEyeOff'"
+            class="w-4 h-4"
+          ></ng-icon>
         </button>
         <button
           type="button"
-          class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
-          (click)="document.removeLayer(l.id)"
-          [disabled]="document.layers().length <= 1"
-          title="{{ 'layers.delete' | transloco }}"
+          id="layers-list-item-select-{{ layer.id }}"
+          class="flex-1 text-left ml-2"
+          (click)="select(layer.id)"
         >
-          <ng-icon name="featherTrash" class="w-4 h-4"></ng-icon>
+          <span id="layers-list-item-name-{{ layer.id }}" class="truncate opacity-90">{{ layer.name }}</span>
+        </button>
+        <button
+          type="button"
+          id="layers-list-item-delete-{{ layer.id }}"
+          class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
+          (click)="document.removeLayer(layer.id)"
+          [disabled]="document.layers().length <= 1"
+          [title]="'editor.layers.delete' | transloco"
+        >
+          <ng-icon id="layers-list-item-delete-icon-{{ layer.id }}" name="featherTrash" class="w-4 h-4"></ng-icon>
         </button>
       </div>
     }
   </div>
-  <div class="mt-3">
+
+  <div id="layers-add-row" class="mt-3">
     <button
       type="button"
+      id="layers-add-button"
       class="w-full h-8 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center justify-center gap-2"
       (click)="onAddLayer()"
-      title="{{ 'layers.add' | transloco }}"
+      [title]="'editor.layers.add' | transloco"
     >
-      <ng-icon name="plus" class="w-4 h-4"></ng-icon>
-      <span class="text-sm">{{ 'layers.add' | transloco }}</span>
+      <ng-icon id="layers-add-icon" name="plus" class="w-4 h-4"></ng-icon>
+      <span id="layers-add-label" class="text-sm">{{ 'editor.layers.add' | transloco }}</span>
     </button>
   </div>
 </div>

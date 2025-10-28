@@ -49,6 +49,58 @@
     "infoTitle": "Properties",
     "unsaved": "Unsaved"
   },
+  "editor": {
+    "tools": {
+      "brush": {
+        "title": "Brush",
+        "size": "Size",
+        "color": "Color"
+      },
+      "line": {
+        "title": "Line",
+        "thickness": "Thickness",
+        "color": "Color"
+      },
+      "circle": {
+        "title": "Circle",
+        "strokeThickness": "Stroke width",
+        "strokeColor": "Stroke color",
+        "fillMode": "Fill mode",
+        "fillSolid": "Solid",
+        "fillGradient": "Gradient",
+        "fillColor": "Fill color",
+        "gradientStart": "Gradient start",
+        "gradientEnd": "Gradient end"
+      },
+      "square": {
+        "title": "Square",
+        "strokeThickness": "Stroke width",
+        "strokeColor": "Stroke color",
+        "fillMode": "Fill mode",
+        "fillSolid": "Solid",
+        "fillGradient": "Gradient",
+        "fillColor": "Fill color",
+        "gradientStart": "Gradient start",
+        "gradientEnd": "Gradient end"
+      },
+      "fill": {
+        "title": "Fill",
+        "color": "Color"
+      },
+      "eraser": {
+        "title": "Eraser",
+        "size": "Size",
+        "strength": "Strength"
+      }
+    },
+    "layers": {
+      "title": "Layers",
+      "hide": "Hide",
+      "show": "Show",
+      "delete": "Delete layer",
+      "add": "Add layer"
+    }
+  },
   "brush": {
     "title": "Brush",
     "size": "Size",
@@ -67,6 +119,19 @@
   },
   "fill": {
     "title": "Fill",
+    "color": "Color"
+  },
+  "line": {
+    "title": "Line",
+    "thickness": "Thickness",
+    "color": "Color"
+  },
+  "circle": {
+    "title": "Circle",
+    "color": "Color"
+  },
+  "square": {
+    "title": "Square",
     "color": "Color"
   }
 }

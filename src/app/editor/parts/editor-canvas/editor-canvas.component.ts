@@ -10,9 +10,19 @@ import {
 } from '@angular/core';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { EditorToolsService } from '../../../services/editor-tools.service';
+import { ShapeFillMode } from '../../../services/tools/tool.types';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 import { CommonModule } from '@angular/common';
+
+interface ShapeDrawOptions {
+  strokeThickness: number;
+  strokeColor: string;
+  fillMode: ShapeFillMode;
+  fillColor: string;
+  gradientStartColor: string;
+  gradientEndColor: string;
+}
 
 @Component({
   selector: 'pa-editor-canvas',
@@ -45,6 +55,9 @@ export class EditorCanvas {
   readonly minScale = 0.05;
   private readonly injector = inject(EnvironmentInjector);
   private readonly viewReady = signal(false);
+  private readonly shapeStart = signal<{ x: number; y: number } | null>(null);
+  private readonly shapeCurrent = signal<{ x: number; y: number } | null>(null);
+  private readonly activeShapeTool = signal<'line' | 'circle' | 'square' | null>(null);
 
   private panning = false;
   // painting state
@@ -54,6 +67,7 @@ export class EditorCanvas {
   private selectionStart: { x: number; y: number } | null = null;
   private selectionDragging = false;
   private lastPointer = { x: 0, y: 0 };
+  private shaping = false;
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
   private resizeListener: (() => void) | null = null;
@@ -95,6 +109,7 @@ export class EditorCanvas {
       return `crosshair`;
     if (tool === 'brush') return this.brushCursor;
     if (tool === 'eraser') return this.eraserCursor;
+    if (tool === 'line' || tool === 'circle' || tool === 'square') return `crosshair`;
     return this.defaultCursor;
   }
 
@@ -214,6 +229,12 @@ export class EditorCanvas {
       return;
     }
 
+    if (this.shaping) {
+      const clampedX = this.clampCoord(logicalX, w);
+      const clampedY = this.clampCoord(logicalY, h);
+      this.shapeCurrent.set({ x: clampedX, y: clampedY });
+    }
+
     // rotation disabled: no-op
 
     // Painting: if left button pressed and current tool is brush/eraser, apply
@@ -256,6 +277,9 @@ export class EditorCanvas {
       this.painting = false;
       this.lastPaintPos = null;
       this.document.endAction();
+    }
+    if (this.shaping) {
+      this.cancelShape();
     }
   }
 
@@ -362,6 +386,16 @@ export class EditorCanvas {
         return;
       }
       if (
+        (tool === 'line' || tool === 'circle' || tool === 'square') &&
+        logicalX >= 0 &&
+        logicalX < w &&
+        logicalY >= 0 &&
+        logicalY < h
+      ) {
+        this.startShape(tool, logicalX, logicalY);
+        return;
+      }
+      if (
         tool === 'fill' &&
         logicalX >= 0 &&
         logicalX < this.document.canvasWidth() &&
@@ -403,6 +437,9 @@ export class EditorCanvas {
 
   onPointerUp(ev: PointerEvent) {
     this.panning = false;
+    if (this.shaping) {
+      this.finishShape();
+    }
     // rotation disabled
     // stop painting on any pointer up
     if (this.painting) {
@@ -661,6 +698,30 @@ export class EditorCanvas {
       ctx.restore();
     }
 
+    const activeShape = this.activeShapeTool();
+    const shapeStart = this.shapeStart();
+    const shapeCurrent = this.shapeCurrent();
+    if (activeShape && shapeStart && shapeCurrent) {
+      ctx.save();
+      if (activeShape === 'line') {
+        ctx.strokeStyle = this.tools.lineColor();
+        ctx.lineWidth = Math.max(pxLineWidth, this.tools.lineThickness());
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(shapeStart.x + 0.5, shapeStart.y + 0.5);
+        ctx.lineTo(shapeCurrent.x + 0.5, shapeCurrent.y + 0.5);
+        ctx.stroke();
+      } else {
+        const bounds = this.computeSquareBounds(shapeStart, shapeCurrent);
+        if (activeShape === 'square') {
+          this.renderSquarePreview(ctx, bounds, this.getSquareDrawOptions(), pxLineWidth);
+        } else {
+          this.renderCirclePreview(ctx, bounds, this.getCircleDrawOptions(), pxLineWidth);
+        }
+      }
+      ctx.restore();
+    }
+
     const hx = this.hoverX();
     const hy = this.hoverY();
     // Only show brush/eraser highlight when using the brush or eraser tool.
@@ -753,6 +814,211 @@ export class EditorCanvas {
         ctx.strokeRect(sel.x, sel.y, Math.max(0, sel.width), Math.max(0, sel.height));
       }
       ctx.restore();
+    }
+  }
+
+  private startShape(mode: 'line' | 'circle' | 'square', x: number, y: number) {
+    const width = Math.max(1, this.document.canvasWidth());
+    const height = Math.max(1, this.document.canvasHeight());
+    const point = {
+      x: this.clampCoord(x, width),
+      y: this.clampCoord(y, height),
+    };
+    this.document.beginAction(mode);
+    this.shaping = true;
+    this.activeShapeTool.set(mode);
+    this.shapeStart.set(point);
+    this.shapeCurrent.set(point);
+  }
+
+  private finishShape() {
+    if (!this.shaping) return;
+    const mode = this.activeShapeTool();
+    const start = this.shapeStart();
+    const current = this.shapeCurrent();
+    if (!mode || !start || !current) {
+      this.document.endAction();
+      this.clearShapeState();
+      return;
+    }
+    const layerId = this.document.selectedLayerId();
+    if (!layerId) {
+      this.document.endAction();
+      this.clearShapeState();
+      return;
+    }
+    if (mode === 'line') {
+      const thickness = this.tools.lineThickness();
+      const color = this.tools.lineColor();
+      this.document.applyLineToLayer(layerId, start.x, start.y, current.x, current.y, color, thickness);
+    } else if (mode === 'circle') {
+      this.document.applyCircleToLayer(
+        layerId,
+        start.x,
+        start.y,
+        current.x,
+        current.y,
+        this.getCircleDrawOptions(),
+      );
+    } else {
+      this.document.applySquareToLayer(
+        layerId,
+        start.x,
+        start.y,
+        current.x,
+        current.y,
+        this.getSquareDrawOptions(),
+      );
+    }
+    this.document.endAction();
+    this.clearShapeState();
+  }
+
+  private cancelShape() {
+    if (!this.shaping) return;
+    this.document.endAction();
+    this.clearShapeState();
+  }
+
+  private clearShapeState() {
+    this.shaping = false;
+    this.activeShapeTool.set(null);
+    this.shapeStart.set(null);
+    this.shapeCurrent.set(null);
+  }
+
+  private clampCoord(value: number, max: number) {
+    return Math.max(0, Math.min(Math.floor(value), max - 1));
+  }
+
+  private computeSquareBounds(
+    start: { x: number; y: number },
+    current: { x: number; y: number },
+  ) {
+    const width = Math.max(1, this.document.canvasWidth());
+    const height = Math.max(1, this.document.canvasHeight());
+    const sx = this.clampCoord(start.x, width);
+    const sy = this.clampCoord(start.y, height);
+    const cx = this.clampCoord(current.x, width);
+    const cy = this.clampCoord(current.y, height);
+    const dx = cx - sx;
+    const dy = cy - sy;
+    const stepX = dx >= 0 ? 1 : -1;
+    const stepY = dy >= 0 ? 1 : -1;
+    const span = Math.max(Math.abs(dx), Math.abs(dy));
+    const ex = this.clampCoord(sx + stepX * span, width);
+    const ey = this.clampCoord(sy + stepY * span, height);
+    const minX = Math.max(0, Math.min(sx, ex));
+    const maxX = Math.min(width - 1, Math.max(sx, ex));
+    const minY = Math.max(0, Math.min(sy, ey));
+    const maxY = Math.min(height - 1, Math.max(sy, ey));
+    return { minX, minY, maxX, maxY };
+  }
+
+  private getCircleDrawOptions(): ShapeDrawOptions {
+    return {
+      strokeThickness: Math.max(0, Math.floor(this.tools.circleStrokeThickness())),
+      strokeColor: this.tools.circleStrokeColor(),
+      fillMode: this.tools.circleFillMode(),
+      fillColor: this.tools.circleFillColor(),
+      gradientStartColor: this.tools.circleGradientStartColor(),
+      gradientEndColor: this.tools.circleGradientEndColor(),
+    };
+  }
+
+  private getSquareDrawOptions(): ShapeDrawOptions {
+    return {
+      strokeThickness: Math.max(0, Math.floor(this.tools.squareStrokeThickness())),
+      strokeColor: this.tools.squareStrokeColor(),
+      fillMode: this.tools.squareFillMode(),
+      fillColor: this.tools.squareFillColor(),
+      gradientStartColor: this.tools.squareGradientStartColor(),
+      gradientEndColor: this.tools.squareGradientEndColor(),
+    };
+  }
+
+  private renderSquarePreview(
+    ctx: CanvasRenderingContext2D,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    options: ShapeDrawOptions,
+    pxLineWidth: number,
+  ) {
+    const widthRect = Math.max(1, bounds.maxX - bounds.minX + 1);
+    const heightRect = Math.max(1, bounds.maxY - bounds.minY + 1);
+    const gradientStart = options.gradientStartColor || options.fillColor;
+    const gradientEnd = options.gradientEndColor || gradientStart;
+    const gradientValid = bounds.maxX !== bounds.minX || bounds.maxY !== bounds.minY;
+    if (options.fillMode === 'gradient') {
+      if (gradientStart && gradientEnd && gradientValid) {
+        const gradient = ctx.createLinearGradient(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
+        gradient.addColorStop(0, gradientStart);
+        gradient.addColorStop(1, gradientEnd);
+        ctx.fillStyle = gradient;
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(bounds.minX, bounds.minY, widthRect, heightRect);
+        ctx.globalAlpha = 1;
+      } else {
+        const solid = gradientEnd || gradientStart;
+        if (solid) {
+          ctx.fillStyle = solid;
+          ctx.globalAlpha = 0.35;
+          ctx.fillRect(bounds.minX, bounds.minY, widthRect, heightRect);
+          ctx.globalAlpha = 1;
+        }
+      }
+    } else if (options.fillColor) {
+      ctx.fillStyle = options.fillColor;
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(bounds.minX, bounds.minY, widthRect, heightRect);
+      ctx.globalAlpha = 1;
+    }
+    if (options.strokeThickness > 0 && options.strokeColor) {
+      ctx.lineWidth = Math.max(pxLineWidth, options.strokeThickness);
+      ctx.strokeStyle = options.strokeColor;
+      ctx.strokeRect(bounds.minX, bounds.minY, widthRect, heightRect);
+    }
+  }
+
+  private renderCirclePreview(
+    ctx: CanvasRenderingContext2D,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    options: ShapeDrawOptions,
+    pxLineWidth: number,
+  ) {
+    const diameter = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) + 1;
+    const radius = diameter / 2;
+    const cx = bounds.minX + radius;
+    const cy = bounds.minY + radius;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    if (options.fillMode === 'gradient' && radius > 0) {
+      const startColor = options.gradientStartColor || options.fillColor;
+      const endColor = options.gradientEndColor || startColor;
+      if (startColor && endColor) {
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        gradient.addColorStop(0, startColor);
+        gradient.addColorStop(1, endColor);
+        ctx.fillStyle = gradient;
+        ctx.globalAlpha = 0.35;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } else if (startColor || endColor) {
+        const solid = startColor || endColor;
+        ctx.fillStyle = solid;
+        ctx.globalAlpha = 0.35;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    } else if (options.fillColor) {
+      ctx.fillStyle = options.fillColor;
+      ctx.globalAlpha = 0.35;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (options.strokeThickness > 0 && options.strokeColor) {
+      ctx.lineWidth = Math.max(pxLineWidth, options.strokeThickness);
+      ctx.strokeStyle = options.strokeColor;
+      ctx.stroke();
     }
   }
 

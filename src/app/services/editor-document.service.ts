@@ -1,7 +1,7 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { EditorToolsService } from './editor-tools.service';
-import { ToolId, ToolMetaKey, ToolSnapshot } from './tools/tool.types';
+import { ShapeFillMode, ToolId, ToolMetaKey, ToolSnapshot } from './tools/tool.types';
 
 export interface LayerItem {
   id: string;
@@ -39,6 +39,21 @@ interface CurrentAction {
   map: Map<string, { indices: number[]; previous: string[]; next: string[] }>;
   meta: MetaChange[];
   description?: string;
+}
+
+interface ShapeDrawOptions {
+  strokeThickness: number;
+  strokeColor: string;
+  fillMode: ShapeFillMode;
+  fillColor: string;
+  gradientStartColor: string;
+  gradientEndColor: string;
+}
+
+interface ParsedColor {
+  r: number;
+  g: number;
+  b: number;
 }
 
 // History types for undo/redo
@@ -158,6 +173,100 @@ export class EditorDocumentService {
         if (typeof parsed.eraser.strength === 'number') eraser.strength = parsed.eraser.strength;
         if (Object.keys(eraser).length) toolSnapshot.eraser = eraser as ToolSnapshot['eraser'];
       }
+      const line: Partial<ToolSnapshot['line']> = {};
+      if (parsed.line && typeof parsed.line === 'object') {
+        if (typeof parsed.line.thickness === 'number') line.thickness = parsed.line.thickness;
+        if (typeof parsed.line.color === 'string') line.color = parsed.line.color;
+      }
+      if (typeof parsed.lineThickness === 'number') line.thickness = parsed.lineThickness;
+      if (typeof parsed.lineColor === 'string') line.color = parsed.lineColor;
+      if (Object.keys(line).length) toolSnapshot.line = line as ToolSnapshot['line'];
+      const circle: Partial<ToolSnapshot['circle']> = {};
+      if (parsed.circle && typeof parsed.circle === 'object') {
+        if (typeof parsed.circle.strokeThickness === 'number') {
+          circle.strokeThickness = parsed.circle.strokeThickness;
+        }
+        if (typeof parsed.circle.strokeColor === 'string') {
+          circle.strokeColor = parsed.circle.strokeColor;
+        }
+        if (parsed.circle.fillMode === 'solid' || parsed.circle.fillMode === 'gradient') {
+          circle.fillMode = parsed.circle.fillMode;
+        }
+        if (typeof parsed.circle.fillColor === 'string') {
+          circle.fillColor = parsed.circle.fillColor;
+        }
+        if (typeof parsed.circle.gradientStartColor === 'string') {
+          circle.gradientStartColor = parsed.circle.gradientStartColor;
+        }
+        if (typeof parsed.circle.gradientEndColor === 'string') {
+          circle.gradientEndColor = parsed.circle.gradientEndColor;
+        }
+      }
+      if (typeof parsed.circleStrokeThickness === 'number') {
+        circle.strokeThickness = parsed.circleStrokeThickness;
+      }
+      if (typeof parsed.circleStrokeColor === 'string') {
+        circle.strokeColor = parsed.circleStrokeColor;
+      }
+      if (parsed.circleFillMode === 'solid' || parsed.circleFillMode === 'gradient') {
+        circle.fillMode = parsed.circleFillMode;
+      }
+      if (typeof parsed.circleFillColor === 'string') {
+        circle.fillColor = parsed.circleFillColor;
+      }
+      if (typeof parsed.circleGradientStartColor === 'string') {
+        circle.gradientStartColor = parsed.circleGradientStartColor;
+      }
+      if (typeof parsed.circleGradientEndColor === 'string') {
+        circle.gradientEndColor = parsed.circleGradientEndColor;
+      }
+      if (!circle.fillColor && typeof parsed.circleColor === 'string') {
+        circle.fillColor = parsed.circleColor;
+      }
+      if (Object.keys(circle).length) toolSnapshot.circle = circle as ToolSnapshot['circle'];
+      const square: Partial<ToolSnapshot['square']> = {};
+      if (parsed.square && typeof parsed.square === 'object') {
+        if (typeof parsed.square.strokeThickness === 'number') {
+          square.strokeThickness = parsed.square.strokeThickness;
+        }
+        if (typeof parsed.square.strokeColor === 'string') {
+          square.strokeColor = parsed.square.strokeColor;
+        }
+        if (parsed.square.fillMode === 'solid' || parsed.square.fillMode === 'gradient') {
+          square.fillMode = parsed.square.fillMode;
+        }
+        if (typeof parsed.square.fillColor === 'string') {
+          square.fillColor = parsed.square.fillColor;
+        }
+        if (typeof parsed.square.gradientStartColor === 'string') {
+          square.gradientStartColor = parsed.square.gradientStartColor;
+        }
+        if (typeof parsed.square.gradientEndColor === 'string') {
+          square.gradientEndColor = parsed.square.gradientEndColor;
+        }
+      }
+      if (typeof parsed.squareStrokeThickness === 'number') {
+        square.strokeThickness = parsed.squareStrokeThickness;
+      }
+      if (typeof parsed.squareStrokeColor === 'string') {
+        square.strokeColor = parsed.squareStrokeColor;
+      }
+      if (parsed.squareFillMode === 'solid' || parsed.squareFillMode === 'gradient') {
+        square.fillMode = parsed.squareFillMode;
+      }
+      if (typeof parsed.squareFillColor === 'string') {
+        square.fillColor = parsed.squareFillColor;
+      }
+      if (typeof parsed.squareGradientStartColor === 'string') {
+        square.gradientStartColor = parsed.squareGradientStartColor;
+      }
+      if (typeof parsed.squareGradientEndColor === 'string') {
+        square.gradientEndColor = parsed.squareGradientEndColor;
+      }
+      if (!square.fillColor && typeof parsed.squareColor === 'string') {
+        square.fillColor = parsed.squareColor;
+      }
+      if (Object.keys(square).length) toolSnapshot.square = square as ToolSnapshot['square'];
       if (Object.keys(toolSnapshot).length) {
         this.tools.applySnapshot(toolSnapshot, { maxBrush });
       }
@@ -235,6 +344,9 @@ export class EditorDocumentService {
       currentTool: toolSnapshot.currentTool,
       brush: toolSnapshot.brush,
       eraser: toolSnapshot.eraser,
+      line: toolSnapshot.line,
+      circle: toolSnapshot.circle,
+      square: toolSnapshot.square,
       selection: this.selectionRect(),
       selectionPolygon: this.selectionPolygon(),
       frames: this.frames(),
@@ -304,6 +416,48 @@ export class EditorDocumentService {
         if (typeof parsed.eraser.strength === 'number') eraser.strength = parsed.eraser.strength;
         if (Object.keys(eraser).length) toolSnapshot.eraser = eraser as ToolSnapshot['eraser'];
       }
+      const line: Partial<ToolSnapshot['line']> = {};
+      if (parsed.line && typeof parsed.line === 'object') {
+        if (typeof parsed.line.thickness === 'number') line.thickness = parsed.line.thickness;
+        if (typeof parsed.line.color === 'string') line.color = parsed.line.color;
+      }
+      if (typeof parsed.lineThickness === 'number') line.thickness = parsed.lineThickness;
+      if (typeof parsed.lineColor === 'string') line.color = parsed.lineColor;
+      if (Object.keys(line).length) toolSnapshot.line = line as ToolSnapshot['line'];
+      const circle: Partial<ToolSnapshot['circle']> = {};
+      if (parsed.circle && typeof parsed.circle === 'object') {
+        if (typeof parsed.circle.strokeThickness === 'number') circle.strokeThickness = parsed.circle.strokeThickness;
+        if (typeof parsed.circle.strokeColor === 'string') circle.strokeColor = parsed.circle.strokeColor;
+        if (parsed.circle.fillMode === 'solid' || parsed.circle.fillMode === 'gradient') circle.fillMode = parsed.circle.fillMode;
+        if (typeof parsed.circle.fillColor === 'string') circle.fillColor = parsed.circle.fillColor;
+        if (typeof parsed.circle.gradientStartColor === 'string') circle.gradientStartColor = parsed.circle.gradientStartColor;
+        if (typeof parsed.circle.gradientEndColor === 'string') circle.gradientEndColor = parsed.circle.gradientEndColor;
+      }
+      if (typeof parsed.circleStrokeThickness === 'number') circle.strokeThickness = parsed.circleStrokeThickness;
+      if (typeof parsed.circleStrokeColor === 'string') circle.strokeColor = parsed.circleStrokeColor;
+      if (parsed.circleFillMode === 'solid' || parsed.circleFillMode === 'gradient') circle.fillMode = parsed.circleFillMode;
+      if (typeof parsed.circleFillColor === 'string') circle.fillColor = parsed.circleFillColor;
+      if (typeof parsed.circleGradientStartColor === 'string') circle.gradientStartColor = parsed.circleGradientStartColor;
+      if (typeof parsed.circleGradientEndColor === 'string') circle.gradientEndColor = parsed.circleGradientEndColor;
+      if (!circle.fillColor && typeof parsed.circleColor === 'string') circle.fillColor = parsed.circleColor;
+      if (Object.keys(circle).length) toolSnapshot.circle = circle as ToolSnapshot['circle'];
+      const square: Partial<ToolSnapshot['square']> = {};
+      if (parsed.square && typeof parsed.square === 'object') {
+        if (typeof parsed.square.strokeThickness === 'number') square.strokeThickness = parsed.square.strokeThickness;
+        if (typeof parsed.square.strokeColor === 'string') square.strokeColor = parsed.square.strokeColor;
+        if (parsed.square.fillMode === 'solid' || parsed.square.fillMode === 'gradient') square.fillMode = parsed.square.fillMode;
+        if (typeof parsed.square.fillColor === 'string') square.fillColor = parsed.square.fillColor;
+        if (typeof parsed.square.gradientStartColor === 'string') square.gradientStartColor = parsed.square.gradientStartColor;
+        if (typeof parsed.square.gradientEndColor === 'string') square.gradientEndColor = parsed.square.gradientEndColor;
+      }
+      if (typeof parsed.squareStrokeThickness === 'number') square.strokeThickness = parsed.squareStrokeThickness;
+      if (typeof parsed.squareStrokeColor === 'string') square.strokeColor = parsed.squareStrokeColor;
+      if (parsed.squareFillMode === 'solid' || parsed.squareFillMode === 'gradient') square.fillMode = parsed.squareFillMode;
+      if (typeof parsed.squareFillColor === 'string') square.fillColor = parsed.squareFillColor;
+      if (typeof parsed.squareGradientStartColor === 'string') square.gradientStartColor = parsed.squareGradientStartColor;
+      if (typeof parsed.squareGradientEndColor === 'string') square.gradientEndColor = parsed.squareGradientEndColor;
+      if (!square.fillColor && typeof parsed.squareColor === 'string') square.fillColor = parsed.squareColor;
+      if (Object.keys(square).length) toolSnapshot.square = square as ToolSnapshot['square'];
       if (Object.keys(toolSnapshot).length) {
         this.tools.applySnapshot(toolSnapshot, { maxBrush });
       }
@@ -665,6 +819,234 @@ export class EditorDocumentService {
     return changed;
   }
 
+  applyLineToLayer(
+    layerId: string,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    color: string,
+    thickness: number,
+  ) {
+    const buf = this.layerPixels.get(layerId);
+    if (!buf) return 0;
+    const w = Math.max(1, this.canvasWidth());
+    const h = Math.max(1, this.canvasHeight());
+    const selRect = this.selectionRect();
+    const selShape = this.selectionShape();
+    const selPoly = this.selectionPolygon();
+    const clampX = (value: number) => Math.max(0, Math.min(Math.floor(value), w - 1));
+    const clampY = (value: number) => Math.max(0, Math.min(Math.floor(value), h - 1));
+    let sx = clampX(x0);
+    let sy = clampY(y0);
+    let ex = clampX(x1);
+    let ey = clampY(y1);
+    const size = Math.max(1, Math.floor(thickness));
+    const half = Math.floor((size - 1) / 2);
+    let changed = 0;
+    const applyAt = (cx: number, cy: number) => {
+      for (let yy = cy - half; yy <= cy + half; yy++) {
+        if (yy < 0 || yy >= h) continue;
+        for (let xx = cx - half; xx <= cx + half; xx++) {
+          if (xx < 0 || xx >= w) continue;
+          if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly)) continue;
+          const idx = yy * w + xx;
+          if (this.writePixelValue(layerId, buf, idx, color)) changed++;
+        }
+      }
+    };
+    const dx = Math.abs(ex - sx);
+    const sxSign = sx < ex ? 1 : -1;
+    const dy = -Math.abs(ey - sy);
+    const sySign = sy < ey ? 1 : -1;
+    let err = dx + dy;
+    while (true) {
+      applyAt(sx, sy);
+      if (sx === ex && sy === ey) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        sx += sxSign;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        sy += sySign;
+      }
+      sx = clampX(sx);
+      sy = clampY(sy);
+    }
+    if (changed > 0) {
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(false);
+    }
+    return changed;
+  }
+
+  applySquareToLayer(
+    layerId: string,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    options: ShapeDrawOptions,
+  ) {
+    const buf = this.layerPixels.get(layerId);
+    if (!buf) return 0;
+    const w = Math.max(1, this.canvasWidth());
+    const h = Math.max(1, this.canvasHeight());
+    const selRect = this.selectionRect();
+    const selShape = this.selectionShape();
+    const selPoly = this.selectionPolygon();
+    const clampX = (value: number) => Math.max(0, Math.min(Math.floor(value), w - 1));
+    const clampY = (value: number) => Math.max(0, Math.min(Math.floor(value), h - 1));
+    const startX = clampX(x0);
+    const startY = clampY(y0);
+    const targetX = clampX(x1);
+    const targetY = clampY(y1);
+    const stepX = targetX >= startX ? 1 : -1;
+    const stepY = targetY >= startY ? 1 : -1;
+    const span = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
+    const endX = clampX(startX + stepX * span);
+    const endY = clampY(startY + stepY * span);
+    const minX = Math.max(0, Math.min(startX, endX));
+    const maxX = Math.min(w - 1, Math.max(startX, endX));
+    const minY = Math.max(0, Math.min(startY, endY));
+    const maxY = Math.min(h - 1, Math.max(startY, endY));
+    const stroke = Math.max(0, Math.floor(options.strokeThickness ?? 0));
+    const strokeColor = (options.strokeColor || '').trim();
+    const fillMode: ShapeFillMode = options.fillMode === 'gradient' ? 'gradient' : 'solid';
+    const fillColor = (options.fillColor || '').trim();
+    const gradientStartColor = (options.gradientStartColor || fillColor).trim();
+    const gradientEndColor = (options.gradientEndColor || gradientStartColor).trim();
+    const gradientStartParsed = this.parseHexColor(gradientStartColor);
+    const gradientEndParsed = this.parseHexColor(gradientEndColor);
+    const fallbackStart = gradientStartColor || gradientEndColor || fillColor;
+    const fallbackEnd = gradientEndColor || gradientStartColor || fillColor;
+    const gradientAvailable = !!(fallbackStart || fallbackEnd);
+    const perimeterSpan = Math.max(1, maxX - minX + maxY - minY);
+    let changed = 0;
+    for (let yy = minY; yy <= maxY; yy++) {
+      for (let xx = minX; xx <= maxX; xx++) {
+        if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly)) continue;
+        const idx = yy * w + xx;
+        let pixelColor: string | null = null;
+        const distanceToEdge = Math.min(xx - minX, maxX - xx, yy - minY, maxY - yy);
+        const strokePixel = stroke > 0 && distanceToEdge < stroke;
+        if (strokePixel && strokeColor) {
+          pixelColor = strokeColor;
+        } else if (fillMode === 'solid') {
+          if (fillColor) pixelColor = fillColor;
+        } else if (gradientAvailable) {
+          const ratioBase = perimeterSpan > 0 ? (xx - minX + (yy - minY)) / perimeterSpan : 0;
+          const ratio = Math.min(1, Math.max(0, ratioBase));
+          const startFallback = fallbackStart || fallbackEnd;
+          const endFallback = fallbackEnd || fallbackStart;
+          if (startFallback && endFallback) {
+            pixelColor = this.mixParsedColors(
+              gradientStartParsed,
+              gradientEndParsed,
+              ratio,
+              startFallback,
+              endFallback,
+            );
+          }
+        }
+        if (pixelColor !== null && this.writePixelValue(layerId, buf, idx, pixelColor)) changed++;
+      }
+    }
+    if (changed > 0) {
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(false);
+    }
+    return changed;
+  }
+
+  applyCircleToLayer(
+    layerId: string,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    options: ShapeDrawOptions,
+  ) {
+    const buf = this.layerPixels.get(layerId);
+    if (!buf) return 0;
+    const w = Math.max(1, this.canvasWidth());
+    const h = Math.max(1, this.canvasHeight());
+    const selRect = this.selectionRect();
+    const selShape = this.selectionShape();
+    const selPoly = this.selectionPolygon();
+    const clampX = (value: number) => Math.max(0, Math.min(Math.floor(value), w - 1));
+    const clampY = (value: number) => Math.max(0, Math.min(Math.floor(value), h - 1));
+    const startX = clampX(x0);
+    const startY = clampY(y0);
+    const targetX = clampX(x1);
+    const targetY = clampY(y1);
+    const stepX = targetX >= startX ? 1 : -1;
+    const stepY = targetY >= startY ? 1 : -1;
+    const span = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
+    const endX = clampX(startX + stepX * span);
+    const endY = clampY(startY + stepY * span);
+    const minX = Math.max(0, Math.min(startX, endX));
+    const maxX = Math.min(w - 1, Math.max(startX, endX));
+    const minY = Math.max(0, Math.min(startY, endY));
+    const maxY = Math.min(h - 1, Math.max(startY, endY));
+    const width = maxX - minX + 1;
+    const cx = minX + width / 2;
+    const cy = minY + width / 2;
+    const radius = width / 2;
+    const stroke = Math.max(0, Math.floor(options.strokeThickness ?? 0));
+    const strokeColor = (options.strokeColor || '').trim();
+    const fillMode: ShapeFillMode = options.fillMode === 'gradient' ? 'gradient' : 'solid';
+    const fillColor = (options.fillColor || '').trim();
+    const gradientStartColor = (options.gradientStartColor || fillColor).trim();
+    const gradientEndColor = (options.gradientEndColor || gradientStartColor).trim();
+    const fallbackStart = gradientStartColor || gradientEndColor || fillColor;
+    const fallbackEnd = gradientEndColor || gradientStartColor || fillColor;
+    const gradientAvailable = !!(fallbackStart || fallbackEnd);
+    const gradientStartParsed = this.parseHexColor(gradientStartColor);
+    const gradientEndParsed = this.parseHexColor(gradientEndColor);
+    let changed = 0;
+    for (let yy = minY; yy <= maxY; yy++) {
+      for (let xx = minX; xx <= maxX; xx++) {
+        const px = xx + 0.5;
+        const py = yy + 0.5;
+        const dx = px - cx;
+        const dy = py - cy;
+        if (dx * dx + dy * dy > radius * radius) continue;
+        if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly)) continue;
+        const idx = yy * w + xx;
+        let pixelColor: string | null = null;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const strokePixel = stroke > 0 && radius - distance < stroke;
+        if (strokePixel && strokeColor) {
+          pixelColor = strokeColor;
+        } else if (fillMode === 'solid') {
+          if (fillColor) pixelColor = fillColor;
+        } else if (gradientAvailable && radius > 0) {
+          const ratio = Math.min(1, Math.max(0, distance / radius));
+          const startFallback = fallbackStart || fallbackEnd;
+          const endFallback = fallbackEnd || fallbackStart;
+          if (startFallback && endFallback) {
+            pixelColor = this.mixParsedColors(
+              gradientStartParsed,
+              gradientEndParsed,
+              ratio,
+              startFallback,
+              endFallback,
+            );
+          }
+        }
+        if (pixelColor !== null && this.writePixelValue(layerId, buf, idx, pixelColor)) changed++;
+      }
+    }
+    if (changed > 0) {
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(false);
+    }
+    return changed;
+  }
+
   // History management APIs
   beginAction(description?: string) {
     // If there's already an action, end it first
@@ -767,6 +1149,94 @@ export class EditorDocumentService {
       if (intersect) inside = !inside;
     }
     return inside;
+  }
+
+  private isPixelWithinSelection(
+    x: number,
+    y: number,
+    rect: { x: number; y: number; width: number; height: number } | null,
+    shape: 'rect' | 'ellipse' | 'lasso',
+    poly: { x: number; y: number }[] | null,
+  ) {
+    if (!rect) return true;
+    if (shape === 'ellipse') {
+      const cx = rect.x + rect.width / 2 - 0.5;
+      const cy = rect.y + rect.height / 2 - 0.5;
+      const rx = Math.max(0.5, rect.width / 2);
+      const ry = Math.max(0.5, rect.height / 2);
+      const dx = (x - cx) / rx;
+      const dy = (y - cy) / ry;
+      return dx * dx + dy * dy <= 1;
+    }
+    if (shape === 'lasso' && poly && poly.length > 2) {
+      const px = x + 0.5;
+      const py = y + 0.5;
+      return this._pointInPolygon(px, py, poly);
+    }
+    return (
+      x >= rect.x &&
+      x < rect.x + rect.width &&
+      y >= rect.y &&
+      y < rect.y + rect.height
+    );
+  }
+
+  private parseHexColor(value: string): ParsedColor | null {
+    if (!value || typeof value !== 'string') return null;
+    const hex = value.trim();
+    const match = /^#?([0-9a-fA-F]{6})$/.exec(hex);
+    if (!match) return null;
+    const raw = match[1];
+    const r = Number.parseInt(raw.slice(0, 2), 16);
+    const g = Number.parseInt(raw.slice(2, 4), 16);
+    const b = Number.parseInt(raw.slice(4, 6), 16);
+    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+    return { r, g, b };
+  }
+
+  private componentToHex(value: number) {
+    const clamped = Math.max(0, Math.min(255, Math.round(value)));
+    return clamped.toString(16).padStart(2, '0');
+  }
+
+  private composeHexColor(r: number, g: number, b: number) {
+    return `#${this.componentToHex(r)}${this.componentToHex(g)}${this.componentToHex(b)}`;
+  }
+
+  private mixParsedColors(
+    start: ParsedColor | null,
+    end: ParsedColor | null,
+    ratio: number,
+    fallbackStart: string,
+    fallbackEnd: string,
+  ) {
+    const t = Math.min(1, Math.max(0, ratio));
+    if (start && end) {
+      const r = start.r + (end.r - start.r) * t;
+      const g = start.g + (end.g - start.g) * t;
+      const b = start.b + (end.b - start.b) * t;
+      return this.composeHexColor(r, g, b);
+    }
+    const startValue = fallbackStart || fallbackEnd || '#000000';
+    const endValue = fallbackEnd || fallbackStart || '#000000';
+    return t <= 0.5 ? startValue : endValue;
+  }
+
+  private writePixelValue(layerId: string, buf: string[], idx: number, value: string) {
+    const previous = buf[idx] || '';
+    if (previous === value) return false;
+    if (this.currentAction) {
+      let entry = this.currentAction.map.get(layerId);
+      if (!entry) {
+        entry = { indices: [], previous: [], next: [] };
+        this.currentAction.map.set(layerId, entry);
+      }
+      entry.indices.push(idx);
+      entry.previous.push(previous);
+      entry.next.push(value);
+    }
+    buf[idx] = value;
+    return true;
   }
 
   updateSelection(x: number, y: number) {

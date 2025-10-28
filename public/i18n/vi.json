@@ -49,6 +49,58 @@
     "infoTitle": "Thông tin",
     "unsaved": "Chưa lưu"
   },
+  "editor": {
+    "tools": {
+      "brush": {
+        "title": "Cọ vẽ",
+        "size": "Kích cỡ",
+        "color": "Màu sắc"
+      },
+      "line": {
+        "title": "Kẻ đường",
+        "thickness": "Độ dày",
+        "color": "Màu sắc"
+      },
+      "circle": {
+        "title": "Hình tròn",
+        "strokeThickness": "Độ dày viền",
+        "strokeColor": "Màu viền",
+        "fillMode": "Chế độ tô",
+        "fillSolid": "Đặc",
+        "fillGradient": "Dải màu",
+        "fillColor": "Màu tô",
+        "gradientStart": "Màu bắt đầu",
+        "gradientEnd": "Màu kết thúc"
+      },
+      "square": {
+        "title": "Hình vuông",
+        "strokeThickness": "Độ dày viền",
+        "strokeColor": "Màu viền",
+        "fillMode": "Chế độ tô",
+        "fillSolid": "Đặc",
+        "fillGradient": "Dải màu",
+        "fillColor": "Màu tô",
+        "gradientStart": "Màu bắt đầu",
+        "gradientEnd": "Màu kết thúc"
+      },
+      "fill": {
+        "title": "Đổ màu",
+        "color": "Màu sắc"
+      },
+      "eraser": {
+        "title": "Tẩy",
+        "size": "Kích cỡ",
+        "strength": "Độ đậm"
+      }
+    },
+    "layers": {
+      "title": "Danh sách layer",
+      "hide": "Ẩn",
+      "show": "Hiện",
+      "delete": "Xóa layer",
+      "add": "Thêm layer"
+    }
+  },
   "brush": {
     "color": "Màu sắc",
     "size": "Kích cỡ",
@@ -68,5 +120,18 @@
   "fill": {
     "color": "Màu sắc",
     "title": "Đổ màu"
+  },
+  "line": {
+    "title": "Kẻ đường",
+    "thickness": "Độ dày",
+    "color": "Màu sắc"
+  },
+  "circle": {
+    "title": "Hình tròn",
+    "color": "Màu sắc"
+  },
+  "square": {
+    "title": "Hình vuông",
+    "color": "Màu sắc"
   }
 }

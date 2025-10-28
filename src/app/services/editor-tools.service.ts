@@ -60,6 +60,20 @@ export class EditorToolsService {
   readonly brushColor = this.brushTool.color.asReadonly();
   readonly eraserSize = this.eraserTool.size.asReadonly();
   readonly eraserStrength = this.eraserTool.strength.asReadonly();
+  readonly lineThickness = this.lineTool.thickness.asReadonly();
+  readonly lineColor = this.lineTool.color.asReadonly();
+  readonly circleStrokeThickness = this.circleTool.strokeThickness.asReadonly();
+  readonly circleStrokeColor = this.circleTool.strokeColor.asReadonly();
+  readonly circleFillMode = this.circleTool.fillMode.asReadonly();
+  readonly circleFillColor = this.circleTool.fillColor.asReadonly();
+  readonly circleGradientStartColor = this.circleTool.gradientStartColor.asReadonly();
+  readonly circleGradientEndColor = this.circleTool.gradientEndColor.asReadonly();
+  readonly squareStrokeThickness = this.squareTool.strokeThickness.asReadonly();
+  readonly squareStrokeColor = this.squareTool.strokeColor.asReadonly();
+  readonly squareFillMode = this.squareTool.fillMode.asReadonly();
+  readonly squareFillColor = this.squareTool.fillColor.asReadonly();
+  readonly squareGradientStartColor = this.squareTool.gradientStartColor.asReadonly();
+  readonly squareGradientEndColor = this.squareTool.gradientEndColor.asReadonly();
 
   constructor() {
     this.loadFromStorage();
@@ -105,6 +119,76 @@ export class EditorToolsService {
     this.saveToStorage();
   }
 
+  setLineThickness(value: number, max?: number) {
+    this.lineTool.setThickness(value, max);
+    this.saveToStorage();
+  }
+
+  setLineColor(color: string) {
+    this.lineTool.setColor(color);
+    this.saveToStorage();
+  }
+
+  setCircleStrokeThickness(value: number, max?: number) {
+    this.circleTool.setStrokeThickness(value, max);
+    this.saveToStorage();
+  }
+
+  setCircleStrokeColor(color: string) {
+    this.circleTool.setStrokeColor(color);
+    this.saveToStorage();
+  }
+
+  setCircleFillMode(mode: 'solid' | 'gradient') {
+    this.circleTool.setFillMode(mode);
+    this.saveToStorage();
+  }
+
+  setCircleFillColor(color: string) {
+    this.circleTool.setFillColor(color);
+    this.saveToStorage();
+  }
+
+  setCircleGradientStartColor(color: string) {
+    this.circleTool.setGradientStartColor(color);
+    this.saveToStorage();
+  }
+
+  setCircleGradientEndColor(color: string) {
+    this.circleTool.setGradientEndColor(color);
+    this.saveToStorage();
+  }
+
+  setSquareStrokeThickness(value: number, max?: number) {
+    this.squareTool.setStrokeThickness(value, max);
+    this.saveToStorage();
+  }
+
+  setSquareStrokeColor(color: string) {
+    this.squareTool.setStrokeColor(color);
+    this.saveToStorage();
+  }
+
+  setSquareFillMode(mode: 'solid' | 'gradient') {
+    this.squareTool.setFillMode(mode);
+    this.saveToStorage();
+  }
+
+  setSquareFillColor(color: string) {
+    this.squareTool.setFillColor(color);
+    this.saveToStorage();
+  }
+
+  setSquareGradientStartColor(color: string) {
+    this.squareTool.setGradientStartColor(color);
+    this.saveToStorage();
+  }
+
+  setSquareGradientEndColor(color: string) {
+    this.squareTool.setGradientEndColor(color);
+    this.saveToStorage();
+  }
+
   applySnapshot(snapshot: Partial<ToolSnapshot>, context?: ToolRestoreContext) {
     if (!snapshot) return;
     if (snapshot.currentTool && this.hasTool(snapshot.currentTool)) {
@@ -112,6 +196,9 @@ export class EditorToolsService {
     }
     this.brushTool.restore(snapshot.brush, context);
     this.eraserTool.restore(snapshot.eraser, context);
+    this.lineTool.restore(snapshot.line, context);
+    this.circleTool.restore(snapshot.circle);
+    this.squareTool.restore(snapshot.square);
     this.saveToStorage();
   }
 
@@ -124,10 +211,14 @@ export class EditorToolsService {
       return;
     }
 
-    const brushHandled = this.brushTool.applyMeta?.(key, value) ?? false;
-    const eraserHandled = this.eraserTool.applyMeta?.(key, value) ?? false;
+    const handled =
+      (this.brushTool.applyMeta?.(key, value) ?? false) ||
+      (this.eraserTool.applyMeta?.(key, value) ?? false) ||
+      (this.lineTool.applyMeta?.(key, value) ?? false) ||
+      (this.circleTool.applyMeta?.(key, value) ?? false) ||
+      (this.squareTool.applyMeta?.(key, value) ?? false);
 
-    if (brushHandled || eraserHandled) {
+    if (handled) {
       this.saveToStorage();
     }
   }
@@ -137,6 +228,9 @@ export class EditorToolsService {
       currentTool: this.currentTool(),
       brush: this.brushTool.snapshot(),
       eraser: this.eraserTool.snapshot(),
+      line: this.lineTool.snapshot(),
+      circle: this.circleTool.snapshot(),
+      square: this.squareTool.snapshot(),
     };
   }
 
@@ -149,6 +243,20 @@ export class EditorToolsService {
         brushColor: this.brushTool.color(),
         eraserStrength: this.eraserTool.strength(),
         eraserSize: this.eraserTool.size(),
+        lineThickness: this.lineTool.thickness(),
+        lineColor: this.lineTool.color(),
+        circleStrokeThickness: this.circleTool.strokeThickness(),
+        circleStrokeColor: this.circleTool.strokeColor(),
+        circleFillMode: this.circleTool.fillMode(),
+        circleFillColor: this.circleTool.fillColor(),
+        circleGradientStartColor: this.circleTool.gradientStartColor(),
+        circleGradientEndColor: this.circleTool.gradientEndColor(),
+        squareStrokeThickness: this.squareTool.strokeThickness(),
+        squareStrokeColor: this.squareTool.strokeColor(),
+        squareFillMode: this.squareTool.fillMode(),
+        squareFillColor: this.squareTool.fillColor(),
+        squareGradientStartColor: this.squareTool.gradientStartColor(),
+        squareGradientEndColor: this.squareTool.gradientEndColor(),
       } as const;
       window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch {}
@@ -165,6 +273,22 @@ export class EditorToolsService {
         brushColor: string;
         eraserStrength: number;
         eraserSize: number;
+        lineThickness: number;
+        lineColor: string;
+        circleStrokeThickness: number;
+        circleStrokeColor: string;
+        circleFillMode: 'solid' | 'gradient';
+        circleFillColor: string;
+        circleGradientStartColor: string;
+        circleGradientEndColor: string;
+        squareStrokeThickness: number;
+        squareStrokeColor: string;
+        squareFillMode: 'solid' | 'gradient';
+        squareFillColor: string;
+        squareGradientStartColor: string;
+        squareGradientEndColor: string;
+        circleColor: string;
+        squareColor: string;
       }> | null;
       if (!parsed) return;
       if (parsed.currentTool && this.hasTool(parsed.currentTool)) {
@@ -184,8 +308,62 @@ export class EditorToolsService {
       if (typeof parsed.eraserStrength === 'number') {
         eraserSnapshot.strength = parsed.eraserStrength;
       }
+      const lineSnapshot: Partial<ToolSnapshot['line']> = {};
+      if (typeof parsed.lineThickness === 'number') {
+        lineSnapshot.thickness = parsed.lineThickness;
+      }
+      if (typeof parsed.lineColor === 'string' && parsed.lineColor.length) {
+        lineSnapshot.color = parsed.lineColor;
+      }
+      const circleSnapshot: Partial<ToolSnapshot['circle']> = {};
+      if (typeof parsed.circleStrokeThickness === 'number') {
+        circleSnapshot.strokeThickness = parsed.circleStrokeThickness;
+      }
+      if (typeof parsed.circleStrokeColor === 'string' && parsed.circleStrokeColor.length) {
+        circleSnapshot.strokeColor = parsed.circleStrokeColor;
+      }
+      if (parsed.circleFillMode === 'solid' || parsed.circleFillMode === 'gradient') {
+        circleSnapshot.fillMode = parsed.circleFillMode;
+      }
+      if (typeof parsed.circleFillColor === 'string' && parsed.circleFillColor.length) {
+        circleSnapshot.fillColor = parsed.circleFillColor;
+      }
+      if (typeof parsed.circleGradientStartColor === 'string' && parsed.circleGradientStartColor.length) {
+        circleSnapshot.gradientStartColor = parsed.circleGradientStartColor;
+      }
+      if (typeof parsed.circleGradientEndColor === 'string' && parsed.circleGradientEndColor.length) {
+        circleSnapshot.gradientEndColor = parsed.circleGradientEndColor;
+      }
+      if (!circleSnapshot.fillColor && typeof parsed.circleColor === 'string' && parsed.circleColor.length) {
+        circleSnapshot.fillColor = parsed.circleColor;
+      }
+      const squareSnapshot: Partial<ToolSnapshot['square']> = {};
+      if (typeof parsed.squareStrokeThickness === 'number') {
+        squareSnapshot.strokeThickness = parsed.squareStrokeThickness;
+      }
+      if (typeof parsed.squareStrokeColor === 'string' && parsed.squareStrokeColor.length) {
+        squareSnapshot.strokeColor = parsed.squareStrokeColor;
+      }
+      if (parsed.squareFillMode === 'solid' || parsed.squareFillMode === 'gradient') {
+        squareSnapshot.fillMode = parsed.squareFillMode;
+      }
+      if (typeof parsed.squareFillColor === 'string' && parsed.squareFillColor.length) {
+        squareSnapshot.fillColor = parsed.squareFillColor;
+      }
+      if (typeof parsed.squareGradientStartColor === 'string' && parsed.squareGradientStartColor.length) {
+        squareSnapshot.gradientStartColor = parsed.squareGradientStartColor;
+      }
+      if (typeof parsed.squareGradientEndColor === 'string' && parsed.squareGradientEndColor.length) {
+        squareSnapshot.gradientEndColor = parsed.squareGradientEndColor;
+      }
+      if (!squareSnapshot.fillColor && typeof parsed.squareColor === 'string' && parsed.squareColor.length) {
+        squareSnapshot.fillColor = parsed.squareColor;
+      }
       this.brushTool.restore(brushSnapshot);
       this.eraserTool.restore(eraserSnapshot);
+      this.lineTool.restore(lineSnapshot);
+      this.circleTool.restore(circleSnapshot);
+      this.squareTool.restore(squareSnapshot);
     } catch {}
   }
 }
