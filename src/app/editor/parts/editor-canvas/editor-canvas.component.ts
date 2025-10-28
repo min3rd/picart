@@ -18,6 +18,7 @@ import { CommonModule } from '@angular/common';
 export class EditorCanvas {
   @ViewChild('canvasEl', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('canvasWrapper', { static: true }) canvasWrapper!: ElementRef<HTMLDivElement>;
   readonly document = inject(EditorDocumentService);
   readonly documentSvc: EditorDocumentService = this.document;
   readonly tools = inject(EditorToolsService);
@@ -33,6 +34,8 @@ export class EditorCanvas {
   // rotation feature disabled temporarily
   readonly rotation = signal(0);
   readonly minScale = 0.05;
+  private layoutEffect: EffectRef | null = null;
+  private viewReady = false;
 
   private panning = false;
   // painting state
@@ -75,6 +78,9 @@ export class EditorCanvas {
   ngAfterViewInit(): void {
     // Auto-scale to fit the viewport and center the canvas.
     this.centerAndFitCanvas();
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => this.centerAndFitCanvas());
+    }
     this.updateTileSize(this.tools.brushSize());
 
     // ensure pixel buffers exist for all layers
@@ -106,6 +112,18 @@ export class EditorCanvas {
       };
       window.addEventListener('keydown', this.keyListener as EventListener);
     }
+
+    this.viewReady = true;
+    this.layoutEffect = effect(() => {
+      if (!this.viewReady) return;
+      this.document.canvasWidth();
+      this.document.canvasHeight();
+      const scheduler =
+        typeof queueMicrotask === 'function'
+          ? queueMicrotask
+          : (cb: () => void) => Promise.resolve().then(cb);
+      scheduler(() => this.centerAndFitCanvas());
+    });
   }
 
   get maxScale(): number {
@@ -476,6 +494,17 @@ export class EditorCanvas {
   }
 
   ngOnDestroy(): void {
+    this.viewReady = false;
+    if (this.layoutEffect) {
+      try {
+        if ((this.layoutEffect as any).destroy) {
+          (this.layoutEffect as any).destroy();
+        } else if (typeof (this.layoutEffect as any) === 'function') {
+          (this.layoutEffect as any)();
+        }
+      } catch {}
+      this.layoutEffect = null;
+    }
     if (this.stopRenderEffect) {
       try {
         if ((this.stopRenderEffect as any).destroy) {
@@ -508,20 +537,17 @@ export class EditorCanvas {
       const w = Math.max(1, this.document.canvasWidth());
       const h = Math.max(1, this.document.canvasHeight());
 
-      const containerEl = this.canvasContainer?.nativeElement;
-      const containerWidth = containerEl ? containerEl.clientWidth : w;
-      const containerHeight = containerEl ? containerEl.clientHeight : h;
-      const padding = 32; // keep a bit of breathing room around the canvas
-      const availableWidth = Math.max(1, containerWidth - padding);
-      const availableHeight = Math.max(1, containerHeight - padding);
-      const fitScale = Math.max(this.minScale, Math.min(availableWidth / w, availableHeight / h));
+      const { contentWidth, contentHeight, paddingLeft, paddingTop } = this.measureContainer();
+      if (contentWidth <= 0 || contentHeight <= 0) return;
+
+      const fitScale = Math.max(this.minScale, Math.min(contentWidth / w, contentHeight / h));
       const initialScale = Math.min(this.maxScale, fitScale);
       this.scale.set(initialScale);
 
       const displayWidth = w * initialScale;
       const displayHeight = h * initialScale;
-      const offsetX = (containerWidth - displayWidth) / 2;
-      const offsetY = (containerHeight - displayHeight) / 2;
+      const offsetX = paddingLeft + (contentWidth - displayWidth) / 2;
+      const offsetY = paddingTop + (contentHeight - displayHeight) / 2;
       this.panX.set(offsetX);
       this.panY.set(offsetY);
       this.updateTileSize(this.tools.brushSize());
@@ -725,5 +751,25 @@ export class EditorCanvas {
       }
       ctx.restore();
     }
+  }
+
+  private measureContainer() {
+    const container = this.canvasContainer?.nativeElement;
+    if (!container) {
+      return {
+        contentWidth: this.document.canvasWidth(),
+        contentHeight: this.document.canvasHeight(),
+        paddingLeft: 0,
+        paddingTop: 0,
+      };
+    }
+    const styles = typeof window !== 'undefined' ? window.getComputedStyle(container) : null;
+    const paddingLeft = styles ? parseFloat(styles.paddingLeft) || 0 : 0;
+    const paddingRight = styles ? parseFloat(styles.paddingRight) || 0 : 0;
+    const paddingTop = styles ? parseFloat(styles.paddingTop) || 0 : 0;
+    const paddingBottom = styles ? parseFloat(styles.paddingBottom) || 0 : 0;
+    const contentWidth = Math.max(1, container.clientWidth - paddingLeft - paddingRight);
+    const contentHeight = Math.max(1, container.clientHeight - paddingTop - paddingBottom);
+    return { contentWidth, contentHeight, paddingLeft, paddingTop };
   }
 }
