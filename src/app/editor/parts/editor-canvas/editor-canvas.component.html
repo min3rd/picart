@@ -4,7 +4,8 @@
       <div class="canvas-wrap">
         <div
           class="transform-origin-center"
-          [style.transform]="'translate(' + panX() + 'px,' + panY() + 'px) scale(' + scale() + ')'"
+          [style.transform]="'translate(' + panX() + 'px,' + panY() + 'px)'"
+          [style.transform-origin]="'top left'"
         >
           <canvas
             #canvasEl
@@ -18,7 +19,6 @@
             (pointercancel)="onPointerUp($event)"
             (pointerleave)="onPointerLeave()"
             (contextmenu)="$event.preventDefault()"
-            (wheel)="onWheel($event)"
           ></canvas>
         </div>
       </div>
@@ -146,7 +146,7 @@
       </button>
       <input
         type="range"
-        min="0.01"
+        [min]="minScale"
         [max]="maxScale"
         step="0.01"
         [value]="scale()"

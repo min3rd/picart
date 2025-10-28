@@ -1,6 +1,6 @@
 import { Component, ElementRef, ViewChild, inject, signal, effect, EffectRef } from '@angular/core';
-import { EditorDocumentService } from '../../services/editor-document.service';
-import { EditorToolsService } from '../../services/editor-tools.service';
+import { EditorDocumentService } from '../../../services/editor-document.service';
+import { EditorToolsService } from '../../../services/editor-tools.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 import { CommonModule } from '@angular/common';
@@ -8,17 +8,18 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'pa-editor-canvas',
   templateUrl: './editor-canvas.component.html',
-  styleUrl: './editor-canvas.component.css',
+  styleUrls: ['./editor-canvas.component.css'],
   imports: [CommonModule, TranslocoPipe, NgIcon],
   host: {
     class: 'block h-full w-full',
+    '(wheel)': 'onWheel($event)',
   },
 })
 export class EditorCanvas {
   @ViewChild('canvasEl', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef<HTMLDivElement>;
   readonly document = inject(EditorDocumentService);
-  readonly documentSvc = this.document;
+  readonly documentSvc: EditorDocumentService = this.document;
   readonly tools = inject(EditorToolsService);
 
   readonly mouseX = signal<number | null>(null);
@@ -31,6 +32,7 @@ export class EditorCanvas {
   readonly scale = signal(1);
   // rotation feature disabled temporarily
   readonly rotation = signal(0);
+  readonly minScale = 0.05;
 
   private panning = false;
   // painting state
@@ -73,6 +75,7 @@ export class EditorCanvas {
   ngAfterViewInit(): void {
     // Auto-scale to fit the viewport and center the canvas.
     this.centerAndFitCanvas();
+    this.updateTileSize(this.tools.brushSize());
 
     // ensure pixel buffers exist for all layers
     for (const l of this.document.layers()) {
@@ -226,10 +229,39 @@ export class EditorCanvas {
   }
 
   onWheel(ev: WheelEvent) {
+    const container = this.canvasContainer?.nativeElement;
+    if (!container) return;
+
+    const target = ev.target as HTMLElement | null;
+    if (target) {
+      const tag = target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    if (
+      ev.clientX < rect.left ||
+      ev.clientX > rect.right ||
+      ev.clientY < rect.top ||
+      ev.clientY > rect.bottom
+    ) {
+      return;
+    }
+
     ev.preventDefault();
-    const delta = ev.deltaY > 0 ? -0.1 : 0.1;
-    const next = Math.max(0.01, this.scale() + delta);
-    this.scale.set(Number(next.toFixed(2)));
+    ev.stopPropagation();
+
+    let delta = ev.deltaY;
+    if (ev.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+      delta *= 16;
+    } else if (ev.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+      delta *= rect.height;
+    }
+
+    const zoomIntensity = 0.002;
+    const factor = Math.exp(-delta * zoomIntensity);
+    const next = this.scale() * factor;
+    this.applyZoom(next, { clientX: ev.clientX, clientY: ev.clientY });
   }
 
   onPointerDown(ev: PointerEvent) {
@@ -426,8 +458,7 @@ export class EditorCanvas {
     const target = event.target as HTMLInputElement;
     let v = parseFloat(target.value);
     if (Number.isNaN(v)) return;
-    v = Math.max(0.01, v);
-    this.scale.set(Number(v.toFixed(2)));
+    this.applyZoom(v);
   }
 
   resetRotation() {
@@ -435,13 +466,13 @@ export class EditorCanvas {
   }
 
   increaseZoom(step = 0.1) {
-    const next = this.scale() + step;
-    this.scale.set(Number(next.toFixed(2)));
+    const factor = 1 + Math.max(0, step);
+    this.applyZoom(this.scale() * factor);
   }
 
   decreaseZoom(step = 0.1) {
-    const next = Math.max(0.01, this.scale() - step);
-    this.scale.set(Number(next.toFixed(2)));
+    const factor = 1 + Math.max(0, step);
+    this.applyZoom(this.scale() / factor);
   }
 
   ngOnDestroy(): void {
@@ -477,29 +508,64 @@ export class EditorCanvas {
       const w = Math.max(1, this.document.canvasWidth());
       const h = Math.max(1, this.document.canvasHeight());
 
-      const padding = 32; // leave some space around UI chrome
-      const availW =
-        (typeof this.canvasContainer.nativeElement !== 'undefined'
-          ? this.canvasContainer.nativeElement.clientWidth
-          : w) - padding;
-      const availH =
-        (typeof this.canvasContainer.nativeElement !== 'undefined'
-          ? this.canvasContainer.nativeElement.clientHeight
-          : h) - padding;
-
-      const fitScale = Math.max(0.01, Math.min(availW / w, availH / h));
-      // avoid extremely tiny scales; clamp a reasonable minimum
-      const initialScale = Number(Math.max(0.01, fitScale).toFixed(2));
+      const containerEl = this.canvasContainer?.nativeElement;
+      const containerWidth = containerEl ? containerEl.clientWidth : w;
+      const containerHeight = containerEl ? containerEl.clientHeight : h;
+      const padding = 32; // keep a bit of breathing room around the canvas
+      const availableWidth = Math.max(1, containerWidth - padding);
+      const availableHeight = Math.max(1, containerHeight - padding);
+      const fitScale = Math.max(this.minScale, Math.min(availableWidth / w, availableHeight / h));
+      const initialScale = Math.min(this.maxScale, fitScale);
       this.scale.set(initialScale);
 
-      // Center in viewport (coordinates for translate before scale)
-      const panX = 0;
-      const panY = Math.round((h * initialScale) / 2) - padding;
-      this.panX.set(panX);
-      this.panY.set(panY);
+      const displayWidth = w * initialScale;
+      const displayHeight = h * initialScale;
+      const offsetX = (containerWidth - displayWidth) / 2;
+      const offsetY = (containerHeight - displayHeight) / 2;
+      this.panX.set(offsetX);
+      this.panY.set(offsetY);
+      this.updateTileSize(this.tools.brushSize());
     } catch (e) {
       // best-effort: ignore errors
     }
+  }
+
+  private applyZoom(nextScale: number, anchor?: { clientX: number; clientY: number }) {
+    const clamped = Math.min(this.maxScale, Math.max(this.minScale, nextScale));
+    const prev = this.scale();
+    if (!this.canvasEl?.nativeElement) {
+      this.scale.set(clamped);
+      this.updateTileSize(this.tools.brushSize());
+      return;
+    }
+    if (Math.abs(clamped - prev) < 0.0001) {
+      return;
+    }
+
+    const container = this.canvasContainer?.nativeElement;
+    const containerRect = container ? container.getBoundingClientRect() : null;
+    const prevPanX = this.panX();
+    const prevPanY = this.panY();
+
+    const pivotX =
+      anchor?.clientX ?? (containerRect ? containerRect.left + containerRect.width / 2 : 0);
+    const pivotY =
+      anchor?.clientY ?? (containerRect ? containerRect.top + containerRect.height / 2 : 0);
+    const containerOffsetX = containerRect ? pivotX - containerRect.left : 0;
+    const containerOffsetY = containerRect ? pivotY - containerRect.top : 0;
+    const worldX = containerRect ? (containerOffsetX - prevPanX) / prev : 0;
+    const worldY = containerRect ? (containerOffsetY - prevPanY) / prev : 0;
+
+    this.scale.set(clamped);
+
+    if (containerRect) {
+      const newOffsetX = worldX * clamped;
+      const newOffsetY = worldY * clamped;
+      this.panX.set(containerOffsetX - newOffsetX);
+      this.panY.set(containerOffsetY - newOffsetY);
+    }
+
+    this.updateTileSize(this.tools.brushSize());
   }
 
   private drawCanvas() {
@@ -507,18 +573,26 @@ export class EditorCanvas {
     if (!canvas) return;
     const w = this.document.canvasWidth();
     const h = this.document.canvasHeight();
+    const scale = this.scale();
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    if (canvas.width !== Math.floor(w * dpr)) canvas.width = Math.floor(w * dpr);
-    if (canvas.height !== Math.floor(h * dpr)) canvas.height = Math.floor(h * dpr);
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
+    const displayWidth = Math.max(1, w * scale);
+    const displayHeight = Math.max(1, h * scale);
+    const pixelWidth = Math.max(1, Math.floor(displayWidth * dpr));
+    const pixelHeight = Math.max(1, Math.floor(displayHeight * dpr));
+    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const root = typeof document !== 'undefined' ? document.documentElement : null;
     const isDark = !!root && root.classList.contains('dark');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pixelWidth, pixelHeight);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    const pxLineWidth = 1 / (scale * dpr);
 
     const tile = this.tileSize();
     const darkTile = isDark ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.04)';
@@ -575,7 +649,7 @@ export class EditorCanvas {
         const wRect = Math.min(bSize, w - x0);
         const hRect = Math.min(bSize, h - y0);
 
-        ctx.lineWidth = Math.max(1 / dpr, 1 / dpr);
+        ctx.lineWidth = pxLineWidth;
         if (tool === 'eraser') {
           // Eraser: light overlay + visible border depending on theme
           ctx.fillStyle = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
@@ -611,9 +685,9 @@ export class EditorCanvas {
         ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
         // dashed stroke
-        ctx.setLineDash([4, 3]);
+        ctx.setLineDash([4 / scale, 3 / scale]);
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
-        ctx.lineWidth = 1 / dpr;
+        ctx.lineWidth = pxLineWidth;
         ctx.stroke();
       } else if (selShape === 'lasso') {
         const poly = this.document.selectionPolygon();
@@ -626,9 +700,9 @@ export class EditorCanvas {
           // Optionally close the path for visual completeness
           ctx.closePath();
           ctx.fill();
-          ctx.setLineDash([4, 3]);
+          ctx.setLineDash([4 / scale, 3 / scale]);
           ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
-          ctx.lineWidth = 1 / dpr;
+          ctx.lineWidth = pxLineWidth;
           ctx.stroke();
           // Draw a small marker on the first vertex to help users close the polygon
           const first = poly[0];
@@ -637,22 +711,17 @@ export class EditorCanvas {
           ctx.arc(first.x + 0.5, first.y + 0.5, markerR, 0, Math.PI * 2);
           ctx.fillStyle = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)';
           ctx.fill();
-          ctx.lineWidth = 1 / dpr;
+          ctx.lineWidth = pxLineWidth;
           ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
           ctx.stroke();
         }
       } else {
-        ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
+        // ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
         // dashed stroke
-        ctx.setLineDash([4, 3]);
+        ctx.setLineDash([4 / scale, 3 / scale]);
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
-        ctx.lineWidth = 1 / dpr;
-        ctx.strokeRect(
-          sel.x + 0.5,
-          sel.y + 0.5,
-          Math.max(0, sel.width - 1),
-          Math.max(0, sel.height - 1),
-        );
+        ctx.lineWidth = pxLineWidth;
+        ctx.strokeRect(sel.x, sel.y, Math.max(0, sel.width), Math.max(0, sel.height));
       }
       ctx.restore();
     }

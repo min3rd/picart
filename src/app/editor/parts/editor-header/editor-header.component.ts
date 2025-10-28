@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, OnDestroy, signal } from '@angular/core';
-import { FileService } from '../../services/file.service';
-import { EditorDocumentService } from '../../services/editor-document.service';
+import { FileService } from '../../../services/file.service';
+import { EditorDocumentService } from '../../../services/editor-document.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { UserSettingsService } from '../../services/user-settings.service';
+import { UserSettingsService } from '../../../services/user-settings.service';
 import { NgIcon } from '@ng-icons/core';
 
 @Component({
   selector: 'pa-editor-header',
   templateUrl: './editor-header.component.html',
-  styleUrl: './editor-header.component.css',
+  styleUrls: ['./editor-header.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe, NgIcon],
   host: {

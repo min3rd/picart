@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { EditorDocumentService } from '../../services/editor-document.service';
-import { EditorToolsService } from '../../services/editor-tools.service';
+import { EditorDocumentService } from '../../../services/editor-document.service';
+import { EditorToolsService } from '../../../services/editor-tools.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 
 @Component({
   selector: 'pa-layers-panel',
   templateUrl: './layers-panel.component.html',
-  styleUrl: './layers-panel.component.css',
+  styleUrls: ['./layers-panel.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe, NgIcon],
   host: {
