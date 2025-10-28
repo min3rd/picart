@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { EditorHeader } from './parts/editor-header.component';
-import { ToolPalette } from './parts/tool-palette.component';
-import { LayersPanel } from './parts/layers-panel.component';
-import { TimelinePanel } from './parts/timeline-panel.component';
-import { EditorCanvas } from './parts/editor-canvas.component';
+import { EditorHeader } from './parts/editor-header/editor-header.component';
+import { ToolPalette } from './parts/tool-palette/tool-palette.component';
+import { LayersPanel } from './parts/layers-panel/layers-panel.component';
+import { TimelinePanel } from './parts/timeline-panel/timeline-panel.component';
+import { EditorCanvas } from './parts/editor-canvas/editor-canvas.component';
 import { UserSettingsService } from '../services/user-settings.service';
 
 @Component({
