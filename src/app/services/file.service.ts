@@ -103,7 +103,8 @@ export class FileService {
         const text = await file.text();
         const parsed = JSON.parse(text) as Project;
         // remember handle by project id if present or by new id
-        const projectId = parsed.id || `proj_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const projectId =
+          parsed.id || `proj_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
         parsed.id = projectId;
         this.fileHandles.set(projectId, handle);
         return parsed;

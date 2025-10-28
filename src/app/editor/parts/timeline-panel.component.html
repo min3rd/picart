@@ -1,13 +1,16 @@
 <div class="h-full flex items-stretch">
-  <div class="w-48 shrink-0 border-r border-neutral-200 dark:border-neutral-800 p-2 text-sm">Timeline</div>
+  <div class="w-48 shrink-0 border-r border-neutral-200 dark:border-neutral-800 p-2 text-sm">
+    {{ 'timeline.title' | transloco }}
+  </div>
   <div class="flex-1 overflow-auto">
     <div class="flex items-center gap-2 p-2">
-      @for (f of state.frames(); let i = $index; track f.id) {
+      @for (f of document.frames(); let i = $index; track f.id) {
         <button
           type="button"
           (click)="setFrame(i)"
-          class="w-28 h-16 border border-neutral-300 dark:border-neutral-700 rounded-sm flex items-center justify-center"
-          [class]="state.currentFrameIndex() === i ? 'bg-neutral-200 dark:bg-neutral-700' : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'"
+          class="w-28 h-16 border border-neutral-300 dark:border-neutral-700 rounded-sm flex items-center justify-center hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60"
+          [class.bg-neutral-200]="document.currentFrameIndex() === i"
+          [class.dark\:bg-neutral-700]="document.currentFrameIndex() === i"
         >
           <span class="text-xs truncate">{{ f.name }}</span>
         </button>

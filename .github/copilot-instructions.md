@@ -34,7 +34,7 @@ Additional project rules:
 
 - Only use icons from the `ng-icons` library with Heroicons (do not add or use other icon libraries or inline SVGs directly; register custom SVGs through the `provideIcons` mechanism if needed).
 - Do NOT leave comments in code. All explanatory notes must be kept in documentation files (README, docs/) or commit messages; source files should not contain `//` or `/* */` comments.
- - Always use Transloco for UI text and do NOT display hard-coded strings in templates or components; all user-facing strings must come from translation keys.
+- Always use Transloco for UI text and do NOT display hard-coded strings in templates or components; all user-facing strings must come from translation keys.
 
 ## State Management
 

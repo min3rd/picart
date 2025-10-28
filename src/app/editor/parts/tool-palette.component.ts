@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { EditorStateService, ToolId } from '../../services/editor-state.service';
+import { EditorToolsService } from '../../services/editor-tools.service';
+import { ToolId } from '../../services/tools/tool.types';
 import { NgIcon } from '@ng-icons/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -14,9 +15,9 @@ import { TranslocoPipe } from '@jsverse/transloco';
   },
 })
 export class ToolPalette {
-  readonly state = inject(EditorStateService);
+  readonly tools = inject(EditorToolsService);
 
   select(id: ToolId) {
-    this.state.selectTool(id);
+    this.tools.selectTool(id);
   }
 }

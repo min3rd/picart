@@ -1,6 +1,6 @@
 /* Checkerboard only behind the drawing canvas */
 .canvas-wrap {
-	display: inline-block;
+  display: inline-block;
 }
 
 canvas {

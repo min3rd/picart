@@ -1,13 +1,15 @@
 import { Component, ElementRef, ViewChild, inject, signal, effect, EffectRef } from '@angular/core';
-import { EditorStateService } from '../../services/editor-state.service';
+import { EditorDocumentService } from '../../services/editor-document.service';
+import { EditorToolsService } from '../../services/editor-tools.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'pa-editor-canvas',
   templateUrl: './editor-canvas.component.html',
   styleUrl: './editor-canvas.component.css',
-  imports: [TranslocoPipe, NgIcon],
+  imports: [CommonModule, TranslocoPipe, NgIcon],
   host: {
     class: 'block h-full w-full',
   },
@@ -15,7 +17,9 @@ import { NgIcon } from '@ng-icons/core';
 export class EditorCanvas {
   @ViewChild('canvasEl', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef<HTMLDivElement>;
-  readonly state = inject(EditorStateService);
+  readonly document = inject(EditorDocumentService);
+  readonly documentSvc = this.document;
+  readonly tools = inject(EditorToolsService);
 
   readonly mouseX = signal<number | null>(null);
   readonly mouseY = signal<number | null>(null);
@@ -58,7 +62,7 @@ export class EditorCanvas {
   // compute the CSS cursor for the canvas based on current tool and state
   cursor(): string {
     if (this.panning) return this.handGrabbingCursor;
-    const tool = this.state.currentTool();
+    const tool = this.tools.currentTool();
     if (tool === 'rect-select' || tool === 'ellipse-select' || tool === 'lasso-select')
       return `crosshair`;
     if (tool === 'brush') return this.brushCursor;
@@ -71,8 +75,12 @@ export class EditorCanvas {
     this.centerAndFitCanvas();
 
     // ensure pixel buffers exist for all layers
-    for (const l of this.state.layers()) {
-      this.state.ensureLayerBuffer(l.id, this.state.canvasWidth(), this.state.canvasHeight());
+    for (const l of this.document.layers()) {
+      this.document.ensureLayerBuffer(
+        l.id,
+        this.document.canvasWidth(),
+        this.document.canvasHeight(),
+      );
     }
 
     // Recenter on window resize
@@ -82,12 +90,12 @@ export class EditorCanvas {
       // listen for Escape to cancel in-progress lasso selections
       this.keyListener = (ev: KeyboardEvent) => {
         if (ev.key === 'Escape') {
-          const tool = this.state.currentTool();
+          const tool = this.tools.currentTool();
           if (tool === 'lasso-select') {
             // cancel any in-progress lasso without recording history
-            this.state.selectionPolygon.set(null as any);
-            this.state.selectionRect.set(null as any);
-            this.state.selectionShape.set('rect');
+            this.document.selectionPolygon.set(null as any);
+            this.document.selectionRect.set(null as any);
+            this.document.selectionShape.set('rect');
             this.selectionDragging = false;
             this.selectionStart = null;
           }
@@ -98,7 +106,7 @@ export class EditorCanvas {
   }
 
   get maxScale(): number {
-    const maxDim = Math.max(1, Math.max(this.state.canvasWidth(), this.state.canvasHeight()));
+    const maxDim = Math.max(1, Math.max(this.document.canvasWidth(), this.document.canvasHeight()));
     const targetPx = 512;
     const computed = Math.ceil(targetPx / maxDim);
     return Math.min(Math.max(8, computed), 256);
@@ -118,8 +126,8 @@ export class EditorCanvas {
     this.mouseX.set(Math.round(visX));
     this.mouseY.set(Math.round(visY));
 
-    const w = this.state.canvasWidth();
-    const h = this.state.canvasHeight();
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
     const ratioX = w / Math.max(1, rect.width);
     const ratioY = h / Math.max(1, rect.height);
     const logicalX = Math.floor(visX * ratioX);
@@ -147,7 +155,7 @@ export class EditorCanvas {
     // NOTE: lasso-select does NOT add points on pointermove; vertices are added on click.
     if (this.selectionDragging) {
       if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
-        const tool = this.state.currentTool();
+        const tool = this.tools.currentTool();
         if (tool !== 'lasso-select') {
           let endX = logicalX;
           let endY = logicalY;
@@ -166,7 +174,7 @@ export class EditorCanvas {
             endX = Math.max(0, Math.min(endX, w - 1));
             endY = Math.max(0, Math.min(endY, h - 1));
           }
-          this.state.updateSelection(endX, endY);
+          this.document.updateSelection(endX, endY);
         }
       }
       return;
@@ -177,10 +185,10 @@ export class EditorCanvas {
     // Painting: if left button pressed and current tool is brush/eraser, apply
     if (this.painting) {
       if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
-        const layerId = this.state.selectedLayerId();
-        const tool = this.state.currentTool();
-        const color = tool === 'eraser' ? null : this.state.brushColor();
-        const size = tool === 'eraser' ? this.state.eraserSize() : this.state.brushSize();
+        const layerId = this.document.selectedLayerId();
+        const tool = this.tools.currentTool();
+        const color = tool === 'eraser' ? null : this.tools.brushColor();
+        const size = tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
         if (this.lastPaintPos) {
           this.drawLinePaint(
             layerId,
@@ -189,10 +197,17 @@ export class EditorCanvas {
             logicalX,
             logicalY,
             size,
-            color
+            color,
           );
         } else {
-          this.state.applyBrushToLayer(layerId, logicalX, logicalY, size, color);
+          this.document.applyBrushToLayer(
+            layerId,
+            logicalX,
+            logicalY,
+            size,
+            color,
+            tool === 'eraser' ? { eraserStrength: this.tools.eraserStrength() } : undefined,
+          );
         }
         this.lastPaintPos = { x: logicalX, y: logicalY };
       }
@@ -206,7 +221,7 @@ export class EditorCanvas {
       // finalize current paint action if pointer leaves
       this.painting = false;
       this.lastPaintPos = null;
-      this.state.endAction();
+      this.document.endAction();
     }
   }
 
@@ -232,13 +247,13 @@ export class EditorCanvas {
       const rect = this.canvasEl.nativeElement.getBoundingClientRect();
       const visX = ev.clientX - rect.left;
       const visY = ev.clientY - rect.top;
-      const w = this.state.canvasWidth();
-      const h = this.state.canvasHeight();
+      const w = this.document.canvasWidth();
+      const h = this.document.canvasHeight();
       const ratioX = w / Math.max(1, rect.width);
       const ratioY = h / Math.max(1, rect.height);
       const logicalX = Math.floor(visX * ratioX);
       const logicalY = Math.floor(visY * ratioY);
-      const tool = this.state.currentTool();
+      const tool = this.tools.currentTool();
       // Rectangle / Ellipse / Lasso selection handling
       if (
         (tool === 'rect-select' || tool === 'ellipse-select' || tool === 'lasso-select') &&
@@ -249,13 +264,13 @@ export class EditorCanvas {
       ) {
         // Lasso behaves as click-to-add-vertex: each click adds a vertex.
         if (tool === 'lasso-select') {
-          const poly = this.state.selectionPolygon();
+          const poly = this.document.selectionPolygon();
           // If no polygon yet, start one
           if (!poly || poly.length === 0) {
             this.selectionStart = { x: logicalX, y: logicalY };
             this.selectionDragging = true;
-            this.state.beginSelection(logicalX, logicalY, 'lasso' as any);
-            this.state.addLassoPoint(logicalX, logicalY);
+            this.document.beginSelection(logicalX, logicalY, 'lasso' as any);
+            this.document.addLassoPoint(logicalX, logicalY);
             return;
           }
           // If clicking near the first vertex, close the polygon and finish selection
@@ -268,11 +283,11 @@ export class EditorCanvas {
             // finalize selection
             this.selectionDragging = false;
             this.selectionStart = null;
-            this.state.endSelection();
+            this.document.endSelection();
             return;
           }
           // otherwise add a new vertex
-          this.state.addLassoPoint(logicalX, logicalY);
+          this.document.addLassoPoint(logicalX, logicalY);
           return;
         }
 
@@ -280,38 +295,45 @@ export class EditorCanvas {
         this.selectionStart = { x: logicalX, y: logicalY };
         this.selectionDragging = true;
         const shape = tool === 'ellipse-select' ? 'ellipse' : 'rect';
-        this.state.beginSelection(logicalX, logicalY, shape as any);
+        this.document.beginSelection(logicalX, logicalY, shape as any);
         return;
       }
       if (
         tool === 'fill' &&
         logicalX >= 0 &&
-        logicalX < this.state.canvasWidth() &&
+        logicalX < this.document.canvasWidth() &&
         logicalY >= 0 &&
-        logicalY < this.state.canvasHeight()
+        logicalY < this.document.canvasHeight()
       ) {
         // One-shot fill action
-        this.state.beginAction('fill');
-        const layerId = this.state.selectedLayerId();
-        const color = this.state.brushColor();
-        this.state.applyFillToLayer(layerId, logicalX, logicalY, color);
-        this.state.endAction();
+        this.document.beginAction('fill');
+        const layerId = this.document.selectedLayerId();
+        const color = this.tools.brushColor();
+        this.document.applyFillToLayer(layerId, logicalX, logicalY, color);
+        this.document.endAction();
       } else if (
         (tool === 'brush' || tool === 'eraser') &&
         logicalX >= 0 &&
-        logicalX < this.state.canvasWidth() &&
+        logicalX < this.document.canvasWidth() &&
         logicalY >= 0 &&
-        logicalY < this.state.canvasHeight()
+        logicalY < this.document.canvasHeight()
       ) {
         // Begin a grouped user action so the whole stroke is a single undoable
         // section. The action will be collected until pointer up/leave.
-        this.state.beginAction('paint');
+        this.document.beginAction('paint');
         this.painting = true;
         this.lastPaintPos = { x: logicalX, y: logicalY };
-        const layerId = this.state.selectedLayerId();
-        const color = tool === 'eraser' ? null : this.state.brushColor();
-        const size = tool === 'eraser' ? this.state.eraserSize() : this.state.brushSize();
-        this.state.applyBrushToLayer(layerId, logicalX, logicalY, size, color);
+        const layerId = this.document.selectedLayerId();
+        const color = tool === 'eraser' ? null : this.tools.brushColor();
+        const size = tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
+        this.document.applyBrushToLayer(
+          layerId,
+          logicalX,
+          logicalY,
+          size,
+          color,
+          tool === 'eraser' ? { eraserStrength: this.tools.eraserStrength() } : undefined,
+        );
       }
     }
   }
@@ -323,13 +345,13 @@ export class EditorCanvas {
     if (this.painting) {
       this.painting = false;
       this.lastPaintPos = null;
-      this.state.endAction();
+      this.document.endAction();
     }
 
     if (this.selectionDragging) {
       this.selectionDragging = false;
       this.selectionStart = null;
-      this.state.endSelection();
+      this.document.endSelection();
     }
   }
 
@@ -339,10 +361,10 @@ export class EditorCanvas {
     const target = event.target as HTMLInputElement;
     const width = parseInt(target.value, 10);
     if (width > 0) {
-      this.state.setCanvasSize(width, this.state.canvasHeight());
+      this.document.setCanvasSize(width, this.document.canvasHeight());
       // ensure buffers for all layers
-      for (const l of this.state.layers()) {
-        this.state.ensureLayerBuffer(l.id, width, this.state.canvasHeight());
+      for (const l of this.document.layers()) {
+        this.document.ensureLayerBuffer(l.id, width, this.document.canvasHeight());
       }
     }
   }
@@ -351,10 +373,10 @@ export class EditorCanvas {
     const target = event.target as HTMLInputElement;
     const height = parseInt(target.value, 10);
     if (height > 0) {
-      this.state.setCanvasSize(this.state.canvasWidth(), height);
+      this.document.setCanvasSize(this.document.canvasWidth(), height);
       // ensure buffers for all layers
-      for (const l of this.state.layers()) {
-        this.state.ensureLayerBuffer(l.id, this.state.canvasWidth(), height);
+      for (const l of this.document.layers()) {
+        this.document.ensureLayerBuffer(l.id, this.document.canvasWidth(), height);
       }
     }
   }
@@ -362,7 +384,7 @@ export class EditorCanvas {
   // Note: per-layer pixel buffers are stored in EditorStateService; ensureLayerBuffer
   // calls that service method when needed.
 
-  // applyBrush removed: logic delegated to EditorStateService.applyBrushToLayer
+  // applyBrush removed: logic delegated to EditorDocumentService.applyBrushToLayer
 
   // Draw a straight line between two logical pixel coordinates and apply the
   // brush/eraser at each step so fast pointer movement produces continuous
@@ -374,7 +396,7 @@ export class EditorCanvas {
     x1: number,
     y1: number,
     brushSize: number,
-    color: string | null
+    color: string | null,
   ) {
     const dx = Math.abs(x1 - x0);
     const sx = x0 < x1 ? 1 : -1;
@@ -383,8 +405,10 @@ export class EditorCanvas {
     let err = dx + dy;
     let x = x0;
     let y = y0;
+    const eraserOptions =
+      color === null ? { eraserStrength: this.tools.eraserStrength() } : undefined;
     while (true) {
-      this.state.applyBrushToLayer(layerId, x, y, brushSize, color);
+      this.document.applyBrushToLayer(layerId, x, y, brushSize, color, eraserOptions);
       if (x === x1 && y === y1) break;
       const e2 = 2 * err;
       if (e2 >= dy) {
@@ -450,8 +474,8 @@ export class EditorCanvas {
     try {
       const canvas = this.canvasEl?.nativeElement;
       if (!canvas) return;
-      const w = Math.max(1, this.state.canvasWidth());
-      const h = Math.max(1, this.state.canvasHeight());
+      const w = Math.max(1, this.document.canvasWidth());
+      const h = Math.max(1, this.document.canvasHeight());
 
       const padding = 32; // leave some space around UI chrome
       const availW =
@@ -481,8 +505,8 @@ export class EditorCanvas {
   private drawCanvas() {
     const canvas = this.canvasEl?.nativeElement;
     if (!canvas) return;
-    const w = this.state.canvasWidth();
-    const h = this.state.canvasHeight();
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     if (canvas.width !== Math.floor(w * dpr)) canvas.width = Math.floor(w * dpr);
     if (canvas.height !== Math.floor(h * dpr)) canvas.height = Math.floor(h * dpr);
@@ -510,16 +534,16 @@ export class EditorCanvas {
     ctx.restore();
 
     // depend on layer pixel version so effect reruns when any layer buffer changes
-    this.state.layerPixelsVersion();
+    this.document.layerPixelsVersion();
 
     // draw layers in reverse order so the first layer in the UI (layers()[0])
     // is treated as the topmost and drawn last. Iterate from last -> first to
     // draw bottom layers first and top layers last (so top overlays lower ones).
-    const layers = this.state.layers();
+    const layers = this.document.layers();
     for (let li = layers.length - 1; li >= 0; li--) {
       const layer = layers[li];
       if (!layer.visible) continue;
-      const buf = this.state.getLayerBuffer(layer.id);
+      const buf = this.document.getLayerBuffer(layer.id);
       if (!buf || buf.length !== w * h) continue;
       ctx.save();
       for (let yy = 0; yy < h; yy++) {
@@ -538,11 +562,11 @@ export class EditorCanvas {
     const hy = this.hoverY();
     // Only show brush/eraser highlight when using the brush or eraser tool.
     if (hx !== null && hy !== null) {
-      const tool = this.state.currentTool();
+      const tool = this.tools.currentTool();
       if (tool === 'brush' || tool === 'eraser') {
         ctx.save();
-  const size = tool === 'eraser' ? this.state.eraserSize() : this.state.brushSize();
-  const bSize = Math.max(1, size);
+        const size = tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
+        const bSize = Math.max(1, size);
 
         // center the brush highlight on the hovered pixel
         const half = Math.floor((bSize - 1) / 2);
@@ -560,7 +584,7 @@ export class EditorCanvas {
           ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
         } else {
           // Brush: use current brush color with translucency and border
-          ctx.fillStyle = this.state.brushColor();
+          ctx.fillStyle = this.tools.brushColor();
           ctx.globalAlpha = 0.9;
           ctx.fillRect(x0, y0, wRect, hRect);
           ctx.globalAlpha = 1;
@@ -572,8 +596,8 @@ export class EditorCanvas {
     }
 
     // Draw active selection if present
-    const sel = this.state.selectionRect();
-    const selShape = this.state.selectionShape();
+    const sel = this.document.selectionRect();
+    const selShape = this.document.selectionShape();
     if (sel && sel.width > 0 && sel.height > 0) {
       ctx.save();
       // translucent fill
@@ -592,7 +616,7 @@ export class EditorCanvas {
         ctx.lineWidth = 1 / dpr;
         ctx.stroke();
       } else if (selShape === 'lasso') {
-        const poly = this.state.selectionPolygon();
+        const poly = this.document.selectionPolygon();
         if (poly && poly.length > 0) {
           ctx.beginPath();
           ctx.moveTo(poly[0].x + 0.5, poly[0].y + 0.5);
@@ -627,7 +651,7 @@ export class EditorCanvas {
           sel.x + 0.5,
           sel.y + 0.5,
           Math.max(0, sel.width - 1),
-          Math.max(0, sel.height - 1)
+          Math.max(0, sel.height - 1),
         );
       }
       ctx.restore();

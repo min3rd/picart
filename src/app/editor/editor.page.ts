@@ -4,7 +4,6 @@ import { ToolPalette } from './parts/tool-palette.component';
 import { LayersPanel } from './parts/layers-panel.component';
 import { TimelinePanel } from './parts/timeline-panel.component';
 import { EditorCanvas } from './parts/editor-canvas.component';
-import { EditorStateService } from '../services/editor-state.service';
 import { UserSettingsService } from '../services/user-settings.service';
 
 @Component({
@@ -20,7 +19,6 @@ import { UserSettingsService } from '../services/user-settings.service';
   },
 })
 export class EditorPage {
-  private readonly state = inject(EditorStateService);
   private readonly settings = inject(UserSettingsService);
 
   // Panel sizes (px)

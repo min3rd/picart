@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { EditorStateService } from '../../services/editor-state.service';
+import { EditorDocumentService } from '../../services/editor-document.service';
+import { EditorToolsService } from '../../services/editor-tools.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 
@@ -10,47 +11,48 @@ import { NgIcon } from '@ng-icons/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe, NgIcon],
   host: {
-    class: 'block h-full'
-  }
+    class: 'block h-full',
+  },
 })
 export class LayersPanel {
-  readonly state = inject(EditorStateService);
+  readonly document = inject(EditorDocumentService);
+  readonly tools = inject(EditorToolsService);
 
   get maxCanvasDim() {
-    return Math.max(1, Math.max(this.state.canvasWidth(), this.state.canvasHeight()));
+    return Math.max(1, Math.max(this.document.canvasWidth(), this.document.canvasHeight()));
   }
 
   onBrushSizeInput(event: Event) {
     const v = (event.target as HTMLInputElement).value;
     const n = Number(v);
-    if (!Number.isNaN(n)) this.state.setBrushSize(Math.floor(n));
+    if (!Number.isNaN(n)) this.tools.setBrushSize(Math.floor(n), this.maxCanvasDim);
   }
 
   onBrushColorInput(event: Event) {
     const v = (event.target as HTMLInputElement).value;
-    this.state.setBrushColor(v);
+    this.tools.setBrushColor(v);
   }
 
   onEraserSizeInput(event: Event) {
     const v = (event.target as HTMLInputElement).value;
     const n = Number(v);
-    if (!Number.isNaN(n)) this.state.setEraserSize(Math.floor(n));
+    if (!Number.isNaN(n)) this.tools.setEraserSize(Math.floor(n), this.maxCanvasDim);
   }
 
   onEraserStrengthInput(event: Event) {
     const v = (event.target as HTMLInputElement).value;
     const n = Number(v);
-    if (!Number.isNaN(n)) this.state.setEraserStrength(Math.floor(n));
+    if (!Number.isNaN(n)) this.tools.setEraserStrength(Math.floor(n));
   }
 
   private dragIndex: number | null = null;
 
   select(id: string) {
-    this.state.selectLayer(id);
+    this.document.selectLayer(id);
   }
 
   onAddLayer() {
-    this.state.addLayer();
+    this.document.addLayer();
   }
 
   onDragStart(ev: DragEvent, index: number) {
@@ -68,7 +70,7 @@ export class LayersPanel {
     ev.preventDefault();
     const from = this.dragIndex ?? parseInt(ev.dataTransfer?.getData('text/plain') || '-1', 10);
     if (from >= 0 && from !== index) {
-      this.state.reorderLayers(from, index);
+      this.document.reorderLayers(from, index);
     }
     this.dragIndex = null;
   }

@@ -8,8 +8,8 @@
         >
           <canvas
             #canvasEl
-            [attr.width]="state.canvasWidth()"
-            [attr.height]="state.canvasHeight()"
+            [attr.width]="documentSvc.canvasWidth()"
+            [attr.height]="documentSvc.canvasHeight()"
             [style.cursor]="cursor()"
             class="border border-neutral-300 dark:border-neutral-700 block"
             (pointermove)="onPointerMove($event)"
@@ -34,87 +34,100 @@
 
   <!-- Info panel -->
   @if (infoVisible()) {
-  <div
-    #canvasInfoPanel
-    class="absolute right-2 top-2 w-56 text-sm bg-white/80 dark:bg-neutral-900/70 backdrop-blur-md rounded-lg shadow-lg border border-neutral-200/60 dark:border-neutral-800/60 overflow-hidden"
-  >
-    <div class="flex items-center px-3 py-2">
-      <div class="flex items-center gap-2">
-        <ng-icon
-          name="bootstrapInfoCircle"
-          class="w-5 h-5 text-neutral-700 dark:text-neutral-200"
-        ></ng-icon>
-        <div class="text-sm font-medium text-neutral-800 dark:text-neutral-100">
-          {{ 'canvas.infoTitle' | transloco }}
+    <div
+      #canvasInfoPanel
+      class="absolute right-2 top-2 w-56 text-sm bg-white/80 dark:bg-neutral-900/70 backdrop-blur-md rounded-lg shadow-lg border border-neutral-200/60 dark:border-neutral-800/60 overflow-hidden"
+    >
+      <div class="flex items-center px-3 py-2">
+        <div class="flex items-center gap-2">
+          <ng-icon
+            name="bootstrapInfoCircle"
+            class="w-5 h-5 text-neutral-700 dark:text-neutral-200"
+          ></ng-icon>
+          <div class="text-sm font-medium text-neutral-800 dark:text-neutral-100">
+            {{ 'canvas.infoTitle' | transloco }}
+          </div>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <div
+            class="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200"
+          >
+            {{ scale().toFixed(2) }}x
+          </div>
+          <button
+            type="button"
+            class="w-7 h-7 grid place-items-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            (click)="infoVisible.set(false)"
+            aria-label="Close info"
+          >
+            <ng-icon
+              name="featherMinus"
+              class="w-4 h-4 text-neutral-700 dark:text-neutral-200"
+            ></ng-icon>
+          </button>
         </div>
       </div>
-      <div class="ml-auto flex items-center gap-2">
-        <div
-          class="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200"
-        >
-          {{ scale().toFixed(2) }}x
+
+      <div class="border-t border-neutral-200/50 dark:border-neutral-800/50 px-3 py-3">
+        <div class="grid grid-cols-2 gap-2 items-center">
+          <label class="text-xs text-neutral-600 dark:text-neutral-300">{{
+            'canvas.width' | transloco
+          }}</label>
+          <input
+            type="number"
+            [value]="documentSvc.canvasWidth()"
+            (input)="setCanvasWidth($event)"
+            class="w-full text-sm rounded-md border border-neutral-200 dark:border-neutral-800 px-2 py-1 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100"
+            min="1"
+            max="4096"
+          />
+
+          <label class="text-xs text-neutral-600 dark:text-neutral-300">{{
+            'canvas.height' | transloco
+          }}</label>
+          <input
+            type="number"
+            [value]="documentSvc.canvasHeight()"
+            (input)="setCanvasHeight($event)"
+            class="w-full text-sm rounded-md border border-neutral-200 dark:border-neutral-800 px-2 py-1 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100"
+            min="1"
+            max="4096"
+          />
         </div>
-        <button
-          type="button"
-          class="w-7 h-7 grid place-items-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
-          (click)="infoVisible.set(false)"
-          aria-label="Close info"
-        >
-          <ng-icon name="featherMinus" class="w-4 h-4 text-neutral-700 dark:text-neutral-200"></ng-icon>
-        </button>
+
+        <div class="mt-3 text-xs text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
+          @if (documentSvc.canvasSaved()) {
+            <ng-icon name="check" class="w-4 h-4 text-green-500"></ng-icon>
+          } @else {
+            <ng-icon name="clock" class="w-4 h-4 text-amber-400"></ng-icon>
+          }
+          <div>
+            {{
+              documentSvc.canvasSaved()
+                ? ('canvas.saved' | transloco)
+                : ('canvas.unsaved' | transloco)
+            }}
+          </div>
+        </div>
       </div>
     </div>
-
-    <div class="border-t border-neutral-200/50 dark:border-neutral-800/50 px-3 py-3">
-      <div class="grid grid-cols-2 gap-2 items-center">
-        <label class="text-xs text-neutral-600 dark:text-neutral-300">{{
-          'canvas.width' | transloco
-        }}</label>
-        <input
-          type="number"
-          [value]="state.canvasWidth()"
-          (input)="setCanvasWidth($event)"
-          class="w-full text-sm rounded-md border border-neutral-200 dark:border-neutral-800 px-2 py-1 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100"
-          min="1"
-          max="4096"
-        />
-
-        <label class="text-xs text-neutral-600 dark:text-neutral-300">{{
-          'canvas.height' | transloco
-        }}</label>
-        <input
-          type="number"
-          [value]="state.canvasHeight()"
-          (input)="setCanvasHeight($event)"
-          class="w-full text-sm rounded-md border border-neutral-200 dark:border-neutral-800 px-2 py-1 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100"
-          min="1"
-          max="4096"
-        />
-      </div>
-
-      <div class="mt-3 text-xs text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
-        <ng-icon name="check" class="w-4 h-4 text-green-500" *ngIf="state.canvasSaved()"></ng-icon>
-        <ng-icon name="clock" class="w-4 h-4 text-amber-400" *ngIf="!state.canvasSaved()"></ng-icon>
-        <div>
-          {{ state.canvasSaved() ? ('canvas.saved' | transloco) : ('canvas.unsaved' | transloco) }}
-        </div>
-      </div>
-    </div>
-  </div>
   }
 
   <!-- Always-visible opener when panel hidden -->
   @if (!infoVisible()) {
-  <div class="absolute right-2 top-2">
-    <button
-      type="button"
-      class="w-8 h-8 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-sm shadow-sm"
-      (click)="infoVisible.set(true)"
-      aria-label="Open info"
-    >
-      <ng-icon name="bootstrapChevronLeft" class="w-5 h-5 text-neutral-800 dark:text-neutral-200"></ng-icon>
-    </button>
-  </div>
+    <div class="absolute right-2 top-2">
+      <button
+        type="button"
+        class="w-8 h-8 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-sm shadow-sm"
+        (click)="infoVisible.set(true)"
+        aria-label="Open info"
+      >
+        <ng-icon
+          name="bootstrapChevronLeft"
+          class="w-5 h-5 text-neutral-800 dark:text-neutral-200"
+        ></ng-icon>
+      </button>
+    </div>
   }
 
   <!-- Bottom-right: Zoom slider + rotation display/reset -->

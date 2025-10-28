@@ -1,122 +1,122 @@
 <div class="p-2 text-sm">
-  @if (state.currentTool() === 'brush') {
-  <div
-    class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
-  >
-    <div class="font-semibold text-sm mb-2">{{ 'brush.title' | transloco }}</div>
-    <div class="flex items-center gap-2">
-      <label class="text-xs opacity-80 w-12">{{ 'brush.size' | transloco }}</label>
-      <input
-        type="range"
-        min="1"
-        [max]="maxCanvasDim"
-        [value]="state.brushSize()"
-        (input)="onBrushSizeInput($event)"
-        class="flex-1"
-      />
-      <input
-        type="number"
-        [value]="state.brushSize()"
-        (input)="onBrushSizeInput($event)"
-        class="w-16 text-xs border rounded px-1"
-      />
+  @if (tools.currentTool() === 'brush') {
+    <div
+      class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
+    >
+      <div class="font-semibold text-sm mb-2">{{ 'brush.title' | transloco }}</div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs opacity-80 w-12">{{ 'brush.size' | transloco }}</label>
+        <input
+          type="range"
+          min="1"
+          [max]="maxCanvasDim"
+          [value]="tools.brushSize()"
+          (input)="onBrushSizeInput($event)"
+          class="flex-1"
+        />
+        <input
+          type="number"
+          [value]="tools.brushSize()"
+          (input)="onBrushSizeInput($event)"
+          class="w-16 text-xs border rounded px-1"
+        />
+      </div>
+      <div class="flex items-center gap-2 mt-2">
+        <label class="text-xs opacity-80 w-12">{{ 'brush.color' | transloco }}</label>
+        <input
+          type="color"
+          [value]="tools.brushColor()"
+          (input)="onBrushColorInput($event)"
+          class="w-10 h-8 p-0 border rounded"
+        />
+        <div class="text-xs ml-2">{{ tools.brushColor() }}</div>
+      </div>
     </div>
-    <div class="flex items-center gap-2 mt-2">
-      <label class="text-xs opacity-80 w-12">{{ 'brush.color' | transloco }}</label>
-      <input
-        type="color"
-        [value]="state.brushColor()"
-        (input)="onBrushColorInput($event)"
-        class="w-10 h-8 p-0 border rounded"
-      />
-      <div class="text-xs ml-2">{{ state.brushColor() }}</div>
-    </div>
-  </div>
   }
-  @if (state.currentTool() === 'eraser') {
-  <div
-    class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
-  >
-    <div class="font-semibold text-sm mb-2">{{ 'eraser.title' | transloco }}</div>
-    <div class="flex items-center gap-2">
-      <label class="text-xs opacity-80 w-12">{{ 'eraser.size' | transloco }}</label>
-      <input
-        type="range"
-        min="1"
-        [max]="maxCanvasDim"
-        [value]="state.eraserSize()"
-        (input)="onEraserSizeInput($event)"
-        class="flex-1"
-      />
-      <input
-        type="number"
-        min="1"
-        [attr.max]="maxCanvasDim"
-        [value]="state.eraserSize()"
-        (input)="onEraserSizeInput($event)"
-        class="w-16 text-xs border rounded px-1"
-      />
+  @if (tools.currentTool() === 'eraser') {
+    <div
+      class="mb-3 p-2 border border-neutral-200 dark:border-neutral-700 rounded-sm bg-neutral-50/80 dark:bg-neutral-900/50"
+    >
+      <div class="font-semibold text-sm mb-2">{{ 'eraser.title' | transloco }}</div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs opacity-80 w-12">{{ 'eraser.size' | transloco }}</label>
+        <input
+          type="range"
+          min="1"
+          [max]="maxCanvasDim"
+          [value]="tools.eraserSize()"
+          (input)="onEraserSizeInput($event)"
+          class="flex-1"
+        />
+        <input
+          type="number"
+          min="1"
+          [attr.max]="maxCanvasDim"
+          [value]="tools.eraserSize()"
+          (input)="onEraserSizeInput($event)"
+          class="w-16 text-xs border rounded px-1"
+        />
+      </div>
+      <div class="flex items-center gap-2 mt-2">
+        <label class="text-xs opacity-80 w-12">{{ 'eraser.strength' | transloco }}</label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          [value]="tools.eraserStrength()"
+          (input)="onEraserStrengthInput($event)"
+          class="flex-1"
+        />
+        <input
+          type="number"
+          min="0"
+          max="100"
+          [value]="tools.eraserStrength()"
+          (input)="onEraserStrengthInput($event)"
+          class="w-16 text-xs border rounded px-1"
+        />
+      </div>
     </div>
-    <div class="flex items-center gap-2 mt-2">
-      <label class="text-xs opacity-80 w-12">{{ 'eraser.strength' | transloco }}</label>
-      <input
-        type="range"
-        min="0"
-        max="100"
-        [value]="state.eraserStrength()"
-        (input)="onEraserStrengthInput($event)"
-        class="flex-1"
-      />
-      <input
-        type="number"
-        min="0"
-        max="100"
-        [value]="state.eraserStrength()"
-        (input)="onEraserStrengthInput($event)"
-        class="w-16 text-xs border rounded px-1"
-      />
-    </div>
-  </div>
   }
   <div class="font-semibold mb-2">{{ 'layers.title' | transloco }}</div>
   <div class="flex flex-col gap-1">
-    @for (l of state.layers(); let i = $index; track l.id) {
-    <div
-      class="px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center"
-      draggable="true"
-      (dragstart)="onDragStart($event, i)"
-      (dragover)="onDragOver($event, i)"
-      (drop)="onDrop($event, i)"
-      [class]="
-        state.selectedLayerId() === l.id
-          ? 'bg-neutral-200 dark:bg-neutral-700'
-          : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'
-      "
-    >
-      <div class="w-4 h-6 flex items-center justify-center cursor-grab mr-2">
-        <ng-icon name="featherAlignJustify" class="w-4 h-4" />
+    @for (l of document.layers(); let i = $index; track l.id) {
+      <div
+        class="px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center"
+        draggable="true"
+        (dragstart)="onDragStart($event, i)"
+        (dragover)="onDragOver($event, i)"
+        (drop)="onDrop($event, i)"
+        [class]="
+          document.selectedLayerId() === l.id
+            ? 'bg-neutral-200 dark:bg-neutral-700'
+            : 'hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'
+        "
+      >
+        <div class="w-4 h-6 flex items-center justify-center cursor-grab mr-2">
+          <ng-icon name="featherAlignJustify" class="w-4 h-4" />
+        </div>
+        <button
+          type="button"
+          class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center"
+          (click)="document.toggleLayerVisibility(l.id)"
+          [title]="l.visible ? ('layers.hide' | transloco) : ('layers.show' | transloco)"
+        >
+          <ng-icon [name]="l.visible ? 'featherEye' : 'featherEyeOff'" class="w-4 h-4"></ng-icon>
+        </button>
+        <button type="button" class="flex-1 text-left ml-2" (click)="select(l.id)">
+          <span class="truncate opacity-90">{{ l.name }}</span>
+        </button>
+        <button
+          type="button"
+          class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
+          (click)="document.removeLayer(l.id)"
+          [disabled]="document.layers().length <= 1"
+          title="{{ 'layers.delete' | transloco }}"
+        >
+          <ng-icon name="featherTrash" class="w-4 h-4"></ng-icon>
+        </button>
       </div>
-      <button
-        type="button"
-        class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center"
-        (click)="state.toggleLayerVisibility(l.id)"
-        [title]="l.visible ? ('layers.hide' | transloco) : ('layers.show' | transloco)"
-      >
-        <ng-icon [name]="l.visible ? 'featherEye' : 'featherEyeOff'" class="w-4 h-4"></ng-icon>
-      </button>
-      <button type="button" class="flex-1 text-left ml-2" (click)="select(l.id)">
-        <span class="truncate opacity-90">{{ l.name }}</span>
-      </button>
-      <button
-        type="button"
-        class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
-        (click)="state.removeLayer(l.id)"
-        [disabled]="state.layers().length <= 1"
-        title="{{ 'layers.delete' | transloco }}"
-      >
-        <ng-icon name="featherTrash" class="w-4 h-4"></ng-icon>
-      </button>
-    </div>
     }
   </div>
   <div class="mt-3">

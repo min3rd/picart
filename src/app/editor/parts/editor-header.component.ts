@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, OnDestroy, signal } from '@angular/core';
 import { FileService } from '../../services/file.service';
-import { EditorStateService } from '../../services/editor-state.service';
+import { EditorDocumentService } from '../../services/editor-document.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { UserSettingsService } from '../../services/user-settings.service';
 import { NgIcon } from '@ng-icons/core';
@@ -18,7 +18,7 @@ import { NgIcon } from '@ng-icons/core';
 })
 export class EditorHeader {
   readonly fileService = inject(FileService);
-  readonly state = inject(EditorStateService);
+  readonly document = inject(EditorDocumentService);
   readonly i18n = inject(TranslocoService);
   readonly settings = inject(UserSettingsService);
   readonly showFileMenu = signal(false);
@@ -27,7 +27,7 @@ export class EditorHeader {
 
   async onNewProject() {
     // Reset to a minimal new project
-    this.state.resetToNewProject();
+    this.document.resetToNewProject();
     this.showFileMenu.set(false);
   }
   async onOpen() {
@@ -35,7 +35,7 @@ export class EditorHeader {
     if (parsed) {
       // try to restore using editor snapshot shape; fallback to raw project
       try {
-        this.state.restoreProjectSnapshot(parsed as any);
+        this.document.restoreProjectSnapshot(parsed as any);
       } catch (e) {
         console.warn('Open returned project but failed to restore into editor state', e);
       }
@@ -48,9 +48,9 @@ export class EditorHeader {
     await this.onOpen();
   }
   async onSave() {
-    // Save current project to localStorage via EditorStateService
+    // Save current project to localStorage via EditorDocumentService
     try {
-      const ok = this.state.saveProjectToLocalStorage();
+      const ok = this.document.saveProjectToLocalStorage();
       if (ok) console.info('Project saved to localStorage');
     } catch (e) {
       console.error('Save failed', e);
@@ -59,7 +59,7 @@ export class EditorHeader {
 
   async onSaveToComputer() {
     try {
-      const snapshot = this.state.exportProjectSnapshot();
+      const snapshot = this.document.exportProjectSnapshot();
       const name = `${(snapshot as any).name || 'project'}.picart`;
       this.fileService.exportProjectToDownload(snapshot as any, name);
     } catch (e) {
@@ -121,13 +121,13 @@ export class EditorHeader {
 
   onUndo() {
     try {
-      this.state.undo();
+      this.document.undo();
     } catch {}
   }
 
   onRedo() {
     try {
-      this.state.redo();
+      this.document.redo();
     } catch {}
   }
 
@@ -145,12 +145,7 @@ export class EditorHeader {
       this.onRedo();
     } else if (s) {
       ev.preventDefault();
-      try {
-        const ok = this.state.saveProjectToLocalStorage();
-        if (ok) console.info('Project saved to localStorage');
-      } catch (e) {
-        console.error('Save to localStorage failed', e);
-      }
+      this.document.saveProjectToLocalStorage();
     }
   };
 

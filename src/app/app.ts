@@ -8,7 +8,7 @@ import { RouterOutlet } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet],
   host: {
-    class: 'block h-dvh bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100'
-  }
+    class: 'block h-dvh bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100',
+  },
 })
 export class App {}
