@@ -2,10 +2,7 @@
   id="tool-palette-root"
   class="flex h-full flex-col bg-neutral-100/10 dark:bg-neutral-900/40"
 >
-  <div
-    id="tool-palette-grid"
-    class="grid grid-cols-2 justify-items-center gap-2 p-2 text-xs sm:grid-cols-3"
-  >
+  <div id="tool-palette-grid" class="flex flex-wrap p-2 gap-2 justify-baseline">
     @for (t of tools.tools(); track t.id) {
       @let active = tools.currentTool() === t.id;
       <button
