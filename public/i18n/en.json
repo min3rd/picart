@@ -2,6 +2,7 @@
   "menu": {
     "file": "File",
     "edit": "Edit",
+    "insert": "Insert",
     "tool": "Tool",
     "help": "Help",
     "undo": "Undo",
@@ -140,6 +141,15 @@
     "openFromComputer": "Open from computer",
     "saveToComputer": "Save to computer",
     "saveLocal": "Save"
+  },
+  "insert": {
+    "insertImage": "Insert Image",
+    "imageResizeTitle": "Resize Image",
+    "imageResizePrompt": "Enter new dimensions (leave empty to keep original size)",
+    "width": "Width",
+    "height": "Height",
+    "cancel": "Cancel",
+    "ok": "OK"
   },
   "fill": {
     "title": "Fill",

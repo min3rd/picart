@@ -28,8 +28,11 @@ export class EditorHeader {
   readonly i18n = inject(TranslocoService);
   readonly settings = inject(UserSettingsService);
   readonly showFileMenu = signal(false);
+  readonly showInsertMenu = signal(false);
   private hoverOpenTimer?: number;
   private hoverCloseTimer?: number;
+  private insertHoverOpenTimer?: number;
+  private insertHoverCloseTimer?: number;
 
   async onNewProject() {
     // Reset to a minimal new project
@@ -164,6 +167,93 @@ export class EditorHeader {
     }
   }
 
+  async onInsertImage() {
+    this.showInsertMenu.set(false);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg,image/jpg';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        if (!e.target?.result) return;
+        img.src = e.target.result as string;
+        img.onload = async () => {
+          const originalWidth = img.width;
+          const originalHeight = img.height;
+          const userWidth = window.prompt(
+            `${this.i18n.translate('insert.imageResizePrompt')}\n${this.i18n.translate('insert.width')} (${originalWidth}):`,
+            '',
+          );
+          if (userWidth === null) return;
+          const userHeight = window.prompt(
+            `${this.i18n.translate('insert.height')} (${originalHeight}):`,
+            '',
+          );
+          if (userHeight === null) return;
+          const targetWidth = userWidth.trim() ? Number.parseInt(userWidth.trim(), 10) : originalWidth;
+          const targetHeight = userHeight.trim() ? Number.parseInt(userHeight.trim(), 10) : originalHeight;
+          const result = await this.document.insertImageAsLayer(
+            file,
+            targetWidth > 0 ? targetWidth : undefined,
+            targetHeight > 0 ? targetHeight : undefined,
+          );
+          if (result) {
+            console.info(`Image inserted as layer: ${result.layerId}`, result.bounds);
+          } else {
+            console.error('Failed to insert image');
+          }
+        };
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  openInsertMenuHover() {
+    if (this.insertHoverCloseTimer) {
+      clearTimeout(this.insertHoverCloseTimer);
+      this.insertHoverCloseTimer = undefined;
+    }
+    if (!this.showInsertMenu()) {
+      this.insertHoverOpenTimer = window.setTimeout(() => {
+        this.showInsertMenu.set(true);
+        this.insertHoverOpenTimer = undefined;
+      }, 150);
+    }
+  }
+
+  closeInsertMenuHover() {
+    if (this.insertHoverOpenTimer) {
+      clearTimeout(this.insertHoverOpenTimer);
+      this.insertHoverOpenTimer = undefined;
+    }
+    if (this.showInsertMenu()) {
+      this.insertHoverCloseTimer = window.setTimeout(() => {
+        this.showInsertMenu.set(false);
+        this.insertHoverCloseTimer = undefined;
+      }, 200);
+    }
+  }
+
+  onInsertMenuFocusIn() {
+    if (this.insertHoverCloseTimer) {
+      clearTimeout(this.insertHoverCloseTimer);
+      this.insertHoverCloseTimer = undefined;
+    }
+    this.showInsertMenu.set(true);
+  }
+
+  onInsertMenuFocusOut() {
+    if (this.insertHoverCloseTimer) clearTimeout(this.insertHoverCloseTimer);
+    this.insertHoverCloseTimer = window.setTimeout(() => {
+      this.showInsertMenu.set(false);
+      this.insertHoverCloseTimer = undefined;
+    }, 150);
+  }
+
   ngOnDestroy(): void {
     if (typeof window !== 'undefined') {
       window.removeEventListener(
@@ -178,6 +268,14 @@ export class EditorHeader {
     if (this.hoverCloseTimer) {
       clearTimeout(this.hoverCloseTimer);
       this.hoverCloseTimer = undefined;
+    }
+    if (this.insertHoverOpenTimer) {
+      clearTimeout(this.insertHoverOpenTimer);
+      this.insertHoverOpenTimer = undefined;
+    }
+    if (this.insertHoverCloseTimer) {
+      clearTimeout(this.insertHoverCloseTimer);
+      this.insertHoverCloseTimer = undefined;
     }
   }
 

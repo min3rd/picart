@@ -2,6 +2,7 @@
   "menu": {
     "file": "Tệp",
     "edit": "Chỉnh sửa",
+    "insert": "Chèn",
     "tool": "Công cụ",
     "help": "Trợ giúp",
     "undo": "Quay lại",
@@ -140,6 +141,15 @@
     "openFromComputer": "Mở từ máy tính",
     "saveToComputer": "Lưu về máy tính",
     "saveLocal": "Lưu"
+  },
+  "insert": {
+    "insertImage": "Chèn ảnh",
+    "imageResizeTitle": "Đổi kích thước ảnh",
+    "imageResizePrompt": "Nhập kích thước mới (để trống để giữ kích thước gốc)",
+    "width": "Chiều rộng",
+    "height": "Chiều cao",
+    "cancel": "Hủy",
+    "ok": "Đồng ý"
   },
   "fill": {
     "color": "Màu sắc",
