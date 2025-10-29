@@ -60,12 +60,12 @@ export class EditorCanvas {
   private readonly shapeStart = signal<{ x: number; y: number } | null>(null);
   private readonly shapeCurrent = signal<{ x: number; y: number } | null>(null);
   private readonly activeShapeTool = signal<'line' | 'circle' | 'square' | null>(null);
+  private readonly shapeConstrainSquare = signal(false);
 
   private panning = false;
   // painting state
   private painting = false;
   private lastPaintPos: { x: number; y: number } | null = null;
-  // rectangle selection drag state
   private selectionStart: { x: number; y: number } | null = null;
   private selectionDragging = false;
   private lastPointer = { x: 0, y: 0 };
@@ -74,7 +74,6 @@ export class EditorCanvas {
   readonly tileSize = signal(1);
   private resizeListener: (() => void) | null = null;
   private keyListener: ((e: KeyboardEvent) => void) | null = null;
-  // cursor assets (from public/cursors)
   private readonly defaultCursor = `url('/cursors/link.png') 12 12, link`;
   private readonly brushCursor = `url('/cursors/handwriting.png') 12 12, crosshair`;
   private readonly eraserCursor = `url('/cursors/unavailable.png') 12 12, cell`;
@@ -88,8 +87,6 @@ export class EditorCanvas {
   private readonly gradientSteps = 8;
 
   constructor() {
-    // Use static cursor images placed in public/cursors directory.
-    // Expected files (add to public/cursors): brush.png, eraser.png, hand-grabbing.png
     this.stopRenderEffect = effect(() => {
       this.drawCanvas();
       return null as any;
@@ -241,6 +238,12 @@ export class EditorCanvas {
     if (this.shaping) {
       const clampedX = this.clampCoord(logicalX, w);
       const clampedY = this.clampCoord(logicalY, h);
+      const active = this.activeShapeTool();
+      if (active === 'square') {
+        this.shapeConstrainSquare.set(ev.shiftKey);
+      } else {
+        this.shapeConstrainSquare.set(false);
+      }
       this.shapeCurrent.set({ x: clampedX, y: clampedY });
     }
 
@@ -401,6 +404,11 @@ export class EditorCanvas {
         logicalY >= 0 &&
         logicalY < h
       ) {
+        if (tool === 'square') {
+          this.shapeConstrainSquare.set(ev.shiftKey);
+        } else {
+          this.shapeConstrainSquare.set(false);
+        }
         this.startShape(tool, logicalX, logicalY);
         return;
       }
@@ -447,7 +455,7 @@ export class EditorCanvas {
   onPointerUp(ev: PointerEvent) {
     this.panning = false;
     if (this.shaping) {
-      this.finishShape();
+      this.finishShape(ev.shiftKey);
     }
     // rotation disabled
     // stop painting on any pointer up
@@ -721,10 +729,15 @@ export class EditorCanvas {
         ctx.lineTo(shapeCurrent.x + 0.5, shapeCurrent.y + 0.5);
         ctx.stroke();
       } else {
-        const bounds = this.computeSquareBounds(shapeStart, shapeCurrent);
         if (activeShape === 'square') {
+          const bounds = this.computeRectBounds(
+            shapeStart,
+            shapeCurrent,
+            this.shapeConstrainSquare(),
+          );
           this.renderSquarePreview(ctx, bounds, this.getSquareDrawOptions(), pxLineWidth);
         } else {
+          const bounds = this.computeRectBounds(shapeStart, shapeCurrent, true);
           this.renderCirclePreview(ctx, bounds, this.getCircleDrawOptions(), pxLineWidth);
         }
       }
@@ -840,7 +853,7 @@ export class EditorCanvas {
     this.shapeCurrent.set(point);
   }
 
-  private finishShape() {
+  private finishShape(constrainOverride?: boolean) {
     if (!this.shaping) return;
     const mode = this.activeShapeTool();
     const start = this.shapeStart();
@@ -870,6 +883,8 @@ export class EditorCanvas {
         this.getCircleDrawOptions(),
       );
     } else {
+      const constrainSquare =
+        typeof constrainOverride === 'boolean' ? constrainOverride : this.shapeConstrainSquare();
       this.document.applySquareToLayer(
         layerId,
         start.x,
@@ -877,6 +892,7 @@ export class EditorCanvas {
         current.x,
         current.y,
         this.getSquareDrawOptions(),
+        constrainSquare,
       );
     }
     this.document.endAction();
@@ -894,15 +910,17 @@ export class EditorCanvas {
     this.activeShapeTool.set(null);
     this.shapeStart.set(null);
     this.shapeCurrent.set(null);
+    this.shapeConstrainSquare.set(false);
   }
 
   private clampCoord(value: number, max: number) {
     return Math.max(0, Math.min(Math.floor(value), max - 1));
   }
 
-  private computeSquareBounds(
+  private computeRectBounds(
     start: { x: number; y: number },
     current: { x: number; y: number },
+    constrainToSquare: boolean,
   ) {
     const width = Math.max(1, this.document.canvasWidth());
     const height = Math.max(1, this.document.canvasHeight());
@@ -912,11 +930,15 @@ export class EditorCanvas {
     const cy = this.clampCoord(current.y, height);
     const dx = cx - sx;
     const dy = cy - sy;
-    const stepX = dx >= 0 ? 1 : -1;
-    const stepY = dy >= 0 ? 1 : -1;
-    const span = Math.max(Math.abs(dx), Math.abs(dy));
-    const ex = this.clampCoord(sx + stepX * span, width);
-    const ey = this.clampCoord(sy + stepY * span, height);
+    let ex = cx;
+    let ey = cy;
+    if (constrainToSquare) {
+      const stepX = dx >= 0 ? 1 : -1;
+      const stepY = dy >= 0 ? 1 : -1;
+      const span = Math.max(Math.abs(dx), Math.abs(dy));
+      ex = this.clampCoord(sx + stepX * span, width);
+      ey = this.clampCoord(sy + stepY * span, height);
+    }
     const minX = Math.max(0, Math.min(sx, ex));
     const maxX = Math.min(width - 1, Math.max(sx, ex));
     const minY = Math.max(0, Math.min(sy, ey));

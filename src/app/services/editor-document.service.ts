@@ -930,6 +930,7 @@ export class EditorDocumentService {
     x1: number,
     y1: number,
     options: ShapeDrawOptions,
+    constrainToSquare = true,
   ) {
     const buf = this.layerPixels.get(layerId);
     if (!buf) return 0;
@@ -944,11 +945,15 @@ export class EditorDocumentService {
     const startY = clampY(y0);
     const targetX = clampX(x1);
     const targetY = clampY(y1);
-    const stepX = targetX >= startX ? 1 : -1;
-    const stepY = targetY >= startY ? 1 : -1;
-    const span = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
-    const endX = clampX(startX + stepX * span);
-    const endY = clampY(startY + stepY * span);
+    let endX = targetX;
+    let endY = targetY;
+    if (constrainToSquare) {
+      const stepX = endX >= startX ? 1 : -1;
+      const stepY = endY >= startY ? 1 : -1;
+      const span = Math.max(Math.abs(endX - startX), Math.abs(endY - startY));
+      endX = clampX(startX + stepX * span);
+      endY = clampY(startY + stepY * span);
+    }
     const minX = Math.max(0, Math.min(startX, endX));
     const maxX = Math.min(w - 1, Math.max(startX, endX));
     const minY = Math.max(0, Math.min(startY, endY));
