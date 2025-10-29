@@ -193,15 +193,22 @@ export class EditorHeader {
             '',
           );
           if (userHeight === null) return;
-          const targetWidth = userWidth.trim() ? Number.parseInt(userWidth.trim(), 10) : originalWidth;
-          const targetHeight = userHeight.trim() ? Number.parseInt(userHeight.trim(), 10) : originalHeight;
+          const targetWidth = userWidth.trim()
+            ? Number.parseInt(userWidth.trim(), 10)
+            : originalWidth;
+          const targetHeight = userHeight.trim()
+            ? Number.parseInt(userHeight.trim(), 10)
+            : originalHeight;
           const result = await this.document.insertImageAsLayer(
             file,
             targetWidth > 0 ? targetWidth : undefined,
             targetHeight > 0 ? targetHeight : undefined,
           );
           if (result) {
-            console.info(`Image inserted as layer: ${result.layerId}`, result.bounds);
+            console.info(
+              `Image inserted as layer: ${result.layerId}`,
+              result.bounds,
+            );
           } else {
             console.error('Failed to insert image');
           }

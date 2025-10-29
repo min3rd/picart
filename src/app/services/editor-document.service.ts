@@ -2222,11 +2222,16 @@ export class EditorDocumentService {
     imageFile: File,
     targetWidth?: number,
     targetHeight?: number,
-  ): Promise<{ layerId: string; bounds: { x: number; y: number; width: number; height: number } } | null> {
+  ): Promise<{
+    layerId: string;
+    bounds: { x: number; y: number; width: number; height: number };
+  } | null> {
     try {
       const img = await this.loadImage(imageFile);
-      const finalWidth = targetWidth && targetWidth > 0 ? targetWidth : img.width;
-      const finalHeight = targetHeight && targetHeight > 0 ? targetHeight : img.height;
+      const finalWidth =
+        targetWidth && targetWidth > 0 ? targetWidth : img.width;
+      const finalHeight =
+        targetHeight && targetHeight > 0 ? targetHeight : img.height;
       const canvas = document.createElement('canvas');
       canvas.width = finalWidth;
       canvas.height = finalHeight;
@@ -2235,7 +2240,9 @@ export class EditorDocumentService {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
       const imageData = ctx.getImageData(0, 0, finalWidth, finalHeight);
-      const layerName = imageFile.name.replace(/\.[^.]+$/, '') || `Inserted Image ${this.layers().length + 1}`;
+      const layerName =
+        imageFile.name.replace(/\.[^.]+$/, '') ||
+        `Inserted Image ${this.layers().length + 1}`;
       const prevSnapshot = this.snapshotLayersAndBuffers();
       const newLayer = this.addLayer(layerName);
       const canvasWidth = this.canvasWidth();
@@ -2249,14 +2256,18 @@ export class EditorDocumentService {
         for (let x = 0; x < finalWidth; x++) {
           const px = startX + x;
           const py = startY + y;
-          if (px < 0 || px >= canvasWidth || py < 0 || py >= canvasHeight) continue;
+          if (px < 0 || px >= canvasWidth || py < 0 || py >= canvasHeight)
+            continue;
           const srcIdx = (y * finalWidth + x) * 4;
           const r = imageData.data[srcIdx];
           const g = imageData.data[srcIdx + 1];
           const b = imageData.data[srcIdx + 2];
           const a = imageData.data[srcIdx + 3] / 255;
           if (a <= 0) continue;
-          const color = a >= 1 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${a.toFixed(3)})`;
+          const color =
+            a >= 1
+              ? `rgb(${r},${g},${b})`
+              : `rgba(${r},${g},${b},${a.toFixed(3)})`;
           const idx = py * canvasWidth + px;
           const oldVal = buf[idx] || '';
           if (oldVal !== color) {
