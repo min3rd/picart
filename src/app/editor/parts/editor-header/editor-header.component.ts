@@ -4,19 +4,24 @@ import {
   inject,
   OnDestroy,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FileService } from '../../../services/file.service';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { UserSettingsService } from '../../../services/user-settings.service';
 import { NgIcon } from '@ng-icons/core';
+import {
+  InsertImageDialog,
+  InsertImageResult,
+} from '../../../shared/components/insert-image-dialog/insert-image-dialog.component';
 
 @Component({
   selector: 'pa-editor-header',
   templateUrl: './editor-header.component.html',
   styleUrls: ['./editor-header.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, NgIcon],
+  imports: [TranslocoPipe, NgIcon, InsertImageDialog],
   host: {
     class:
       'block w-full bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-800',
@@ -29,6 +34,7 @@ export class EditorHeader {
   readonly settings = inject(UserSettingsService);
   readonly showFileMenu = signal(false);
   readonly showInsertMenu = signal(false);
+  readonly insertImageDialog = viewChild(InsertImageDialog);
   private hoverOpenTimer?: number;
   private hoverCloseTimer?: number;
   private insertHoverOpenTimer?: number;
@@ -175,48 +181,32 @@ export class EditorHeader {
     input.onchange = async () => {
       const file = input.files && input.files[0];
       if (!file) return;
-      const img = new Image();
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        if (!e.target?.result) return;
-        img.src = e.target.result as string;
-        img.onload = async () => {
-          const originalWidth = img.width;
-          const originalHeight = img.height;
-          const userWidth = window.prompt(
-            `${this.i18n.translate('insert.imageResizePrompt')}\n${this.i18n.translate('insert.width')} (${originalWidth}):`,
-            '',
-          );
-          if (userWidth === null) return;
-          const userHeight = window.prompt(
-            `${this.i18n.translate('insert.height')} (${originalHeight}):`,
-            '',
-          );
-          if (userHeight === null) return;
-          const targetWidth = userWidth.trim()
-            ? Number.parseInt(userWidth.trim(), 10)
-            : originalWidth;
-          const targetHeight = userHeight.trim()
-            ? Number.parseInt(userHeight.trim(), 10)
-            : originalHeight;
-          const result = await this.document.insertImageAsLayer(
-            file,
-            targetWidth > 0 ? targetWidth : undefined,
-            targetHeight > 0 ? targetHeight : undefined,
-          );
-          if (result) {
-            console.info(
-              `Image inserted as layer: ${result.layerId}`,
-              result.bounds,
-            );
-          } else {
-            console.error('Failed to insert image');
-          }
-        };
-      };
-      reader.readAsDataURL(file);
+      const dialog = this.insertImageDialog();
+      if (dialog) {
+        dialog.open(file);
+      }
     };
     input.click();
+  }
+
+  async handleInsertImageConfirm(result: InsertImageResult) {
+    const insertResult = await this.document.insertImageAsLayer(
+      result.file,
+      result.width > 0 ? result.width : undefined,
+      result.height > 0 ? result.height : undefined,
+    );
+    if (insertResult) {
+      console.info(
+        `Image inserted as layer: ${insertResult.layerId}`,
+        insertResult.bounds,
+      );
+    } else {
+      console.error('Failed to insert image');
+    }
+  }
+
+  handleInsertImageCancel() {
+    console.info('Image insertion cancelled');
   }
 
   openInsertMenuHover() {

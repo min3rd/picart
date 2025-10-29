@@ -138,6 +138,8 @@
     "insertImage": "Chèn ảnh",
     "imageResizeTitle": "Đổi kích thước ảnh",
     "imageResizePrompt": "Nhập kích thước mới (để trống để giữ kích thước gốc)",
+    "preview": "Xem trước",
+    "originalSize": "Kích thước gốc",
     "width": "Chiều rộng",
     "height": "Chiều cao",
     "cancel": "Hủy",
