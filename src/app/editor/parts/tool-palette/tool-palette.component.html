@@ -4,20 +4,23 @@
 >
   <div
     id="tool-palette-grid"
-    class="grid grid-cols-2 gap-2 p-2 text-xs sm:grid-cols-3"
+    class="grid grid-cols-2 justify-items-center gap-2 p-2 text-xs sm:grid-cols-3"
   >
     @for (t of tools.tools(); track t.id) {
+      @let active = tools.currentTool() === t.id;
       <button
         id="tool-palette-button-{{ t.id }}"
         type="button"
         (click)="select(t.id)"
-        class="flex aspect-square w-full items-center justify-center rounded-lg border border-neutral-200/70 bg-neutral-50/60 text-neutral-600 transition-colors hover:bg-neutral-200/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:border-neutral-700/70 dark:bg-neutral-900/60 dark:text-neutral-200"
-        [class]="
-          tools.currentTool() === t.id
-            ? 'border-blue-500 bg-neutral-200/80 text-neutral-900 shadow-sm dark:bg-neutral-700/70 dark:text-neutral-50'
-            : ''
-        "
+        class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-neutral-200/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:hover:bg-neutral-700/70"
+        [ngClass]="{
+          'border border-blue-500 bg-neutral-200/80 text-neutral-900 shadow-sm dark:bg-neutral-700/70 dark:text-neutral-50':
+            active,
+          'border border-neutral-200/70 bg-neutral-50/60 text-neutral-600 transition-colors  dark:border-neutral-700/70 dark:bg-neutral-900/60 dark:text-neutral-200':
+            !active,
+        }"
         title="{{ t.labelKey ? (t.labelKey | transloco) : t.name }}"
+        [attr.aria-pressed]="active"
       >
         <ng-icon
           id="tool-palette-button-icon-{{ t.id }}"
@@ -33,317 +36,782 @@
 
   <div
     id="tool-palette-config"
-    class="flex-1 space-y-3 overflow-y-auto border-t border-neutral-200/60 px-2 pb-3 pt-3 dark:border-neutral-800/60"
+    class="flex-1 space-y-3 overflow-y-auto border-t border-neutral-200/60 dark:border-neutral-800/60"
   >
     @switch (tools.currentTool()) {
       @case ("fill") {
         <section
           id="palette-fill-panel"
-          class="rounded-md border border-neutral-200/60 bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
+          class="space-y-3 rounded-md bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
         >
-          <header
-            id="palette-fill-heading"
-            class="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-300"
-          >
-            <ng-icon
-              id="palette-fill-heading-icon"
-              name="bootstrapPaintBucket"
-              class="h-4 w-4"
-            ></ng-icon>
-            <span id="palette-fill-heading-label">{{
-              "editor.tools.fill.title" | transloco
-            }}</span>
-          </header>
-          <div id="palette-fill-content" class="mt-3 space-y-3">
-            <div id="palette-fill-mode-row" class="flex items-center gap-2">
-              <ng-icon
-                id="palette-fill-mode-icon"
-                name="bootstrapMagic"
-                class="h-4 w-4 text-neutral-500 dark:text-neutral-300"
-              ></ng-icon>
-              <div
-                id="palette-fill-mode-toggle"
-                class="flex gap-1 rounded-md bg-neutral-200/50 p-1 dark:bg-neutral-800/50"
-              >
-                <button
-                  id="palette-fill-mode-button-color"
-                  type="button"
-                  class="flex h-8 w-8 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70"
-                  [class]="
-                    tools.fillMode() === 'color'
-                      ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
-                      : ''
-                  "
-                  (click)="setFillMode('color')"
-                  [attr.aria-pressed]="tools.fillMode() === 'color'"
-                >
-                  <ng-icon
-                    id="palette-fill-mode-button-color-icon"
-                    name="bootstrapDropletFill"
-                    class="h-4 w-4"
-                  ></ng-icon>
-                  <span
-                    id="palette-fill-mode-button-color-label"
-                    class="sr-only"
-                  >
-                    {{ "editor.tools.fill.useColor" | transloco }}
-                  </span>
-                </button>
-                <button
-                  id="palette-fill-mode-button-erase"
-                  type="button"
-                  class="flex h-8 w-8 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70"
-                  [class]="
-                    tools.fillMode() === 'erase'
-                      ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
-                      : ''
-                  "
-                  (click)="setFillMode('erase')"
-                  [attr.aria-pressed]="tools.fillMode() === 'erase'"
-                >
-                  <ng-icon
-                    id="palette-fill-mode-button-erase-icon"
-                    name="bootstrapEraser"
-                    class="h-4 w-4"
-                  ></ng-icon>
-                  <span
-                    id="palette-fill-mode-button-erase-label"
-                    class="sr-only"
-                  >
-                    {{ "editor.tools.fill.erase" | transloco }}
-                  </span>
-                </button>
-              </div>
-            </div>
-            @if (tools.fillMode() === "color") {
-              <div
-                id="palette-fill-color-row"
-                class="grid grid-cols-[auto,auto,1fr] items-center gap-2"
+          <div id="palette-fill-mode-row" class="flex items-center gap-2">
+            <div
+              id="palette-fill-mode-toggle"
+              class="flex gap-1 rounded-md bg-neutral-200/50 p-1 dark:bg-neutral-800/50"
+            >
+              <button
+                id="palette-fill-mode-button-color"
+                type="button"
+                (click)="setFillMode('color')"
+                [attr.aria-pressed]="tools.fillMode() === 'color'"
+                [className]="
+                  'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                  (tools.fillMode() === 'color'
+                    ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                    : '')
+                "
               >
                 <ng-icon
-                  id="palette-fill-color-icon"
-                  name="bootstrapDroplet"
-                  class="h-4 w-4 text-neutral-500 dark:text-neutral-300"
+                  id="palette-fill-mode-button-color-icon"
+                  name="bootstrapDropletFill"
+                  class="h-4 w-4"
                 ></ng-icon>
-                <div
-                  id="palette-fill-color-input-wrap"
-                  class="flex items-center"
-                >
-                  <label
-                    id="palette-fill-color-label"
-                    class="sr-only"
-                    for="palette-fill-color-input"
-                  >
-                    {{ "editor.tools.fill.color" | transloco }}
-                  </label>
-                  <input
-                    id="palette-fill-color-input"
-                    type="color"
-                    [value]="tools.fillColor()"
-                    (input)="onFillColorInput($event)"
-                    class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
-                  />
-                </div>
-                <div
-                  id="palette-fill-color-value"
-                  class="rounded-sm bg-neutral-200/50 px-2 py-1 text-xs font-mono text-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-200"
-                >
-                  {{ tools.fillColor() }}
-                </div>
-              </div>
-            }
+                <span id="palette-fill-mode-button-color-label" class="sr-only">
+                  {{ "editor.tools.fill.useColor" | transloco }}
+                </span>
+              </button>
+              <button
+                id="palette-fill-mode-button-erase"
+                type="button"
+                (click)="setFillMode('erase')"
+                [attr.aria-pressed]="tools.fillMode() === 'erase'"
+                [className]="
+                  'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                  (tools.fillMode() === 'erase'
+                    ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                    : '')
+                "
+              >
+                <ng-icon
+                  id="palette-fill-mode-button-erase-icon"
+                  name="bootstrapEraser"
+                  class="h-4 w-4"
+                ></ng-icon>
+                <span id="palette-fill-mode-button-erase-label" class="sr-only">
+                  {{ "editor.tools.fill.erase" | transloco }}
+                </span>
+              </button>
+            </div>
           </div>
+          @if (tools.fillMode() === "color") {
+            <div id="palette-fill-color-row" class="flex items-center gap-2">
+              <label
+                id="palette-fill-color-label"
+                class="sr-only"
+                for="palette-fill-color-input"
+              >
+                {{ "editor.tools.fill.color" | transloco }}
+              </label>
+              <input
+                id="palette-fill-color-input"
+                type="color"
+                [value]="tools.fillColor()"
+                (input)="onFillColorInput($event)"
+                class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+              />
+            </div>
+          }
         </section>
       }
       @case ("brush") {
         <section
           id="palette-brush-panel"
-          class="rounded-md border border-neutral-200/60 bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
+          class="space-y-3 rounded-md bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
         >
-          <header
-            id="palette-brush-heading"
-            class="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-300"
+          <div
+            id="palette-brush-size-row"
+            class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
           >
-            <ng-icon
-              id="palette-brush-heading-icon"
-              name="bootstrapBrush"
-              class="h-4 w-4"
-            ></ng-icon>
-            <span id="palette-brush-heading-label">{{
-              "editor.tools.brush.title" | transloco
-            }}</span>
-          </header>
-          <div id="palette-brush-content" class="mt-3 space-y-3">
-            <div
-              id="palette-brush-size-row"
-              class="grid grid-cols-[auto,1fr,auto] items-center gap-2"
+            <label
+              id="palette-brush-size-label"
+              class="sr-only col-span-2"
+              for="palette-brush-size-range"
             >
-              <ng-icon
-                id="palette-brush-size-icon"
-                name="bootstrapRulers"
-                class="h-4 w-4 text-neutral-500 dark:text-neutral-300"
-              ></ng-icon>
-              <div
-                id="palette-brush-size-input-wrap"
-                class="flex w-full items-center"
-              >
-                <label
-                  id="palette-brush-size-label"
-                  class="sr-only"
-                  for="palette-brush-size-range"
-                >
-                  {{ "editor.tools.brush.size" | transloco }}
-                </label>
-                <input
-                  id="palette-brush-size-range"
-                  type="range"
-                  min="1"
-                  [max]="maxCanvasDim"
-                  [value]="tools.brushSize()"
-                  (input)="onBrushSizeInput($event)"
-                  class="w-full accent-blue-500"
-                />
-              </div>
-              <input
-                id="palette-brush-size-number"
-                type="number"
-                min="1"
-                [attr.max]="maxCanvasDim"
-                [value]="tools.brushSize()"
-                (input)="onBrushSizeInput($event)"
-                class="w-14 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
-              />
-            </div>
-            <div
-              id="palette-brush-color-row"
-              class="grid grid-cols-[auto,auto,1fr] items-center gap-2"
+              {{ "editor.tools.brush.size" | transloco }}
+            </label>
+            <input
+              id="palette-brush-size-range"
+              type="range"
+              min="1"
+              [max]="maxCanvasDim"
+              [value]="tools.brushSize()"
+              (input)="onBrushSizeInput($event)"
+              class="w-full accent-blue-500"
+            />
+            <input
+              id="palette-brush-size-number"
+              type="number"
+              min="1"
+              [attr.max]="maxCanvasDim"
+              [value]="tools.brushSize()"
+              (input)="onBrushSizeInput($event)"
+              [attr.aria-labelledby]="'palette-brush-size-label'"
+              class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+            />
+          </div>
+          <div id="palette-brush-color-row" class="flex items-center gap-2">
+            <label
+              id="palette-brush-color-label"
+              class="sr-only"
+              for="palette-brush-color-input"
             >
-              <ng-icon
-                id="palette-brush-color-icon"
-                name="bootstrapDroplet"
-                class="h-4 w-4 text-neutral-500 dark:text-neutral-300"
-              ></ng-icon>
-              <div
-                id="palette-brush-color-input-wrap"
-                class="flex items-center"
-              >
-                <label
-                  id="palette-brush-color-label"
-                  class="sr-only"
-                  for="palette-brush-color-input"
-                >
-                  {{ "editor.tools.brush.color" | transloco }}
-                </label>
-                <input
-                  id="palette-brush-color-input"
-                  type="color"
-                  [value]="tools.brushColor()"
-                  (input)="onBrushColorInput($event)"
-                  class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
-                />
-              </div>
-              <div
-                id="palette-brush-color-value"
-                class="rounded-sm bg-neutral-200/50 px-2 py-1 text-xs font-mono text-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-200"
-              >
-                {{ tools.brushColor() }}
-              </div>
-            </div>
+              {{ "editor.tools.brush.color" | transloco }}
+            </label>
+            <input
+              id="palette-brush-color-input"
+              type="color"
+              [value]="tools.brushColor()"
+              (input)="onBrushColorInput($event)"
+              class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+            />
+          </div>
+        </section>
+      }
+      @case ("eraser") {
+        <section
+          id="palette-eraser-panel"
+          class="space-y-3 rounded-md bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
+        >
+          <div
+            id="palette-eraser-size-row"
+            class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
+          >
+            <label
+              id="palette-eraser-size-label"
+              class="sr-only col-span-2"
+              for="palette-eraser-size-range"
+            >
+              {{ "editor.tools.eraser.size" | transloco }}
+            </label>
+            <input
+              id="palette-eraser-size-range"
+              type="range"
+              min="1"
+              [max]="maxCanvasDim"
+              [value]="tools.eraserSize()"
+              (input)="onEraserSizeInput($event)"
+              class="w-full accent-blue-500"
+            />
+            <input
+              id="palette-eraser-size-number"
+              type="number"
+              min="1"
+              [attr.max]="maxCanvasDim"
+              [value]="tools.eraserSize()"
+              (input)="onEraserSizeInput($event)"
+              [attr.aria-labelledby]="'palette-eraser-size-label'"
+              class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+            />
+          </div>
+          <div
+            id="palette-eraser-strength-row"
+            class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
+          >
+            <label
+              id="palette-eraser-strength-label"
+              class="sr-only col-span-2"
+              for="palette-eraser-strength-range"
+            >
+              {{ "editor.tools.eraser.strength" | transloco }}
+            </label>
+            <input
+              id="palette-eraser-strength-range"
+              type="range"
+              min="0"
+              max="100"
+              [value]="tools.eraserStrength()"
+              (input)="onEraserStrengthInput($event)"
+              class="w-full accent-blue-500"
+            />
+            <input
+              id="palette-eraser-strength-number"
+              type="number"
+              min="0"
+              max="100"
+              [value]="tools.eraserStrength()"
+              (input)="onEraserStrengthInput($event)"
+              [attr.aria-labelledby]="'palette-eraser-strength-label'"
+              class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+            />
           </div>
         </section>
       }
       @case ("line") {
         <section
           id="palette-line-panel"
-          class="rounded-md border border-neutral-200/60 bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
+          class="space-y-3 rounded-md bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
         >
-          <header
-            id="palette-line-heading"
-            class="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-300"
+          <div
+            id="palette-line-thickness-row"
+            class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
           >
-            <ng-icon
-              id="palette-line-heading-icon"
-              name="bootstrapSlashLg"
-              class="h-4 w-4"
-            ></ng-icon>
-            <span id="palette-line-heading-label">{{
-              "editor.tools.line.title" | transloco
-            }}</span>
-          </header>
-          <div id="palette-line-content" class="mt-3 space-y-3">
-            <div
-              id="palette-line-thickness-row"
-              class="grid grid-cols-[auto,1fr,auto] items-center gap-2"
+            <label
+              id="palette-line-thickness-label"
+              class="sr-only col-span-2"
+              for="palette-line-thickness-range"
             >
-              <ng-icon
-                id="palette-line-thickness-icon"
-                name="bootstrapArrowsVertical"
-                class="h-4 w-4 text-neutral-500 dark:text-neutral-300"
-              ></ng-icon>
-              <div
-                id="palette-line-thickness-input-wrap"
-                class="flex w-full items-center"
+              {{ "editor.tools.line.thickness" | transloco }}
+            </label>
+            <input
+              id="palette-line-thickness-range"
+              type="range"
+              min="1"
+              [max]="maxCanvasDim"
+              [value]="tools.lineThickness()"
+              (input)="onLineThicknessInput($event)"
+              class="w-full accent-blue-500"
+            />
+            <input
+              id="palette-line-thickness-number"
+              type="number"
+              min="1"
+              [attr.max]="maxCanvasDim"
+              [value]="tools.lineThickness()"
+              (input)="onLineThicknessInput($event)"
+              [attr.aria-labelledby]="'palette-line-thickness-label'"
+              class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+            />
+          </div>
+          <div id="palette-line-color-row" class="flex items-center gap-2">
+            <label
+              id="palette-line-color-label"
+              class="sr-only"
+              for="palette-line-color-input"
+            >
+              {{ "editor.tools.line.color" | transloco }}
+            </label>
+            <input
+              id="palette-line-color-input"
+              type="color"
+              [value]="tools.lineColor()"
+              (input)="onLineColorInput($event)"
+              class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+            />
+          </div>
+        </section>
+      }
+      @case ("circle") {
+        <section
+          id="palette-circle-panel"
+          class="space-y-3 rounded-md bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
+        >
+          <div
+            id="palette-circle-stroke-row"
+            class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
+          >
+            <label
+              id="palette-circle-stroke-label"
+              class="sr-only col-span-2"
+              for="palette-circle-stroke-range"
+            >
+              {{ "editor.tools.circle.strokeThickness" | transloco }}
+            </label>
+            <input
+              id="palette-circle-stroke-range"
+              type="range"
+              min="0"
+              [max]="maxCanvasDim"
+              [value]="tools.circleStrokeThickness()"
+              (input)="onCircleStrokeThicknessInput($event)"
+              class="w-full accent-blue-500"
+            />
+            <input
+              id="palette-circle-stroke-number"
+              type="number"
+              min="0"
+              [attr.max]="maxCanvasDim"
+              [value]="tools.circleStrokeThickness()"
+              (input)="onCircleStrokeThicknessInput($event)"
+              [attr.aria-labelledby]="'palette-circle-stroke-label'"
+              class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+            />
+          </div>
+          <div
+            id="palette-circle-stroke-color-row"
+            class="flex items-center gap-2"
+          >
+            <label
+              id="palette-circle-stroke-color-label"
+              class="sr-only"
+              for="palette-circle-stroke-color-input"
+            >
+              {{ "editor.tools.circle.strokeColor" | transloco }}
+            </label>
+            <input
+              id="palette-circle-stroke-color-input"
+              type="color"
+              [value]="tools.circleStrokeColor()"
+              (input)="onCircleStrokeColorInput($event)"
+              class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+            />
+          </div>
+          <div
+            id="palette-circle-fill-mode-row"
+            class="flex items-center gap-2"
+          >
+            <div
+              id="palette-circle-fill-mode-toggle"
+              class="flex gap-1 rounded-md bg-neutral-200/50 p-1 dark:bg-neutral-800/50"
+            >
+              <button
+                id="palette-circle-fill-mode-solid"
+                type="button"
+                (click)="setCircleFillMode('solid')"
+                [attr.aria-pressed]="tools.circleFillMode() === 'solid'"
+                [className]="
+                  'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                  (tools.circleFillMode() === 'solid'
+                    ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                    : '')
+                "
               >
-                <label
-                  id="palette-line-thickness-label"
+                <ng-icon
+                  id="palette-circle-fill-mode-solid-icon"
+                  name="bootstrapCircleFill"
+                  class="h-4 w-4"
+                ></ng-icon>
+                <span id="palette-circle-fill-mode-solid-label" class="sr-only">
+                  {{ "editor.tools.circle.fillSolid" | transloco }}
+                </span>
+              </button>
+              <button
+                id="palette-circle-fill-mode-gradient"
+                type="button"
+                (click)="setCircleFillMode('gradient')"
+                [attr.aria-pressed]="tools.circleFillMode() === 'gradient'"
+                [className]="
+                  'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                  (tools.circleFillMode() === 'gradient'
+                    ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                    : '')
+                "
+              >
+                <ng-icon
+                  id="palette-circle-fill-mode-gradient-icon"
+                  name="bootstrapSunrise"
+                  class="h-4 w-4"
+                ></ng-icon>
+                <span
+                  id="palette-circle-fill-mode-gradient-label"
                   class="sr-only"
-                  for="palette-line-thickness-range"
                 >
-                  {{ "editor.tools.line.thickness" | transloco }}
-                </label>
-                <input
-                  id="palette-line-thickness-range"
-                  type="range"
-                  min="1"
-                  [max]="maxCanvasDim"
-                  [value]="tools.lineThickness()"
-                  (input)="onLineThicknessInput($event)"
-                  class="w-full accent-blue-500"
-                />
-              </div>
+                  {{ "editor.tools.circle.fillGradient" | transloco }}
+                </span>
+              </button>
+            </div>
+          </div>
+          @if (tools.circleFillMode() === "solid") {
+            <div
+              id="palette-circle-fill-color-row"
+              class="flex items-center gap-2"
+            >
+              <label
+                id="palette-circle-fill-color-label"
+                class="sr-only"
+                for="palette-circle-fill-color-input"
+              >
+                {{ "editor.tools.circle.fillColor" | transloco }}
+              </label>
               <input
-                id="palette-line-thickness-number"
-                type="number"
-                min="1"
-                [attr.max]="maxCanvasDim"
-                [value]="tools.lineThickness()"
-                (input)="onLineThicknessInput($event)"
-                class="w-14 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+                id="palette-circle-fill-color-input"
+                type="color"
+                [value]="tools.circleFillColor()"
+                (input)="onCircleFillColorInput($event)"
+                class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+              />
+            </div>
+          }
+          @if (tools.circleFillMode() === "gradient") {
+            <div
+              id="palette-circle-gradient-type-row"
+              class="flex items-center gap-2"
+            >
+              <div
+                id="palette-circle-gradient-type-toggle"
+                class="flex gap-1 rounded-md bg-neutral-200/50 p-1 dark:bg-neutral-800/50"
+              >
+                <button
+                  id="palette-circle-gradient-type-linear"
+                  type="button"
+                  (click)="setCircleGradientType('linear')"
+                  [attr.aria-pressed]="tools.circleGradientType() === 'linear'"
+                  [className]="
+                    'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                    (tools.circleGradientType() === 'linear'
+                      ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                      : '')
+                  "
+                >
+                  <ng-icon
+                    id="palette-circle-gradient-type-linear-icon"
+                    name="bootstrapSlash"
+                    class="h-4 w-4"
+                  ></ng-icon>
+                  <span
+                    id="palette-circle-gradient-type-linear-label"
+                    class="sr-only"
+                  >
+                    {{ "editor.tools.circle.gradientTypeLinear" | transloco }}
+                  </span>
+                </button>
+                <button
+                  id="palette-circle-gradient-type-radial"
+                  type="button"
+                  (click)="setCircleGradientType('radial')"
+                  [attr.aria-pressed]="tools.circleGradientType() === 'radial'"
+                  [className]="
+                    'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                    (tools.circleGradientType() === 'radial'
+                      ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                      : '')
+                  "
+                >
+                  <ng-icon
+                    id="palette-circle-gradient-type-radial-icon"
+                    name="bootstrapRecordCircle"
+                    class="h-4 w-4"
+                  ></ng-icon>
+                  <span
+                    id="palette-circle-gradient-type-radial-label"
+                    class="sr-only"
+                  >
+                    {{ "editor.tools.circle.gradientTypeRadial" | transloco }}
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div
+              id="palette-circle-gradient-start-row"
+              class="flex items-center gap-2"
+            >
+              <label
+                id="palette-circle-gradient-start-label"
+                class="sr-only"
+                for="palette-circle-gradient-start-input"
+              >
+                {{ "editor.tools.circle.gradientStart" | transloco }}
+              </label>
+              <input
+                id="palette-circle-gradient-start-input"
+                type="color"
+                [value]="tools.circleGradientStartColor()"
+                (input)="onCircleGradientStartInput($event)"
+                class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
               />
             </div>
             <div
-              id="palette-line-color-row"
-              class="grid grid-cols-[auto,auto,1fr] items-center gap-2"
+              id="palette-circle-gradient-end-row"
+              class="flex items-center gap-2"
             >
-              <ng-icon
-                id="palette-line-color-icon"
-                name="bootstrapDroplet"
-                class="h-4 w-4 text-neutral-500 dark:text-neutral-300"
-              ></ng-icon>
-              <div id="palette-line-color-input-wrap" class="flex items-center">
-                <label
-                  id="palette-line-color-label"
-                  class="sr-only"
-                  for="palette-line-color-input"
-                >
-                  {{ "editor.tools.line.color" | transloco }}
-                </label>
-                <input
-                  id="palette-line-color-input"
-                  type="color"
-                  [value]="tools.lineColor()"
-                  (input)="onLineColorInput($event)"
-                  class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
-                />
-              </div>
-              <div
-                id="palette-line-color-value"
-                class="rounded-sm bg-neutral-200/50 px-2 py-1 text-xs font-mono text-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-200"
+              <label
+                id="palette-circle-gradient-end-label"
+                class="sr-only"
+                for="palette-circle-gradient-end-input"
               >
-                {{ tools.lineColor() }}
-              </div>
+                {{ "editor.tools.circle.gradientEnd" | transloco }}
+              </label>
+              <input
+                id="palette-circle-gradient-end-input"
+                type="color"
+                [value]="tools.circleGradientEndColor()"
+                (input)="onCircleGradientEndInput($event)"
+                class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+              />
+            </div>
+            <div
+              id="palette-circle-gradient-angle-row"
+              class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
+            >
+              <label
+                id="palette-circle-gradient-angle-label"
+                class="sr-only col-span-2"
+                for="palette-circle-gradient-angle-range"
+              >
+                {{ "editor.tools.circle.gradientAngle" | transloco }}
+              </label>
+              <input
+                id="palette-circle-gradient-angle-range"
+                type="range"
+                min="0"
+                max="359"
+                [value]="tools.circleGradientAngle()"
+                (input)="onCircleGradientAngleInput($event)"
+                class="w-full accent-blue-500"
+              />
+              <input
+                id="palette-circle-gradient-angle-number"
+                type="number"
+                min="0"
+                max="359"
+                [value]="tools.circleGradientAngle()"
+                (input)="onCircleGradientAngleInput($event)"
+                [attr.aria-labelledby]="'palette-circle-gradient-angle-label'"
+                class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+              />
+            </div>
+          }
+        </section>
+      }
+      @case ("square") {
+        <section
+          id="palette-square-panel"
+          class="space-y-3 rounded-md bg-neutral-50/60 p-3 dark:border-neutral-700/60 dark:bg-neutral-900/60"
+        >
+          <div
+            id="palette-square-stroke-row"
+            class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
+          >
+            <label
+              id="palette-square-stroke-label"
+              class="sr-only col-span-2"
+              for="palette-square-stroke-range"
+            >
+              {{ "editor.tools.square.strokeThickness" | transloco }}
+            </label>
+            <input
+              id="palette-square-stroke-range"
+              type="range"
+              min="0"
+              [max]="maxCanvasDim"
+              [value]="tools.squareStrokeThickness()"
+              (input)="onSquareStrokeThicknessInput($event)"
+              class="w-full accent-blue-500"
+            />
+            <input
+              id="palette-square-stroke-number"
+              type="number"
+              min="0"
+              [attr.max]="maxCanvasDim"
+              [value]="tools.squareStrokeThickness()"
+              (input)="onSquareStrokeThicknessInput($event)"
+              [attr.aria-labelledby]="'palette-square-stroke-label'"
+              class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+            />
+          </div>
+          <div
+            id="palette-square-stroke-color-row"
+            class="flex items-center gap-2"
+          >
+            <label
+              id="palette-square-stroke-color-label"
+              class="sr-only"
+              for="palette-square-stroke-color-input"
+            >
+              {{ "editor.tools.square.strokeColor" | transloco }}
+            </label>
+            <input
+              id="palette-square-stroke-color-input"
+              type="color"
+              [value]="tools.squareStrokeColor()"
+              (input)="onSquareStrokeColorInput($event)"
+              class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+            />
+          </div>
+          <div
+            id="palette-square-fill-mode-row"
+            class="flex items-center gap-2"
+          >
+            <div
+              id="palette-square-fill-mode-toggle"
+              class="flex gap-1 rounded-md bg-neutral-200/50 p-1 dark:bg-neutral-800/50"
+            >
+              <button
+                id="palette-square-fill-mode-solid"
+                type="button"
+                (click)="setSquareFillMode('solid')"
+                [attr.aria-pressed]="tools.squareFillMode() === 'solid'"
+                [className]="
+                  'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                  (tools.squareFillMode() === 'solid'
+                    ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                    : '')
+                "
+              >
+                <ng-icon
+                  id="palette-square-fill-mode-solid-icon"
+                  name="bootstrapSquareFill"
+                  class="h-4 w-4"
+                ></ng-icon>
+                <span id="palette-square-fill-mode-solid-label" class="sr-only">
+                  {{ "editor.tools.square.fillSolid" | transloco }}
+                </span>
+              </button>
+              <button
+                id="palette-square-fill-mode-gradient"
+                type="button"
+                (click)="setSquareFillMode('gradient')"
+                [attr.aria-pressed]="tools.squareFillMode() === 'gradient'"
+                [className]="
+                  'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                  (tools.squareFillMode() === 'gradient'
+                    ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                    : '')
+                "
+              >
+                <ng-icon
+                  id="palette-square-fill-mode-gradient-icon"
+                  name="bootstrapBricks"
+                  class="h-4 w-4"
+                ></ng-icon>
+                <span
+                  id="palette-square-fill-mode-gradient-label"
+                  class="sr-only"
+                >
+                  {{ "editor.tools.square.fillGradient" | transloco }}
+                </span>
+              </button>
             </div>
           </div>
+          @if (tools.squareFillMode() === "solid") {
+            <div
+              id="palette-square-fill-color-row"
+              class="flex items-center gap-2"
+            >
+              <label
+                id="palette-square-fill-color-label"
+                class="sr-only"
+                for="palette-square-fill-color-input"
+              >
+                {{ "editor.tools.square.fillColor" | transloco }}
+              </label>
+              <input
+                id="palette-square-fill-color-input"
+                type="color"
+                [value]="tools.squareFillColor()"
+                (input)="onSquareFillColorInput($event)"
+                class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+              />
+            </div>
+          }
+          @if (tools.squareFillMode() === "gradient") {
+            <div
+              id="palette-square-gradient-type-row"
+              class="flex items-center gap-2"
+            >
+              <div
+                id="palette-square-gradient-type-toggle"
+                class="flex gap-1 rounded-md bg-neutral-200/50 p-1 dark:bg-neutral-800/50"
+              >
+                <button
+                  id="palette-square-gradient-type-linear"
+                  type="button"
+                  (click)="setSquareGradientType('linear')"
+                  [attr.aria-pressed]="tools.squareGradientType() === 'linear'"
+                  [className]="
+                    'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                    (tools.squareGradientType() === 'linear'
+                      ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                      : '')
+                  "
+                >
+                  <ng-icon
+                    id="palette-square-gradient-type-linear-icon"
+                    name="bootstrapSlash"
+                    class="h-4 w-4"
+                  ></ng-icon>
+                  <span
+                    id="palette-square-gradient-type-linear-label"
+                    class="sr-only"
+                  >
+                    {{ "editor.tools.square.gradientTypeLinear" | transloco }}
+                  </span>
+                </button>
+                <button
+                  id="palette-square-gradient-type-radial"
+                  type="button"
+                  (click)="setSquareGradientType('radial')"
+                  [attr.aria-pressed]="tools.squareGradientType() === 'radial'"
+                  [className]="
+                    'flex h-9 w-9 items-center justify-center rounded-sm text-neutral-600 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:text-neutral-200 dark:hover:bg-neutral-700/70' +
+                    (tools.squareGradientType() === 'radial'
+                      ? ' bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-50'
+                      : '')
+                  "
+                >
+                  <ng-icon
+                    id="palette-square-gradient-type-radial-icon"
+                    name="bootstrapRecordCircle"
+                    class="h-4 w-4"
+                  ></ng-icon>
+                  <span
+                    id="palette-square-gradient-type-radial-label"
+                    class="sr-only"
+                  >
+                    {{ "editor.tools.square.gradientTypeRadial" | transloco }}
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div
+              id="palette-square-gradient-start-row"
+              class="flex items-center gap-2"
+            >
+              <label
+                id="palette-square-gradient-start-label"
+                class="sr-only"
+                for="palette-square-gradient-start-input"
+              >
+                {{ "editor.tools.square.gradientStart" | transloco }}
+              </label>
+              <input
+                id="palette-square-gradient-start-input"
+                type="color"
+                [value]="tools.squareGradientStartColor()"
+                (input)="onSquareGradientStartInput($event)"
+                class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+              />
+            </div>
+            <div
+              id="palette-square-gradient-end-row"
+              class="flex items-center gap-2"
+            >
+              <label
+                id="palette-square-gradient-end-label"
+                class="sr-only"
+                for="palette-square-gradient-end-input"
+              >
+                {{ "editor.tools.square.gradientEnd" | transloco }}
+              </label>
+              <input
+                id="palette-square-gradient-end-input"
+                type="color"
+                [value]="tools.squareGradientEndColor()"
+                (input)="onSquareGradientEndInput($event)"
+                class="h-9 w-10 rounded border border-neutral-300/70 bg-white p-0 dark:border-neutral-700/70 dark:bg-neutral-900"
+              />
+            </div>
+            <div
+              id="palette-square-gradient-angle-row"
+              class="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2"
+            >
+              <label
+                id="palette-square-gradient-angle-label"
+                class="sr-only col-span-2"
+                for="palette-square-gradient-angle-range"
+              >
+                {{ "editor.tools.square.gradientAngle" | transloco }}
+              </label>
+              <input
+                id="palette-square-gradient-angle-range"
+                type="range"
+                min="0"
+                max="359"
+                [value]="tools.squareGradientAngle()"
+                (input)="onSquareGradientAngleInput($event)"
+                class="w-full accent-blue-500"
+              />
+              <input
+                id="palette-square-gradient-angle-number"
+                type="number"
+                min="0"
+                max="359"
+                [value]="tools.squareGradientAngle()"
+                (input)="onSquareGradientAngleInput($event)"
+                [attr.aria-labelledby]="'palette-square-gradient-angle-label'"
+                class="w-16 rounded border border-neutral-300/70 bg-white px-2 py-1 text-xs text-right dark:border-neutral-700/70 dark:bg-neutral-900 dark:text-neutral-100"
+              />
+            </div>
+          }
         </section>
       }
       @default {

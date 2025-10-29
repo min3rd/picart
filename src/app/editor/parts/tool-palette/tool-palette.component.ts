@@ -4,13 +4,14 @@ import { EditorToolsService } from '../../../services/editor-tools.service';
 import { GradientType, ToolId } from '../../../services/tools/tool.types';
 import { NgIcon } from '@ng-icons/core';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'pa-tool-palette',
   templateUrl: './tool-palette.component.html',
   styleUrls: ['./tool-palette.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIcon, TranslocoPipe],
+  imports: [CommonModule, NgIcon, TranslocoPipe],
   host: {
     class: 'block h-full',
   },
