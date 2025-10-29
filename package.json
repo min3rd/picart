@@ -29,7 +29,7 @@
     "@tailwindcss/postcss": "^4.1.15",
     "postcss": "^8.5.6",
     "rxjs": "~7.8.0",
-    "tailwindcss": "^4.1.15",
+    "tailwindcss": "4.1.16",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },
@@ -38,7 +38,7 @@
     "@angular/cli": "20.3.7",
     "@angular/compiler-cli": "20.3.7",
     "@types/jasmine": "~5.1.0",
-    "jasmine-core": "~5.9.0",
+    "jasmine-core": "5.12.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.0",
