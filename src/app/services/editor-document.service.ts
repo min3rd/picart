@@ -1706,8 +1706,8 @@ export class EditorDocumentService {
     const h = this.canvasHeight();
     const newPoly: { x: number; y: number }[] = [];
     if (shape === 'lasso' && poly && poly.length >= 3) {
-      for (let y = rect.y; y < rect.y + rect.height; y++) {
-        for (let x = rect.x; x < rect.x + rect.width; x++) {
+      for (let y = rect.y; y < rect.y + rect.height && y < h; y++) {
+        for (let x = rect.x; x < rect.x + rect.width && x < w; x++) {
           const px = x + 0.5;
           const py = y + 0.5;
           if (!this._pointInPolygon(px, py, poly)) {
@@ -1715,23 +1715,52 @@ export class EditorDocumentService {
           }
         }
       }
-      this.selectionPolygon.set(newPoly);
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      for (const p of newPoly) {
-        if (p.x < minX) minX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y > maxY) maxY = p.y;
+      if (newPoly.length === 0) {
+        this.selectionRect.set(null);
+        this.selectionPolygon.set(null);
+        this.selectionShape.set('rect');
+      } else {
+        this.selectionPolygon.set(newPoly);
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        for (const p of newPoly) {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+        }
+        this.selectionRect.set({
+          x: Math.max(0, Math.floor(minX)),
+          y: Math.max(0, Math.floor(minY)),
+          width: Math.max(1, Math.ceil(maxX - minX) + 1),
+          height: Math.max(1, Math.ceil(maxY - minY) + 1),
+        });
       }
-      this.selectionRect.set({
-        x: Math.max(0, Math.floor(minX)),
-        y: Math.max(0, Math.floor(minY)),
-        width: Math.max(1, Math.ceil(maxX - minX) + 1),
-        height: Math.max(1, Math.ceil(maxY - minY) + 1),
-      });
+    } else if (shape === 'ellipse') {
+      const cx = rect.x + rect.width / 2 - 0.5;
+      const cy = rect.y + rect.height / 2 - 0.5;
+      const rx = Math.max(0.5, rect.width / 2);
+      const ry = Math.max(0.5, rect.height / 2);
+      for (let y = rect.y; y < rect.y + rect.height && y < h; y++) {
+        for (let x = rect.x; x < rect.x + rect.width && x < w; x++) {
+          const dx = (x - cx) / rx;
+          const dy = (y - cy) / ry;
+          const insideEllipse = dx * dx + dy * dy <= 1;
+          if (!insideEllipse) {
+            newPoly.push({ x, y });
+          }
+        }
+      }
+      if (newPoly.length === 0) {
+        this.selectionRect.set(null);
+        this.selectionPolygon.set(null);
+        this.selectionShape.set('rect');
+      } else {
+        this.selectionPolygon.set(newPoly);
+        this.selectionShape.set('lasso');
+      }
     }
     this.commitMetaChange({
       key: 'selectionSnapshot',
