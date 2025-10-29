@@ -30,7 +30,7 @@ jobs:
         run: npm install
 
       - name: Build
-        run: npm run build
+        run: npm run build -- --base-href /pixart/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
