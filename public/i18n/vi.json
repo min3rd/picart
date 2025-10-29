@@ -110,6 +110,11 @@
       "show": "Hiện",
       "delete": "Xóa layer",
       "add": "Thêm layer"
+    },
+    "canvas": {
+      "menu": {
+        "deselect": "Bỏ chọn"
+      }
     }
   },
   "brush": {

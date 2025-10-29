@@ -110,6 +110,11 @@
       "show": "Show",
       "delete": "Delete layer",
       "add": "Add layer"
+    },
+    "canvas": {
+      "menu": {
+        "deselect": "Deselect"
+      }
     }
   },
   "brush": {
