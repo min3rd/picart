@@ -1,0 +1,17 @@
+{
+  "name": "gpt5-codex-agent",
+  "version": "1.0.0",
+  "description": "GPT-5 Codex agent tự động triage và xử lý GitHub issues",
+  "main": "run.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test ../../../tests/simple.test.js"
+  },
+  "author": "Vũ Văn Minh",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^21.0.2",
+    "openai": "^4.77.3",
+    "dotenv": "^16.4.7"
+  }
+}

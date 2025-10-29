@@ -1,0 +1,20 @@
+{
+  "enableCreatePR": false,
+  "labelWhitelist": [
+    "bug",
+    "enhancement",
+    "help wanted",
+    "ux",
+    "context-menu",
+    "good first issue",
+    "documentation",
+    "needs-pr",
+    "question",
+    "wontfix",
+    "duplicate",
+    "invalid"
+  ],
+  "maxLabels": 3,
+  "modelDefault": "gpt-4o-mini",
+  "commentMarker": "<!-- gpt5-agent-comment -->"
+}

@@ -1,0 +1,37 @@
+name: GPT-5 Agent Triage
+
+on:
+  issues:
+    types: [opened, edited, reopened, labeled]
+
+permissions:
+  issues: write
+  contents: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install agent dependencies
+        working-directory: .github/agents/gpt5-codex
+        run: npm install
+
+      - name: Run GPT-5 agent
+        working-directory: .github/agents/gpt5-codex
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AGENT_MODEL: ${{ vars.AGENT_MODEL || 'gpt-4o-mini' }}
+          AGENT_MODE: ${{ vars.AGENT_MODE || 'triage-only' }}
+          AGENT_ENABLED: ${{ vars.AGENT_ENABLED || 'true' }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: node run.js
