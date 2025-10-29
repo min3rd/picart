@@ -1944,4 +1944,95 @@ export class EditorDocumentService {
     this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
     return true;
   }
+
+  async insertImageAsLayer(
+    imageFile: File,
+    targetWidth?: number,
+    targetHeight?: number,
+  ): Promise<{ layerId: string; bounds: { x: number; y: number; width: number; height: number } } | null> {
+    try {
+      const img = await this.loadImage(imageFile);
+      const finalWidth = targetWidth && targetWidth > 0 ? targetWidth : img.width;
+      const finalHeight = targetHeight && targetHeight > 0 ? targetHeight : img.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+      const imageData = ctx.getImageData(0, 0, finalWidth, finalHeight);
+      const layerName = imageFile.name.replace(/\.[^.]+$/, '') || `Inserted Image ${this.layers().length + 1}`;
+      const prevSnapshot = this.snapshotLayersAndBuffers();
+      const newLayer = this.addLayer(layerName);
+      const canvasWidth = this.canvasWidth();
+      const canvasHeight = this.canvasHeight();
+      const startX = 0;
+      const startY = 0;
+      const buf = this.layerPixels.get(newLayer.id);
+      if (!buf) return null;
+      this.beginAction(`Insert image: ${layerName}`);
+      for (let y = 0; y < finalHeight; y++) {
+        for (let x = 0; x < finalWidth; x++) {
+          const px = startX + x;
+          const py = startY + y;
+          if (px < 0 || px >= canvasWidth || py < 0 || py >= canvasHeight) continue;
+          const srcIdx = (y * finalWidth + x) * 4;
+          const r = imageData.data[srcIdx];
+          const g = imageData.data[srcIdx + 1];
+          const b = imageData.data[srcIdx + 2];
+          const a = imageData.data[srcIdx + 3] / 255;
+          if (a <= 0) continue;
+          const color = a >= 1 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${a.toFixed(3)})`;
+          const idx = py * canvasWidth + px;
+          const oldVal = buf[idx] || '';
+          if (oldVal !== color) {
+            if (this.currentAction) {
+              let entry = this.currentAction.map.get(newLayer.id);
+              if (!entry) {
+                entry = { indices: [], previous: [], next: [] };
+                this.currentAction.map.set(newLayer.id, entry);
+              }
+              entry.indices.push(idx);
+              entry.previous.push(oldVal);
+              entry.next.push(color);
+            }
+            buf[idx] = color;
+          }
+        }
+      }
+      this.layerPixelsVersion.update((v) => v + 1);
+      this.setCanvasSaved(false);
+      this.endAction();
+      const bounds = {
+        x: startX,
+        y: startY,
+        width: Math.min(finalWidth, canvasWidth - startX),
+        height: Math.min(finalHeight, canvasHeight - startY),
+      };
+      this.selectionRect.set(bounds);
+      this.selectionShape.set('rect');
+      this.selectionPolygon.set(null);
+      return { layerId: newLayer.id, bounds };
+    } catch (error) {
+      console.error('Failed to insert image as layer:', error);
+      return null;
+    }
+  }
+
+  private loadImage(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          img.src = e.target.result as string;
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 }

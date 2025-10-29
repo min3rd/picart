@@ -1,13 +1,15 @@
-<div class="flex items-center gap-4 px-3 h-10 text-sm select-none">
-  <div class="font-semibold tracking-wide">Pixart</div>
-  <nav class="flex items-center gap-2">
+<div id="header-container" class="flex items-center gap-4 px-3 h-10 text-sm select-none">
+  <div id="header-title" class="font-semibold tracking-wide">Pixart</div>
+  <nav id="header-nav" class="flex items-center gap-2">
     <div
+      id="menu-file-wrapper"
       class="relative"
       (mouseenter)="openFileMenuHover()"
       (mouseleave)="closeFileMenuHover()"
     >
       <button
         type="button"
+        id="menu-file-button"
         class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
         (click)="showFileMenu.set(!showFileMenu())"
         [attr.aria-expanded]="showFileMenu()"
@@ -16,33 +18,39 @@
       </button>
       @if (showFileMenu()) {
         <div
+          id="menu-file-dropdown"
           class="absolute mt-1 left-0 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded shadow-md z-50 w-44"
           tabindex="0"
           (focusin)="onMenuFocusIn()"
           (focusout)="onMenuFocusOut()"
         >
           <button
+            id="menu-file-new-action"
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onNewProject()"
           >
             {{ "file.new" | transloco }}
           </button>
           <button
+            id="menu-file-open-action"
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onOpenFromComputer()"
           >
             {{ "file.openFromComputer" | transloco }}
           </button>
           <button
+            id="menu-file-save-computer-action"
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onSaveToComputer()"
           >
             {{ "file.saveToComputer" | transloco }}
           </button>
           <div
+            id="menu-file-divider"
             class="border-t border-neutral-100 dark:border-neutral-700"
           ></div>
           <button
+            id="menu-file-save-local-action"
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onSave()"
           >
@@ -53,12 +61,47 @@
     </div>
     <button
       type="button"
+      id="menu-edit-button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
     >
       {{ "menu.edit" | transloco }}
     </button>
+    <div
+      id="menu-insert-wrapper"
+      class="relative"
+      (mouseenter)="openInsertMenuHover()"
+      (mouseleave)="closeInsertMenuHover()"
+    >
+      <button
+        type="button"
+        id="menu-insert-button"
+        class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
+        (click)="showInsertMenu.set(!showInsertMenu())"
+        [attr.aria-expanded]="showInsertMenu()"
+      >
+        {{ "menu.insert" | transloco }}
+      </button>
+      @if (showInsertMenu()) {
+        <div
+          id="menu-insert-dropdown"
+          class="absolute mt-1 left-0 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded shadow-md z-50 w-44"
+          tabindex="0"
+          (focusin)="onInsertMenuFocusIn()"
+          (focusout)="onInsertMenuFocusOut()"
+        >
+          <button
+            id="menu-insert-image-action"
+            class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            (click)="onInsertImage()"
+          >
+            {{ "insert.insertImage" | transloco }}
+          </button>
+        </div>
+      }
+    </div>
     <button
       type="button"
+      id="menu-undo-button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
       (click)="onUndo()"
       title="{{ 'menu.undo' | transloco }}"
@@ -67,6 +110,7 @@
     </button>
     <button
       type="button"
+      id="menu-redo-button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
       (click)="onRedo()"
       title="{{ 'menu.redo' | transloco }}"
@@ -75,22 +119,25 @@
     </button>
     <button
       type="button"
+      id="menu-tool-button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
     >
       {{ "menu.tool" | transloco }}
     </button>
     <button
       type="button"
+      id="menu-help-button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
     >
       {{ "menu.help" | transloco }}
     </button>
   </nav>
-  <div class="ml-auto flex items-center gap-2 text-xs text-neutral-500">
-    <span>{{ "badges.title" | transloco }}</span>
-    <div class="ml-2 flex items-center gap-1">
+  <div id="header-badges-container" class="ml-auto flex items-center gap-2 text-xs text-neutral-500">
+    <span id="header-badges-title">{{ "badges.title" | transloco }}</span>
+    <div id="header-controls" class="ml-2 flex items-center gap-1">
       <button
         type="button"
+        id="lang-vi-button"
         class="px-2 py-0.5 rounded-sm border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700"
         (click)="setLang('vi')"
       >
@@ -98,6 +145,7 @@
       </button>
       <button
         type="button"
+        id="lang-en-button"
         class="px-2 py-0.5 rounded-sm border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700"
         (click)="setLang('en')"
       >
@@ -105,6 +153,7 @@
       </button>
       <button
         type="button"
+        id="theme-toggle-button"
         class="px-2 py-0.5 rounded-sm border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700"
         (click)="toggleTheme()"
         title="{{ 'theme.toggle' | transloco }}"
