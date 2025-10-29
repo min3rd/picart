@@ -51,6 +51,7 @@
   },
   "editor": {
     "tools": {
+      "noConfiguration": "Không có thiết lập cho công cụ này",
       "brush": {
         "title": "Cọ vẽ",
         "size": "Kích cỡ",
@@ -93,7 +94,9 @@
       },
       "fill": {
         "title": "Đổ màu",
-        "color": "Màu sắc"
+        "color": "Màu sắc",
+        "useColor": "Tô màu",
+        "erase": "Xóa"
       },
       "eraser": {
         "title": "Tẩy",

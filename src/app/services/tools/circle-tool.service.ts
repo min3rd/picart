@@ -115,9 +115,14 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
   restore(snapshot: Partial<CircleToolSnapshot> | undefined) {
     if (!snapshot) return;
     if (typeof snapshot.strokeThickness === 'number') {
-      this.strokeThickness.set(Math.max(0, Math.floor(snapshot.strokeThickness)));
+      this.strokeThickness.set(
+        Math.max(0, Math.floor(snapshot.strokeThickness)),
+      );
     }
-    if (typeof snapshot.strokeColor === 'string' && snapshot.strokeColor.length) {
+    if (
+      typeof snapshot.strokeColor === 'string' &&
+      snapshot.strokeColor.length
+    ) {
       this.strokeColor.set(snapshot.strokeColor);
     }
     if (snapshot.fillMode === 'solid' || snapshot.fillMode === 'gradient') {
@@ -126,17 +131,30 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
     if (typeof snapshot.fillColor === 'string' && snapshot.fillColor.length) {
       this.fillColor.set(snapshot.fillColor);
     }
-    if (typeof snapshot.gradientStartColor === 'string' && snapshot.gradientStartColor.length) {
+    if (
+      typeof snapshot.gradientStartColor === 'string' &&
+      snapshot.gradientStartColor.length
+    ) {
       this.gradientStartColor.set(snapshot.gradientStartColor);
     }
-    if (typeof snapshot.gradientEndColor === 'string' && snapshot.gradientEndColor.length) {
+    if (
+      typeof snapshot.gradientEndColor === 'string' &&
+      snapshot.gradientEndColor.length
+    ) {
       this.gradientEndColor.set(snapshot.gradientEndColor);
     }
-    if (snapshot.gradientType === 'linear' || snapshot.gradientType === 'radial') {
+    if (
+      snapshot.gradientType === 'linear' ||
+      snapshot.gradientType === 'radial'
+    ) {
       this.gradientType.set(snapshot.gradientType);
     }
-    if (typeof snapshot.gradientAngle === 'number' && !Number.isNaN(snapshot.gradientAngle)) {
-      const normalized = ((Math.round(snapshot.gradientAngle) % 360) + 360) % 360;
+    if (
+      typeof snapshot.gradientAngle === 'number' &&
+      !Number.isNaN(snapshot.gradientAngle)
+    ) {
+      const normalized =
+        ((Math.round(snapshot.gradientAngle) % 360) + 360) % 360;
       this.gradientAngle.set(normalized);
     }
   }
@@ -146,31 +164,57 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
       this.strokeThickness.set(Math.max(0, Math.floor(value)));
       return true;
     }
-    if (key === 'circleStrokeColor' && typeof value === 'string' && value.length) {
+    if (
+      key === 'circleStrokeColor' &&
+      typeof value === 'string' &&
+      value.length
+    ) {
       this.strokeColor.set(value);
       return true;
     }
-    if (key === 'circleFillMode' && (value === 'solid' || value === 'gradient')) {
+    if (
+      key === 'circleFillMode' &&
+      (value === 'solid' || value === 'gradient')
+    ) {
       this.fillMode.set(value);
       return true;
     }
-    if (key === 'circleFillColor' && typeof value === 'string' && value.length) {
+    if (
+      key === 'circleFillColor' &&
+      typeof value === 'string' &&
+      value.length
+    ) {
       this.fillColor.set(value);
       return true;
     }
-    if (key === 'circleGradientStart' && typeof value === 'string' && value.length) {
+    if (
+      key === 'circleGradientStart' &&
+      typeof value === 'string' &&
+      value.length
+    ) {
       this.gradientStartColor.set(value);
       return true;
     }
-    if (key === 'circleGradientEnd' && typeof value === 'string' && value.length) {
+    if (
+      key === 'circleGradientEnd' &&
+      typeof value === 'string' &&
+      value.length
+    ) {
       this.gradientEndColor.set(value);
       return true;
     }
-    if (key === 'circleGradientType' && (value === 'linear' || value === 'radial')) {
+    if (
+      key === 'circleGradientType' &&
+      (value === 'linear' || value === 'radial')
+    ) {
       this.gradientType.set(value);
       return true;
     }
-    if (key === 'circleGradientAngle' && typeof value === 'number' && !Number.isNaN(value)) {
+    if (
+      key === 'circleGradientAngle' &&
+      typeof value === 'number' &&
+      !Number.isNaN(value)
+    ) {
       const normalized = ((Math.round(value) % 360) + 360) % 360;
       this.gradientAngle.set(normalized);
       return true;

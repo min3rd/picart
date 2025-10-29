@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, OnDestroy, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  OnDestroy,
+  signal,
+} from '@angular/core';
 import { FileService } from '../../../services/file.service';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -37,7 +43,10 @@ export class EditorHeader {
       try {
         this.document.restoreProjectSnapshot(parsed as any);
       } catch (e) {
-        console.warn('Open returned project but failed to restore into editor state', e);
+        console.warn(
+          'Open returned project but failed to restore into editor state',
+          e,
+        );
       }
     }
     this.showFileMenu.set(false);
@@ -157,7 +166,10 @@ export class EditorHeader {
 
   ngOnDestroy(): void {
     if (typeof window !== 'undefined') {
-      window.removeEventListener('keydown', this.keydownHandler as EventListener);
+      window.removeEventListener(
+        'keydown',
+        this.keydownHandler as EventListener,
+      );
     }
     if (this.hoverOpenTimer) {
       clearTimeout(this.hoverOpenTimer);

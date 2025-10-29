@@ -50,10 +50,15 @@ export class LineToolService implements ToolService<LineToolSnapshot> {
     };
   }
 
-  restore(snapshot: Partial<LineToolSnapshot> | undefined, context?: ToolRestoreContext) {
+  restore(
+    snapshot: Partial<LineToolSnapshot> | undefined,
+    context?: ToolRestoreContext,
+  ) {
     if (!snapshot) return;
     const limit =
-      context?.maxBrush && context.maxBrush > 0 ? context.maxBrush : Number.MAX_SAFE_INTEGER;
+      context?.maxBrush && context.maxBrush > 0
+        ? context.maxBrush
+        : Number.MAX_SAFE_INTEGER;
     if (typeof snapshot.thickness === 'number') {
       const next = Math.max(1, Math.min(Math.floor(snapshot.thickness), limit));
       this.thickness.set(next);

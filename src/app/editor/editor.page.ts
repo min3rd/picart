@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { EditorHeader } from './parts/editor-header/editor-header.component';
 import { ToolPalette } from './parts/tool-palette/tool-palette.component';
 import { LayersPanel } from './parts/layers-panel/layers-panel.component';
@@ -11,7 +17,13 @@ import { UserSettingsService } from '../services/user-settings.service';
   templateUrl: './editor.page.html',
   styleUrl: './editor.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EditorHeader, ToolPalette, LayersPanel, TimelinePanel, EditorCanvas],
+  imports: [
+    EditorHeader,
+    ToolPalette,
+    LayersPanel,
+    TimelinePanel,
+    EditorCanvas,
+  ],
   host: {
     class: 'block h-dvh w-dvw',
     '(window:pointermove)': 'onWindowMove($event)',
@@ -27,7 +39,9 @@ export class EditorPage {
   readonly bottomHeight = signal(this.settings.settings.panels.bottom);
 
   // Computed grid tracks
-  readonly gridCols = computed(() => `${this.leftWidth()}px 4px 1fr 4px ${this.rightWidth()}px`);
+  readonly gridCols = computed(
+    () => `${this.leftWidth()}px 4px 1fr 4px ${this.rightWidth()}px`,
+  );
   readonly gridRows = computed(() => `auto 1fr 4px ${this.bottomHeight()}px`);
 
   // Drag state
@@ -63,7 +77,9 @@ export class EditorPage {
     } else if (this.dragging.kind === 'right') {
       this.rightWidth.set(this.clamp(this.dragging.startRight - dx, 160, 520));
     } else if (this.dragging.kind === 'bottom') {
-      this.bottomHeight.set(this.clamp(this.dragging.startBottom - dy, 96, 360));
+      this.bottomHeight.set(
+        this.clamp(this.dragging.startBottom - dy, 96, 360),
+      );
     }
   }
 

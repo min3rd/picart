@@ -51,6 +51,7 @@
   },
   "editor": {
     "tools": {
+      "noConfiguration": "No adjustable settings for this tool",
       "brush": {
         "title": "Brush",
         "size": "Size",
@@ -71,8 +72,8 @@
         "fillColor": "Fill color",
         "gradientStart": "Gradient start",
         "gradientEnd": "Gradient end",
-  "gradientType": "Gradient type",
-  "gradientTypeRadial": "Radial (center)",
+        "gradientType": "Gradient type",
+        "gradientTypeRadial": "Radial (center)",
         "gradientTypeLinear": "Linear",
         "gradientAngle": "Angle"
       },
@@ -86,14 +87,16 @@
         "fillColor": "Fill color",
         "gradientStart": "Gradient start",
         "gradientEnd": "Gradient end",
-  "gradientType": "Gradient type",
-  "gradientTypeLinear": "Linear",
-  "gradientTypeRadial": "Radial (center)",
+        "gradientType": "Gradient type",
+        "gradientTypeLinear": "Linear",
+        "gradientTypeRadial": "Radial (center)",
         "gradientAngle": "Angle"
       },
       "fill": {
         "title": "Fill",
-        "color": "Color"
+        "color": "Color",
+        "useColor": "Paint",
+        "erase": "Erase"
       },
       "eraser": {
         "title": "Eraser",

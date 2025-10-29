@@ -20,7 +20,8 @@ export class UserSettingsService {
   private readonly _state = signal<UserSettings>(this.createInitialState());
   private customThemePreference = false;
   private systemThemeQuery: MediaQueryList | null = null;
-  private systemThemeListener: ((event: MediaQueryListEvent) => void) | null = null;
+  private systemThemeListener: ((event: MediaQueryListEvent) => void) | null =
+    null;
 
   readonly theme = computed(() => this._state().theme);
 
@@ -86,10 +87,15 @@ export class UserSettingsService {
   }
 
   private detectSystemTheme(): 'light' | 'dark' {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
       return 'light';
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
   }
 
   private readStoredSettings(): UserSettings | null {
@@ -109,7 +115,11 @@ export class UserSettingsService {
   }
 
   private attachSystemThemeListener() {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    )
+      return;
     this.systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
     if (!this.customThemePreference) {
       const theme = this.systemThemeQuery.matches ? 'dark' : 'light';

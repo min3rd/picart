@@ -1,5 +1,9 @@
 <div id="editor-canvas-root" class="relative h-full w-full">
-  <div #canvasContainer id="editor-canvas-container" class="absolute inset-0 p-4 overflow-hidden">
+  <div
+    #canvasContainer
+    id="editor-canvas-container"
+    class="absolute inset-0 p-4 overflow-hidden"
+  >
     <div id="editor-canvas-stage" class="relative h-full w-full">
       <div id="editor-canvas-wrap" class="canvas-wrap">
         <div
@@ -21,7 +25,7 @@
             (pointerup)="onPointerUp($event)"
             (pointercancel)="onPointerUp($event)"
             (pointerleave)="onPointerLeave()"
-            (contextmenu)="$event.preventDefault()"
+            (contextmenu)="onCanvasContextMenu($event)"
           ></canvas>
         </div>
       </div>
@@ -33,7 +37,8 @@
     id="editor-canvas-coordinates"
     class="absolute left-2 top-2 text-xs text-neutral-700 dark:text-neutral-300 bg-neutral-50/80 dark:bg-neutral-900/60 rounded-sm p-1"
   >
-    X: <strong>{{ mouseX() ?? '-' }}</strong> Y: <strong>{{ mouseY() ?? '-' }}</strong>
+    X: <strong>{{ mouseX() ?? "-" }}</strong> Y:
+    <strong>{{ mouseY() ?? "-" }}</strong>
   </div>
 
   <!-- Info panel -->
@@ -53,10 +58,13 @@
             id="editor-canvas-info-label"
             class="text-sm font-medium text-neutral-800 dark:text-neutral-100"
           >
-            {{ 'canvas.infoTitle' | transloco }}
+            {{ "canvas.infoTitle" | transloco }}
           </div>
         </div>
-        <div id="editor-canvas-info-meta" class="ml-auto flex items-center gap-2">
+        <div
+          id="editor-canvas-info-meta"
+          class="ml-auto flex items-center gap-2"
+        >
           <div
             id="editor-canvas-info-scale"
             class="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200"
@@ -82,11 +90,14 @@
         id="editor-canvas-info-body"
         class="border-t border-neutral-200/50 dark:border-neutral-800/50 px-3 py-3"
       >
-        <div id="editor-canvas-dimensions" class="grid grid-cols-2 gap-2 items-center">
+        <div
+          id="editor-canvas-dimensions"
+          class="grid grid-cols-2 gap-2 items-center"
+        >
           <label
             id="editor-canvas-width-label"
             class="text-xs text-neutral-600 dark:text-neutral-300"
-            >{{ 'canvas.width' | transloco }}</label
+            >{{ "canvas.width" | transloco }}</label
           >
           <input
             type="number"
@@ -101,7 +112,7 @@
           <label
             id="editor-canvas-height-label"
             class="text-xs text-neutral-600 dark:text-neutral-300"
-            >{{ 'canvas.height' | transloco }}</label
+            >{{ "canvas.height" | transloco }}</label
           >
           <input
             type="number"
@@ -126,8 +137,8 @@
           <div>
             {{
               documentSvc.canvasSaved()
-                ? ('canvas.saved' | transloco)
-                : ('canvas.unsaved' | transloco)
+                ? ("canvas.saved" | transloco)
+                : ("canvas.unsaved" | transloco)
             }}
           </div>
         </div>
@@ -160,7 +171,7 @@
   >
     <div id="editor-canvas-zoom-controls" class="flex items-center gap-2">
       <label id="editor-canvas-zoom-label" class="text-xs opacity-80">{{
-        'canvas.zoom' | transloco
+        "canvas.zoom" | transloco
       }}</label>
       <button
         type="button"
@@ -197,4 +208,36 @@
 
     <!-- rotation controls removed (feature temporarily disabled) -->
   </div>
+
+  @if (contextMenuVisible()) {
+    <div
+      id="editor-canvas-context-overlay"
+      class="absolute inset-0 z-40"
+      (pointerdown)="closeContextMenu()"
+    ></div>
+    <div
+      id="editor-canvas-context-menu"
+      class="absolute z-50 min-w-40 rounded-sm border border-neutral-200/70 dark:border-neutral-700/60 bg-neutral-50/90 dark:bg-neutral-900/80 backdrop-blur px-1 py-1 shadow-lg"
+      [style.left.px]="contextMenuPosition().x"
+      [style.top.px]="contextMenuPosition().y"
+    >
+      @for (item of contextMenuActions(); track item.id) {
+        <button
+          id="editor-canvas-context-action-{{ item.id }}"
+          type="button"
+          class="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200/70 dark:hover:bg-neutral-800/70"
+          (click)="onContextMenuAction(item.id)"
+        >
+          <ng-icon
+            id="editor-canvas-context-action-icon-{{ item.id }}"
+            [name]="item.icon"
+            class="h-4 w-4 text-neutral-600 dark:text-neutral-300"
+          ></ng-icon>
+          <span id="editor-canvas-context-action-label-{{ item.id }}">
+            {{ item.labelKey | transloco }}
+          </span>
+        </button>
+      }
+    </div>
+  }
 </div>

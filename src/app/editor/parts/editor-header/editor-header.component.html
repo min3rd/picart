@@ -1,14 +1,18 @@
 <div class="flex items-center gap-4 px-3 h-10 text-sm select-none">
   <div class="font-semibold tracking-wide">Pixart</div>
   <nav class="flex items-center gap-2">
-    <div class="relative" (mouseenter)="openFileMenuHover()" (mouseleave)="closeFileMenuHover()">
+    <div
+      class="relative"
+      (mouseenter)="openFileMenuHover()"
+      (mouseleave)="closeFileMenuHover()"
+    >
       <button
         type="button"
         class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
         (click)="showFileMenu.set(!showFileMenu())"
         [attr.aria-expanded]="showFileMenu()"
       >
-        {{ 'menu.file' | transloco }}
+        {{ "menu.file" | transloco }}
       </button>
       @if (showFileMenu()) {
         <div
@@ -21,26 +25,28 @@
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onNewProject()"
           >
-            {{ 'file.new' | transloco }}
+            {{ "file.new" | transloco }}
           </button>
           <button
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onOpenFromComputer()"
           >
-            {{ 'file.openFromComputer' | transloco }}
+            {{ "file.openFromComputer" | transloco }}
           </button>
           <button
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onSaveToComputer()"
           >
-            {{ 'file.saveToComputer' | transloco }}
+            {{ "file.saveToComputer" | transloco }}
           </button>
-          <div class="border-t border-neutral-100 dark:border-neutral-700"></div>
+          <div
+            class="border-t border-neutral-100 dark:border-neutral-700"
+          ></div>
           <button
             class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             (click)="onSave()"
           >
-            {{ 'file.saveLocal' | transloco }}
+            {{ "file.saveLocal" | transloco }}
           </button>
         </div>
       }
@@ -49,7 +55,7 @@
       type="button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
     >
-      {{ 'menu.edit' | transloco }}
+      {{ "menu.edit" | transloco }}
     </button>
     <button
       type="button"
@@ -57,7 +63,7 @@
       (click)="onUndo()"
       title="{{ 'menu.undo' | transloco }}"
     >
-      {{ 'menu.undo' | transloco }}
+      {{ "menu.undo" | transloco }}
     </button>
     <button
       type="button"
@@ -65,23 +71,23 @@
       (click)="onRedo()"
       title="{{ 'menu.redo' | transloco }}"
     >
-      {{ 'menu.redo' | transloco }}
+      {{ "menu.redo" | transloco }}
     </button>
     <button
       type="button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
     >
-      {{ 'menu.tool' | transloco }}
+      {{ "menu.tool" | transloco }}
     </button>
     <button
       type="button"
       class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
     >
-      {{ 'menu.help' | transloco }}
+      {{ "menu.help" | transloco }}
     </button>
   </nav>
   <div class="ml-auto flex items-center gap-2 text-xs text-neutral-500">
-    <span>{{ 'badges.title' | transloco }}</span>
+    <span>{{ "badges.title" | transloco }}</span>
     <div class="ml-2 flex items-center gap-1">
       <button
         type="button"

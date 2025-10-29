@@ -10,7 +10,10 @@ import {
 } from '@angular/core';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { EditorToolsService } from '../../../services/editor-tools.service';
-import { GradientType, ShapeFillMode } from '../../../services/tools/tool.types';
+import {
+  GradientType,
+  ShapeFillMode,
+} from '../../../services/tools/tool.types';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 import { CommonModule } from '@angular/common';
@@ -26,6 +29,14 @@ interface ShapeDrawOptions {
   gradientAngle: number;
 }
 
+type ContextMenuActionId = 'deselect';
+
+interface ContextMenuAction {
+  id: ContextMenuActionId;
+  labelKey: string;
+  icon: string;
+}
+
 @Component({
   selector: 'pa-editor-canvas',
   templateUrl: './editor-canvas.component.html',
@@ -37,9 +48,12 @@ interface ShapeDrawOptions {
   },
 })
 export class EditorCanvas {
-  @ViewChild('canvasEl', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef<HTMLDivElement>;
-  @ViewChild('canvasWrapper', { static: true }) canvasWrapper!: ElementRef<HTMLDivElement>;
+  @ViewChild('canvasEl', { static: true })
+  canvasEl!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('canvasContainer', { static: true })
+  canvasContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('canvasWrapper', { static: true })
+  canvasWrapper!: ElementRef<HTMLDivElement>;
   readonly document = inject(EditorDocumentService);
   readonly documentSvc: EditorDocumentService = this.document;
   readonly tools = inject(EditorToolsService);
@@ -59,8 +73,10 @@ export class EditorCanvas {
   private readonly viewReady = signal(false);
   private readonly shapeStart = signal<{ x: number; y: number } | null>(null);
   private readonly shapeCurrent = signal<{ x: number; y: number } | null>(null);
-  private readonly activeShapeTool = signal<'line' | 'circle' | 'square' | null>(null);
-  private readonly shapeConstrainSquare = signal(false);
+  private readonly activeShapeTool = signal<
+    'line' | 'circle' | 'square' | null
+  >(null);
+  private readonly shapeConstrainUniform = signal(false);
 
   private panning = false;
   // painting state
@@ -72,6 +88,12 @@ export class EditorCanvas {
   private shaping = false;
   private stopRenderEffect: EffectRef | null = null;
   readonly tileSize = signal(1);
+  readonly contextMenuVisible = signal(false);
+  readonly contextMenuPosition = signal<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  readonly contextMenuActions = signal<ContextMenuAction[]>([]);
   private resizeListener: (() => void) | null = null;
   private keyListener: ((e: KeyboardEvent) => void) | null = null;
   private readonly defaultCursor = `url('/cursors/link.png') 12 12, link`;
@@ -111,18 +133,26 @@ export class EditorCanvas {
   cursor(): string {
     if (this.panning) return this.handGrabbingCursor;
     const tool = this.tools.currentTool();
-    if (tool === 'rect-select' || tool === 'ellipse-select' || tool === 'lasso-select')
+    if (
+      tool === 'rect-select' ||
+      tool === 'ellipse-select' ||
+      tool === 'lasso-select'
+    )
       return `crosshair`;
     if (tool === 'brush') return this.brushCursor;
     if (tool === 'eraser') return this.eraserCursor;
-    if (tool === 'line' || tool === 'circle' || tool === 'square') return `crosshair`;
+    if (tool === 'line' || tool === 'circle' || tool === 'square')
+      return `crosshair`;
     return this.defaultCursor;
   }
 
   ngAfterViewInit(): void {
     // Auto-scale to fit the viewport and center the canvas.
     this.centerAndFitCanvas();
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.requestAnimationFrame === 'function'
+    ) {
       window.requestAnimationFrame(() => this.centerAndFitCanvas());
     }
     this.updateTileSize(this.tools.brushSize());
@@ -143,6 +173,10 @@ export class EditorCanvas {
       // listen for Escape to cancel in-progress lasso selections
       this.keyListener = (ev: KeyboardEvent) => {
         if (ev.key === 'Escape') {
+          if (this.contextMenuVisible()) {
+            this.closeContextMenu();
+            return;
+          }
           const tool = this.tools.currentTool();
           if (tool === 'lasso-select') {
             // cancel any in-progress lasso without recording history
@@ -152,6 +186,12 @@ export class EditorCanvas {
             this.selectionDragging = false;
             this.selectionStart = null;
           }
+          return;
+        }
+        const key = ev.key?.toLowerCase?.() ?? ev.key;
+        if (ev.ctrlKey && ev.shiftKey && key === 'd') {
+          ev.preventDefault();
+          this.document.clearSelection();
         }
       };
       window.addEventListener('keydown', this.keyListener as EventListener);
@@ -161,7 +201,10 @@ export class EditorCanvas {
   }
 
   get maxScale(): number {
-    const maxDim = Math.max(1, Math.max(this.document.canvasWidth(), this.document.canvasHeight()));
+    const maxDim = Math.max(
+      1,
+      Math.max(this.document.canvasWidth(), this.document.canvasHeight()),
+    );
     const targetPx = 512;
     const computed = Math.ceil(targetPx / maxDim);
     return Math.min(Math.max(8, computed), 256);
@@ -169,7 +212,10 @@ export class EditorCanvas {
 
   updateTileSize(brushSize = 1, desiredScreenTilePx = 24) {
     const s = Math.max(0.001, this.scale());
-    const tile = Math.max(1, Math.round(desiredScreenTilePx / (s * Math.max(1, brushSize))));
+    const tile = Math.max(
+      1,
+      Math.round(desiredScreenTilePx / (s * Math.max(1, brushSize))),
+    );
     this.tileSize.set(tile);
   }
 
@@ -239,10 +285,10 @@ export class EditorCanvas {
       const clampedX = this.clampCoord(logicalX, w);
       const clampedY = this.clampCoord(logicalY, h);
       const active = this.activeShapeTool();
-      if (active === 'square') {
-        this.shapeConstrainSquare.set(ev.shiftKey);
+      if (active === 'square' || active === 'circle') {
+        this.shapeConstrainUniform.set(ev.shiftKey);
       } else {
-        this.shapeConstrainSquare.set(false);
+        this.shapeConstrainUniform.set(false);
       }
       this.shapeCurrent.set({ x: clampedX, y: clampedY });
     }
@@ -255,7 +301,8 @@ export class EditorCanvas {
         const layerId = this.document.selectedLayerId();
         const tool = this.tools.currentTool();
         const color = tool === 'eraser' ? null : this.tools.brushColor();
-        const size = tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
+        const size =
+          tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
         if (this.lastPaintPos) {
           this.drawLinePaint(
             layerId,
@@ -273,7 +320,9 @@ export class EditorCanvas {
             logicalY,
             size,
             color,
-            tool === 'eraser' ? { eraserStrength: this.tools.eraserStrength() } : undefined,
+            tool === 'eraser'
+              ? { eraserStrength: this.tools.eraserStrength() }
+              : undefined,
           );
         }
         this.lastPaintPos = { x: logicalX, y: logicalY };
@@ -302,7 +351,8 @@ export class EditorCanvas {
     const target = ev.target as HTMLElement | null;
     if (target) {
       const tag = target.tagName.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return;
+      if (tag === 'input' || tag === 'textarea' || target.isContentEditable)
+        return;
     }
 
     const rect = container.getBoundingClientRect();
@@ -332,6 +382,9 @@ export class EditorCanvas {
   }
 
   onPointerDown(ev: PointerEvent) {
+    if (this.contextMenuVisible()) {
+      this.closeContextMenu();
+    }
     // Middle-click (button 1) or Ctrl for panning. Shift no longer starts panning
     // so Shift can be used for other modifiers like constraining selection to a circle.
     if (ev.button === 1 || ev.ctrlKey) {
@@ -341,25 +394,31 @@ export class EditorCanvas {
     }
     // right-click rotation disabled
 
+    const rect = this.canvasEl.nativeElement.getBoundingClientRect();
+    const visX = ev.clientX - rect.left;
+    const visY = ev.clientY - rect.top;
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
+    const ratioX = w / Math.max(1, rect.width);
+    const ratioY = h / Math.max(1, rect.height);
+    const logicalX = Math.floor(visX * ratioX);
+    const logicalY = Math.floor(visY * ratioY);
+    const tool = this.tools.currentTool();
+    const insideCanvas =
+      logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h;
+
+    if (ev.button === 2) {
+      return;
+    }
+
     // Left-button painting start (draw into selected layer)
     if (ev.button === 0) {
-      const rect = this.canvasEl.nativeElement.getBoundingClientRect();
-      const visX = ev.clientX - rect.left;
-      const visY = ev.clientY - rect.top;
-      const w = this.document.canvasWidth();
-      const h = this.document.canvasHeight();
-      const ratioX = w / Math.max(1, rect.width);
-      const ratioY = h / Math.max(1, rect.height);
-      const logicalX = Math.floor(visX * ratioX);
-      const logicalY = Math.floor(visY * ratioY);
-      const tool = this.tools.currentTool();
       // Rectangle / Ellipse / Lasso selection handling
       if (
-        (tool === 'rect-select' || tool === 'ellipse-select' || tool === 'lasso-select') &&
-        logicalX >= 0 &&
-        logicalX < w &&
-        logicalY >= 0 &&
-        logicalY < h
+        (tool === 'rect-select' ||
+          tool === 'ellipse-select' ||
+          tool === 'lasso-select') &&
+        insideCanvas
       ) {
         // Lasso behaves as click-to-add-vertex: each click adds a vertex.
         if (tool === 'lasso-select') {
@@ -399,39 +458,29 @@ export class EditorCanvas {
       }
       if (
         (tool === 'line' || tool === 'circle' || tool === 'square') &&
-        logicalX >= 0 &&
-        logicalX < w &&
-        logicalY >= 0 &&
-        logicalY < h
+        insideCanvas
       ) {
-        if (tool === 'square') {
-          this.shapeConstrainSquare.set(ev.shiftKey);
+        if (tool === 'square' || tool === 'circle') {
+          this.shapeConstrainUniform.set(ev.shiftKey);
         } else {
-          this.shapeConstrainSquare.set(false);
+          this.shapeConstrainUniform.set(false);
         }
         this.startShape(tool, logicalX, logicalY);
         return;
       }
-      if (
-        tool === 'fill' &&
-        logicalX >= 0 &&
-        logicalX < this.document.canvasWidth() &&
-        logicalY >= 0 &&
-        logicalY < this.document.canvasHeight()
-      ) {
+      if (tool === 'fill' && insideCanvas) {
         // One-shot fill action
+        const selectionActive = this.document.selectionRect();
+        if (selectionActive && !this.isPointInSelection(logicalX, logicalY)) {
+          return;
+        }
         this.document.beginAction('fill');
         const layerId = this.document.selectedLayerId();
-        const color = this.tools.brushColor();
-        this.document.applyFillToLayer(layerId, logicalX, logicalY, color);
+        const fillMode = this.tools.fillMode();
+        const fillColor = fillMode === 'erase' ? null : this.tools.fillColor();
+        this.document.applyFillToLayer(layerId, logicalX, logicalY, fillColor);
         this.document.endAction();
-      } else if (
-        (tool === 'brush' || tool === 'eraser') &&
-        logicalX >= 0 &&
-        logicalX < this.document.canvasWidth() &&
-        logicalY >= 0 &&
-        logicalY < this.document.canvasHeight()
-      ) {
+      } else if ((tool === 'brush' || tool === 'eraser') && insideCanvas) {
         // Begin a grouped user action so the whole stroke is a single undoable
         // section. The action will be collected until pointer up/leave.
         this.document.beginAction('paint');
@@ -439,17 +488,76 @@ export class EditorCanvas {
         this.lastPaintPos = { x: logicalX, y: logicalY };
         const layerId = this.document.selectedLayerId();
         const color = tool === 'eraser' ? null : this.tools.brushColor();
-        const size = tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
+        const size =
+          tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
         this.document.applyBrushToLayer(
           layerId,
           logicalX,
           logicalY,
           size,
           color,
-          tool === 'eraser' ? { eraserStrength: this.tools.eraserStrength() } : undefined,
+          tool === 'eraser'
+            ? { eraserStrength: this.tools.eraserStrength() }
+            : undefined,
         );
       }
     }
+  }
+
+  onCanvasContextMenu(ev: MouseEvent) {
+    ev.preventDefault();
+    const canvasRect = this.canvasEl.nativeElement.getBoundingClientRect();
+    const visX = ev.clientX - canvasRect.left;
+    const visY = ev.clientY - canvasRect.top;
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
+    const ratioX = w / Math.max(1, canvasRect.width);
+    const ratioY = h / Math.max(1, canvasRect.height);
+    const logicalX = Math.floor(visX * ratioX);
+    const logicalY = Math.floor(visY * ratioY);
+    const insideCanvas =
+      logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h;
+    if (!insideCanvas) {
+      this.closeContextMenu();
+      return;
+    }
+    const actions: ContextMenuAction[] = [];
+    if (this.document.selectionRect()) {
+      actions.push({
+        id: 'deselect',
+        labelKey: 'editor.canvas.menu.deselect',
+        icon: 'bootstrapBoundingBox',
+      });
+    }
+    if (!actions.length) {
+      this.closeContextMenu();
+      return;
+    }
+    const containerRect =
+      this.canvasContainer.nativeElement.getBoundingClientRect();
+    const offsetX = ev.clientX - containerRect.left;
+    const offsetY = ev.clientY - containerRect.top;
+    const estimatedWidth = 160;
+    const estimatedHeight = Math.max(40, actions.length * 36);
+    const maxX = Math.max(0, containerRect.width - estimatedWidth);
+    const maxY = Math.max(0, containerRect.height - estimatedHeight);
+    const clampedX = Math.max(0, Math.min(offsetX, maxX));
+    const clampedY = Math.max(0, Math.min(offsetY, maxY));
+    this.contextMenuPosition.set({ x: clampedX, y: clampedY });
+    this.contextMenuActions.set(actions);
+    this.contextMenuVisible.set(true);
+  }
+
+  closeContextMenu() {
+    this.contextMenuVisible.set(false);
+    this.contextMenuActions.set([]);
+  }
+
+  onContextMenuAction(actionId: ContextMenuActionId) {
+    if (actionId === 'deselect') {
+      this.document.clearSelection();
+    }
+    this.closeContextMenu();
   }
 
   onPointerUp(ev: PointerEvent) {
@@ -481,7 +589,11 @@ export class EditorCanvas {
       this.document.setCanvasSize(width, this.document.canvasHeight());
       // ensure buffers for all layers
       for (const l of this.document.layers()) {
-        this.document.ensureLayerBuffer(l.id, width, this.document.canvasHeight());
+        this.document.ensureLayerBuffer(
+          l.id,
+          width,
+          this.document.canvasHeight(),
+        );
       }
     }
   }
@@ -493,7 +605,11 @@ export class EditorCanvas {
       this.document.setCanvasSize(this.document.canvasWidth(), height);
       // ensure buffers for all layers
       for (const l of this.document.layers()) {
-        this.document.ensureLayerBuffer(l.id, this.document.canvasWidth(), height);
+        this.document.ensureLayerBuffer(
+          l.id,
+          this.document.canvasWidth(),
+          height,
+        );
       }
     }
   }
@@ -523,9 +639,18 @@ export class EditorCanvas {
     let x = x0;
     let y = y0;
     const eraserOptions =
-      color === null ? { eraserStrength: this.tools.eraserStrength() } : undefined;
+      color === null
+        ? { eraserStrength: this.tools.eraserStrength() }
+        : undefined;
     while (true) {
-      this.document.applyBrushToLayer(layerId, x, y, brushSize, color, eraserOptions);
+      this.document.applyBrushToLayer(
+        layerId,
+        x,
+        y,
+        brushSize,
+        color,
+        eraserOptions,
+      );
       if (x === x1 && y === y1) break;
       const e2 = 2 * err;
       if (e2 >= dy) {
@@ -562,6 +687,7 @@ export class EditorCanvas {
 
   ngOnDestroy(): void {
     this.viewReady.set(false);
+    this.closeContextMenu();
     if (this.stopRenderEffect) {
       try {
         if ((this.stopRenderEffect as any).destroy) {
@@ -575,13 +701,19 @@ export class EditorCanvas {
 
     if (this.resizeListener && typeof window !== 'undefined') {
       try {
-        window.removeEventListener('resize', this.resizeListener as EventListener);
+        window.removeEventListener(
+          'resize',
+          this.resizeListener as EventListener,
+        );
       } catch {}
       this.resizeListener = null;
     }
     if (this.keyListener && typeof window !== 'undefined') {
       try {
-        window.removeEventListener('keydown', this.keyListener as EventListener);
+        window.removeEventListener(
+          'keydown',
+          this.keyListener as EventListener,
+        );
       } catch {}
       this.keyListener = null;
     }
@@ -594,10 +726,14 @@ export class EditorCanvas {
       const w = Math.max(1, this.document.canvasWidth());
       const h = Math.max(1, this.document.canvasHeight());
 
-      const { contentWidth, contentHeight, paddingLeft, paddingTop } = this.measureContainer();
+      const { contentWidth, contentHeight, paddingLeft, paddingTop } =
+        this.measureContainer();
       if (contentWidth <= 0 || contentHeight <= 0) return;
 
-      const fitScale = Math.max(this.minScale, Math.min(contentWidth / w, contentHeight / h));
+      const fitScale = Math.max(
+        this.minScale,
+        Math.min(contentWidth / w, contentHeight / h),
+      );
       const initialScale = Math.min(this.maxScale, fitScale);
       this.scale.set(initialScale);
 
@@ -613,7 +749,10 @@ export class EditorCanvas {
     }
   }
 
-  private applyZoom(nextScale: number, anchor?: { clientX: number; clientY: number }) {
+  private applyZoom(
+    nextScale: number,
+    anchor?: { clientX: number; clientY: number },
+  ) {
     const clamped = Math.min(this.maxScale, Math.max(this.minScale, nextScale));
     const prev = this.scale();
     if (!this.canvasEl?.nativeElement) {
@@ -631,9 +770,11 @@ export class EditorCanvas {
     const prevPanY = this.panY();
 
     const pivotX =
-      anchor?.clientX ?? (containerRect ? containerRect.left + containerRect.width / 2 : 0);
+      anchor?.clientX ??
+      (containerRect ? containerRect.left + containerRect.width / 2 : 0);
     const pivotY =
-      anchor?.clientY ?? (containerRect ? containerRect.top + containerRect.height / 2 : 0);
+      anchor?.clientY ??
+      (containerRect ? containerRect.top + containerRect.height / 2 : 0);
     const containerOffsetX = containerRect ? pivotX - containerRect.left : 0;
     const containerOffsetY = containerRect ? pivotY - containerRect.top : 0;
     const worldX = containerRect ? (containerOffsetX - prevPanX) / prev : 0;
@@ -657,7 +798,8 @@ export class EditorCanvas {
     const w = this.document.canvasWidth();
     const h = this.document.canvasHeight();
     const scale = this.scale();
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const dpr =
+      typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     const displayWidth = Math.max(1, w * scale);
     const displayHeight = Math.max(1, h * scale);
     const pixelWidth = Math.max(1, Math.floor(displayWidth * dpr));
@@ -669,7 +811,8 @@ export class EditorCanvas {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const root = typeof document !== 'undefined' ? document.documentElement : null;
+    const root =
+      typeof document !== 'undefined' ? document.documentElement : null;
     const isDark = !!root && root.classList.contains('dark');
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, pixelWidth, pixelHeight);
@@ -679,7 +822,9 @@ export class EditorCanvas {
 
     const tile = this.tileSize();
     const darkTile = isDark ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.04)';
-    const lightTile = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.02)';
+    const lightTile = isDark
+      ? 'rgba(255,255,255,0.03)'
+      : 'rgba(255,255,255,0.02)';
     ctx.save();
     for (let y = 0; y < h; y += tile) {
       for (let x = 0; x < w; x += tile) {
@@ -733,12 +878,26 @@ export class EditorCanvas {
           const bounds = this.computeRectBounds(
             shapeStart,
             shapeCurrent,
-            this.shapeConstrainSquare(),
+            this.shapeConstrainUniform(),
           );
-          this.renderSquarePreview(ctx, bounds, this.getSquareDrawOptions(), pxLineWidth);
+          this.renderSquarePreview(
+            ctx,
+            bounds,
+            this.getSquareDrawOptions(),
+            pxLineWidth,
+          );
         } else {
-          const bounds = this.computeRectBounds(shapeStart, shapeCurrent, true);
-          this.renderCirclePreview(ctx, bounds, this.getCircleDrawOptions(), pxLineWidth);
+          const bounds = this.computeRectBounds(
+            shapeStart,
+            shapeCurrent,
+            this.shapeConstrainUniform(),
+          );
+          this.renderEllipsePreview(
+            ctx,
+            bounds,
+            this.getCircleDrawOptions(),
+            pxLineWidth,
+          );
         }
       }
       ctx.restore();
@@ -751,7 +910,8 @@ export class EditorCanvas {
       const tool = this.tools.currentTool();
       if (tool === 'brush' || tool === 'eraser') {
         ctx.save();
-        const size = tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
+        const size =
+          tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
         const bSize = Math.max(1, size);
 
         // center the brush highlight on the hovered pixel
@@ -764,18 +924,34 @@ export class EditorCanvas {
         ctx.lineWidth = pxLineWidth;
         if (tool === 'eraser') {
           // Eraser: light overlay + visible border depending on theme
-          ctx.fillStyle = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+          ctx.fillStyle = isDark
+            ? 'rgba(255,255,255,0.12)'
+            : 'rgba(0,0,0,0.10)';
           ctx.fillRect(x0, y0, wRect, hRect);
-          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
-          ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
+          ctx.strokeStyle = isDark
+            ? 'rgba(255,255,255,0.5)'
+            : 'rgba(0,0,0,0.5)';
+          ctx.strokeRect(
+            x0 + 0.5,
+            y0 + 0.5,
+            Math.max(0, wRect - 1),
+            Math.max(0, hRect - 1),
+          );
         } else {
           // Brush: use current brush color with translucency and border
           ctx.fillStyle = this.tools.brushColor();
           ctx.globalAlpha = 0.9;
           ctx.fillRect(x0, y0, wRect, hRect);
           ctx.globalAlpha = 1;
-          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
-          ctx.strokeRect(x0 + 0.5, y0 + 0.5, Math.max(0, wRect - 1), Math.max(0, hRect - 1));
+          ctx.strokeStyle = isDark
+            ? 'rgba(255,255,255,0.6)'
+            : 'rgba(0,0,0,0.6)';
+          ctx.strokeRect(
+            x0 + 0.5,
+            y0 + 0.5,
+            Math.max(0, wRect - 1),
+            Math.max(0, hRect - 1),
+          );
         }
         ctx.restore();
       }
@@ -813,7 +989,9 @@ export class EditorCanvas {
           ctx.closePath();
           ctx.fill();
           ctx.setLineDash([4 / scale, 3 / scale]);
-          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+          ctx.strokeStyle = isDark
+            ? 'rgba(255,255,255,0.8)'
+            : 'rgba(0,0,0,0.8)';
           ctx.lineWidth = pxLineWidth;
           ctx.stroke();
           // Draw a small marker on the first vertex to help users close the polygon
@@ -824,7 +1002,9 @@ export class EditorCanvas {
           ctx.fillStyle = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)';
           ctx.fill();
           ctx.lineWidth = pxLineWidth;
-          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
+          ctx.strokeStyle = isDark
+            ? 'rgba(255,255,255,0.9)'
+            : 'rgba(0,0,0,0.9)';
           ctx.stroke();
         }
       } else {
@@ -833,7 +1013,12 @@ export class EditorCanvas {
         ctx.setLineDash([4 / scale, 3 / scale]);
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
         ctx.lineWidth = pxLineWidth;
-        ctx.strokeRect(sel.x, sel.y, Math.max(0, sel.width), Math.max(0, sel.height));
+        ctx.strokeRect(
+          sel.x,
+          sel.y,
+          Math.max(0, sel.width),
+          Math.max(0, sel.height),
+        );
       }
       ctx.restore();
     }
@@ -872,7 +1057,15 @@ export class EditorCanvas {
     if (mode === 'line') {
       const thickness = this.tools.lineThickness();
       const color = this.tools.lineColor();
-      this.document.applyLineToLayer(layerId, start.x, start.y, current.x, current.y, color, thickness);
+      this.document.applyLineToLayer(
+        layerId,
+        start.x,
+        start.y,
+        current.x,
+        current.y,
+        color,
+        thickness,
+      );
     } else if (mode === 'circle') {
       this.document.applyCircleToLayer(
         layerId,
@@ -881,10 +1074,15 @@ export class EditorCanvas {
         current.x,
         current.y,
         this.getCircleDrawOptions(),
+        typeof constrainOverride === 'boolean'
+          ? constrainOverride
+          : this.shapeConstrainUniform(),
       );
     } else {
       const constrainSquare =
-        typeof constrainOverride === 'boolean' ? constrainOverride : this.shapeConstrainSquare();
+        typeof constrainOverride === 'boolean'
+          ? constrainOverride
+          : this.shapeConstrainUniform();
       this.document.applySquareToLayer(
         layerId,
         start.x,
@@ -910,7 +1108,54 @@ export class EditorCanvas {
     this.activeShapeTool.set(null);
     this.shapeStart.set(null);
     this.shapeCurrent.set(null);
-    this.shapeConstrainSquare.set(false);
+    this.shapeConstrainUniform.set(false);
+  }
+
+  private isPointInSelection(x: number, y: number): boolean {
+    const rect = this.document.selectionRect();
+    if (!rect) return false;
+    const shape = this.document.selectionShape();
+    if (shape === 'lasso') {
+      const polygon = this.document.selectionPolygon();
+      if (!polygon || polygon.length < 3) return false;
+      return this.pointInPolygon(x, y, polygon);
+    }
+    const maxX = rect.x + Math.max(0, rect.width - 1);
+    const maxY = rect.y + Math.max(0, rect.height - 1);
+    const withinRect = x >= rect.x && x <= maxX && y >= rect.y && y <= maxY;
+    if (!withinRect) return false;
+    if (shape === 'ellipse') {
+      const rx = rect.width / 2;
+      const ry = rect.height / 2;
+      if (rx <= 0 || ry <= 0) return false;
+      const cx = rect.x + (rect.width - 1) / 2;
+      const cy = rect.y + (rect.height - 1) / 2;
+      const normX = x - cx;
+      const normY = y - cy;
+      const ellipseTest =
+        (normX * normX) / (rx * rx) + (normY * normY) / (ry * ry);
+      return ellipseTest <= 1;
+    }
+    return withinRect;
+  }
+
+  private pointInPolygon(
+    x: number,
+    y: number,
+    polygon: { x: number; y: number }[],
+  ): boolean {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x;
+      const yi = polygon[i].y;
+      const xj = polygon[j].x;
+      const yj = polygon[j].y;
+      const intersects =
+        yi > y !== yj > y &&
+        x <= ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi;
+      if (intersects) inside = !inside;
+    }
+    return inside;
   }
 
   private clampCoord(value: number, max: number) {
@@ -948,7 +1193,10 @@ export class EditorCanvas {
 
   private getCircleDrawOptions(): ShapeDrawOptions {
     return {
-      strokeThickness: Math.max(0, Math.floor(this.tools.circleStrokeThickness())),
+      strokeThickness: Math.max(
+        0,
+        Math.floor(this.tools.circleStrokeThickness()),
+      ),
       strokeColor: this.tools.circleStrokeColor(),
       fillMode: this.tools.circleFillMode(),
       fillColor: this.tools.circleFillColor(),
@@ -961,7 +1209,10 @@ export class EditorCanvas {
 
   private getSquareDrawOptions(): ShapeDrawOptions {
     return {
-      strokeThickness: Math.max(0, Math.floor(this.tools.squareStrokeThickness())),
+      strokeThickness: Math.max(
+        0,
+        Math.floor(this.tools.squareStrokeThickness()),
+      ),
       strokeColor: this.tools.squareStrokeColor(),
       fillMode: this.tools.squareFillMode(),
       fillColor: this.tools.squareFillColor(),
@@ -995,20 +1246,22 @@ export class EditorCanvas {
     }
   }
 
-  private renderCirclePreview(
+  private renderEllipsePreview(
     ctx: CanvasRenderingContext2D,
     bounds: { minX: number; minY: number; maxX: number; maxY: number },
     options: ShapeDrawOptions,
     pxLineWidth: number,
   ) {
-    const diameter = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) + 1;
-    const radius = diameter / 2;
-    const cx = bounds.minX + radius;
-    const cy = bounds.minY + radius;
+    const widthRect = Math.max(1, bounds.maxX - bounds.minX + 1);
+    const heightRect = Math.max(1, bounds.maxY - bounds.minY + 1);
+    const cx = bounds.minX + widthRect / 2;
+    const cy = bounds.minY + heightRect / 2;
+    const rx = widthRect / 2;
+    const ry = heightRect / 2;
     ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    if (options.fillMode === 'gradient' && radius > 0) {
-      this.fillCircleGradientPreview(ctx, bounds, options, cx, cy, radius);
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    if (options.fillMode === 'gradient' && rx > 0 && ry > 0) {
+      this.fillEllipseGradientPreview(ctx, bounds, options, cx, cy, rx, ry);
     } else if (options.fillColor) {
       ctx.fillStyle = options.fillColor;
       ctx.globalAlpha = 0.35;
@@ -1041,8 +1294,10 @@ export class EditorCanvas {
     if (!fallbackStart && !fallbackEnd) return;
     const parsedStart = this.parseHexColor(startColor);
     const parsedEnd = this.parseHexColor(endColor);
-    const gradientType: GradientType = options.gradientType === 'radial' ? 'radial' : 'linear';
-    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const gradientType: GradientType =
+      options.gradientType === 'radial' ? 'radial' : 'linear';
+    const gradientAngle =
+      typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
     const angleRad = (gradientAngle * Math.PI) / 180;
     const dirX = Math.cos(angleRad);
     const dirY = Math.sin(angleRad);
@@ -1090,7 +1345,13 @@ export class EditorCanvas {
         const startFallback = fallbackStart || fallbackEnd;
         const endFallback = fallbackEnd || fallbackStart;
         if (!startFallback || !endFallback) continue;
-        const color = this.mixParsedColors(parsedStart, parsedEnd, dither, startFallback, endFallback);
+        const color = this.mixParsedColors(
+          parsedStart,
+          parsedEnd,
+          dither,
+          startFallback,
+          endFallback,
+        );
         ctx.fillStyle = color;
         ctx.fillRect(xx, yy, 1, 1);
       }
@@ -1098,13 +1359,14 @@ export class EditorCanvas {
     ctx.globalAlpha = prevAlpha;
   }
 
-  private fillCircleGradientPreview(
+  private fillEllipseGradientPreview(
     ctx: CanvasRenderingContext2D,
     bounds: { minX: number; minY: number; maxX: number; maxY: number },
     options: ShapeDrawOptions,
     cx: number,
     cy: number,
-    radius: number,
+    rx: number,
+    ry: number,
   ) {
     const minX = bounds.minX;
     const minY = bounds.minY;
@@ -1118,8 +1380,10 @@ export class EditorCanvas {
     if (!fallbackStart && !fallbackEnd) return;
     const parsedStart = this.parseHexColor(startColor);
     const parsedEnd = this.parseHexColor(endColor);
-    const gradientType: GradientType = options.gradientType === 'linear' ? 'linear' : 'radial';
-    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const gradientType: GradientType =
+      options.gradientType === 'linear' ? 'linear' : 'radial';
+    const gradientAngle =
+      typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
     const angleRad = (gradientAngle * Math.PI) / 180;
     const dirX = Math.cos(angleRad);
     const dirY = Math.sin(angleRad);
@@ -1147,16 +1411,20 @@ export class EditorCanvas {
     }
     const prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = 0.35;
-    const radiusSq = radius * radius;
+    const invRx = rx > 0 ? 1 / rx : 0;
+    const invRy = ry > 0 ? 1 / ry : 0;
     for (let yy = minY; yy <= maxY; yy++) {
       for (let xx = minX; xx <= maxX; xx++) {
         const dx = xx + 0.5 - cx;
         const dy = yy + 0.5 - cy;
-        if (dx * dx + dy * dy > radiusSq) continue;
+        const norm =
+          invRx > 0 && invRy > 0
+            ? dx * dx * invRx * invRx + dy * dy * invRy * invRy
+            : 0;
+        if (norm > 1) continue;
         let ratio = 0;
         if (gradientType === 'radial') {
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          ratio = radius > 0 ? dist / radius : 0;
+          ratio = Math.sqrt(norm);
         } else {
           const proj = (xx + 0.5) * dirX + (yy + 0.5) * dirY;
           const span = maxProj - minProj;
@@ -1166,7 +1434,13 @@ export class EditorCanvas {
         const startFallback = fallbackStart || fallbackEnd;
         const endFallback = fallbackEnd || fallbackStart;
         if (!startFallback || !endFallback) continue;
-        const color = this.mixParsedColors(parsedStart, parsedEnd, dither, startFallback, endFallback);
+        const color = this.mixParsedColors(
+          parsedStart,
+          parsedEnd,
+          dither,
+          startFallback,
+          endFallback,
+        );
         ctx.fillStyle = color;
         ctx.fillRect(xx, yy, 1, 1);
       }
@@ -1241,13 +1515,20 @@ export class EditorCanvas {
         paddingTop: 0,
       };
     }
-    const styles = typeof window !== 'undefined' ? window.getComputedStyle(container) : null;
+    const styles =
+      typeof window !== 'undefined' ? window.getComputedStyle(container) : null;
     const paddingLeft = styles ? parseFloat(styles.paddingLeft) || 0 : 0;
     const paddingRight = styles ? parseFloat(styles.paddingRight) || 0 : 0;
     const paddingTop = styles ? parseFloat(styles.paddingTop) || 0 : 0;
     const paddingBottom = styles ? parseFloat(styles.paddingBottom) || 0 : 0;
-    const contentWidth = Math.max(1, container.clientWidth - paddingLeft - paddingRight);
-    const contentHeight = Math.max(1, container.clientHeight - paddingTop - paddingBottom);
+    const contentWidth = Math.max(
+      1,
+      container.clientWidth - paddingLeft - paddingRight,
+    );
+    const contentHeight = Math.max(
+      1,
+      container.clientHeight - paddingTop - paddingBottom,
+    );
     return { contentWidth, contentHeight, paddingLeft, paddingTop };
   }
 }

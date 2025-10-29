@@ -50,10 +50,15 @@ export class EraserToolService implements ToolService<EraserToolSnapshot> {
     };
   }
 
-  restore(snapshot: Partial<EraserToolSnapshot> | undefined, context?: ToolRestoreContext) {
+  restore(
+    snapshot: Partial<EraserToolSnapshot> | undefined,
+    context?: ToolRestoreContext,
+  ) {
     if (!snapshot) return;
     const limit =
-      context?.maxBrush && context.maxBrush > 0 ? context.maxBrush : Number.MAX_SAFE_INTEGER;
+      context?.maxBrush && context.maxBrush > 0
+        ? context.maxBrush
+        : Number.MAX_SAFE_INTEGER;
     if (typeof snapshot.size === 'number') {
       const next = Math.max(1, Math.min(Math.floor(snapshot.size), limit));
       this.size.set(next);

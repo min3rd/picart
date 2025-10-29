@@ -1,7 +1,13 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { EditorToolsService } from './editor-tools.service';
-import { GradientType, ShapeFillMode, ToolId, ToolMetaKey, ToolSnapshot } from './tools/tool.types';
+import {
+  GradientType,
+  ShapeFillMode,
+  ToolId,
+  ToolMetaKey,
+  ToolSnapshot,
+} from './tools/tool.types';
 
 export interface LayerItem {
   id: string;
@@ -62,7 +68,7 @@ interface ParsedColor {
 @Injectable({ providedIn: 'root' })
 export class EditorDocumentService {
   private readonly tools = inject(EditorToolsService);
-  private readonly PROJECT_STORAGE_KEY = 'picart.project.local.v1';
+  private readonly PROJECT_STORAGE_KEY = 'pixart.project.local.v1';
 
   readonly layers = signal<LayerItem[]>([
     { id: 'l1', name: 'Layer 1', visible: true, locked: false },
@@ -80,9 +86,12 @@ export class EditorDocumentService {
   readonly canvasHeight = signal<number>(64);
   readonly canvasSaved = signal<boolean>(true);
 
-  readonly selectionRect = signal<{ x: number; y: number; width: number; height: number } | null>(
-    null,
-  );
+  readonly selectionRect = signal<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   readonly selectionShape = signal<'rect' | 'ellipse' | 'lasso'>('rect');
   readonly selectionPolygon = signal<{ x: number; y: number }[] | null>(null);
 
@@ -113,7 +122,8 @@ export class EditorDocumentService {
   // This complements the lightweight editor settings loaded by loadFromStorage().
   loadProjectFromLocalStorage(): Observable<boolean> {
     try {
-      if (typeof window === 'undefined' || !window.localStorage) return of(false);
+      if (typeof window === 'undefined' || !window.localStorage)
+        return of(false);
       const raw = window.localStorage.getItem(this.PROJECT_STORAGE_KEY);
 
       if (!raw) return of(false);
@@ -128,7 +138,11 @@ export class EditorDocumentService {
       this.canvasHeight.set(Math.max(1, Math.floor(h)));
 
       // Restore layers if provided
-      if (parsed.layers && Array.isArray(parsed.layers) && parsed.layers.length > 0) {
+      if (
+        parsed.layers &&
+        Array.isArray(parsed.layers) &&
+        parsed.layers.length > 0
+      ) {
         const layers = (parsed.layers as any[]).map((l) => ({
           id: l.id,
           name: l.name,
@@ -145,9 +159,12 @@ export class EditorDocumentService {
           const buf = parsed.layerBuffers[k];
           if (Array.isArray(buf)) {
             // ensure length matches w*h by resizing/padding/truncating
-            const need = Math.max(1, this.canvasWidth()) * Math.max(1, this.canvasHeight());
+            const need =
+              Math.max(1, this.canvasWidth()) *
+              Math.max(1, this.canvasHeight());
             const next = new Array<string>(need).fill('');
-            for (let i = 0; i < Math.min(buf.length, need); i++) next[i] = buf[i] || '';
+            for (let i = 0; i < Math.min(buf.length, need); i++)
+              next[i] = buf[i] || '';
             this.layerPixels.set(k, next);
           }
         }
@@ -160,36 +177,54 @@ export class EditorDocumentService {
       }
 
       // restore selected layer if provided
-      if (parsed.selectedLayerId && typeof parsed.selectedLayerId === 'string') {
-        const exists = this.layers().some((x) => x.id === parsed.selectedLayerId);
+      if (
+        parsed.selectedLayerId &&
+        typeof parsed.selectedLayerId === 'string'
+      ) {
+        const exists = this.layers().some(
+          (x) => x.id === parsed.selectedLayerId,
+        );
         if (exists) this.selectedLayerId.set(parsed.selectedLayerId);
       }
 
-      const maxBrush = Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()));
+      const maxBrush = Math.max(
+        1,
+        Math.max(this.canvasWidth(), this.canvasHeight()),
+      );
       const toolSnapshot: Partial<ToolSnapshot> = {};
       if (parsed.currentTool && typeof parsed.currentTool === 'string') {
         toolSnapshot.currentTool = parsed.currentTool as ToolId;
       }
       if (parsed.brush && typeof parsed.brush === 'object') {
         const brush: Partial<ToolSnapshot['brush']> = {};
-        if (typeof parsed.brush.size === 'number') brush.size = parsed.brush.size;
-        if (typeof parsed.brush.color === 'string') brush.color = parsed.brush.color;
-        if (Object.keys(brush).length) toolSnapshot.brush = brush as ToolSnapshot['brush'];
+        if (typeof parsed.brush.size === 'number')
+          brush.size = parsed.brush.size;
+        if (typeof parsed.brush.color === 'string')
+          brush.color = parsed.brush.color;
+        if (Object.keys(brush).length)
+          toolSnapshot.brush = brush as ToolSnapshot['brush'];
       }
       if (parsed.eraser && typeof parsed.eraser === 'object') {
         const eraser: Partial<ToolSnapshot['eraser']> = {};
-        if (typeof parsed.eraser.size === 'number') eraser.size = parsed.eraser.size;
-        if (typeof parsed.eraser.strength === 'number') eraser.strength = parsed.eraser.strength;
-        if (Object.keys(eraser).length) toolSnapshot.eraser = eraser as ToolSnapshot['eraser'];
+        if (typeof parsed.eraser.size === 'number')
+          eraser.size = parsed.eraser.size;
+        if (typeof parsed.eraser.strength === 'number')
+          eraser.strength = parsed.eraser.strength;
+        if (Object.keys(eraser).length)
+          toolSnapshot.eraser = eraser as ToolSnapshot['eraser'];
       }
       const line: Partial<ToolSnapshot['line']> = {};
       if (parsed.line && typeof parsed.line === 'object') {
-        if (typeof parsed.line.thickness === 'number') line.thickness = parsed.line.thickness;
-        if (typeof parsed.line.color === 'string') line.color = parsed.line.color;
+        if (typeof parsed.line.thickness === 'number')
+          line.thickness = parsed.line.thickness;
+        if (typeof parsed.line.color === 'string')
+          line.color = parsed.line.color;
       }
-      if (typeof parsed.lineThickness === 'number') line.thickness = parsed.lineThickness;
+      if (typeof parsed.lineThickness === 'number')
+        line.thickness = parsed.lineThickness;
       if (typeof parsed.lineColor === 'string') line.color = parsed.lineColor;
-      if (Object.keys(line).length) toolSnapshot.line = line as ToolSnapshot['line'];
+      if (Object.keys(line).length)
+        toolSnapshot.line = line as ToolSnapshot['line'];
       const circle: Partial<ToolSnapshot['circle']> = {};
       if (parsed.circle && typeof parsed.circle === 'object') {
         if (typeof parsed.circle.strokeThickness === 'number') {
@@ -198,7 +233,10 @@ export class EditorDocumentService {
         if (typeof parsed.circle.strokeColor === 'string') {
           circle.strokeColor = parsed.circle.strokeColor;
         }
-        if (parsed.circle.fillMode === 'solid' || parsed.circle.fillMode === 'gradient') {
+        if (
+          parsed.circle.fillMode === 'solid' ||
+          parsed.circle.fillMode === 'gradient'
+        ) {
           circle.fillMode = parsed.circle.fillMode;
         }
         if (typeof parsed.circle.fillColor === 'string') {
@@ -210,7 +248,10 @@ export class EditorDocumentService {
         if (typeof parsed.circle.gradientEndColor === 'string') {
           circle.gradientEndColor = parsed.circle.gradientEndColor;
         }
-        if (parsed.circle.gradientType === 'linear' || parsed.circle.gradientType === 'radial') {
+        if (
+          parsed.circle.gradientType === 'linear' ||
+          parsed.circle.gradientType === 'radial'
+        ) {
           circle.gradientType = parsed.circle.gradientType;
         }
         if (typeof parsed.circle.gradientAngle === 'number') {
@@ -223,7 +264,10 @@ export class EditorDocumentService {
       if (typeof parsed.circleStrokeColor === 'string') {
         circle.strokeColor = parsed.circleStrokeColor;
       }
-      if (parsed.circleFillMode === 'solid' || parsed.circleFillMode === 'gradient') {
+      if (
+        parsed.circleFillMode === 'solid' ||
+        parsed.circleFillMode === 'gradient'
+      ) {
         circle.fillMode = parsed.circleFillMode;
       }
       if (typeof parsed.circleFillColor === 'string') {
@@ -235,7 +279,10 @@ export class EditorDocumentService {
       if (typeof parsed.circleGradientEndColor === 'string') {
         circle.gradientEndColor = parsed.circleGradientEndColor;
       }
-      if (parsed.circleGradientType === 'linear' || parsed.circleGradientType === 'radial') {
+      if (
+        parsed.circleGradientType === 'linear' ||
+        parsed.circleGradientType === 'radial'
+      ) {
         circle.gradientType = parsed.circleGradientType;
       }
       if (typeof parsed.circleGradientAngle === 'number') {
@@ -244,7 +291,8 @@ export class EditorDocumentService {
       if (!circle.fillColor && typeof parsed.circleColor === 'string') {
         circle.fillColor = parsed.circleColor;
       }
-      if (Object.keys(circle).length) toolSnapshot.circle = circle as ToolSnapshot['circle'];
+      if (Object.keys(circle).length)
+        toolSnapshot.circle = circle as ToolSnapshot['circle'];
       const square: Partial<ToolSnapshot['square']> = {};
       if (parsed.square && typeof parsed.square === 'object') {
         if (typeof parsed.square.strokeThickness === 'number') {
@@ -253,7 +301,10 @@ export class EditorDocumentService {
         if (typeof parsed.square.strokeColor === 'string') {
           square.strokeColor = parsed.square.strokeColor;
         }
-        if (parsed.square.fillMode === 'solid' || parsed.square.fillMode === 'gradient') {
+        if (
+          parsed.square.fillMode === 'solid' ||
+          parsed.square.fillMode === 'gradient'
+        ) {
           square.fillMode = parsed.square.fillMode;
         }
         if (typeof parsed.square.fillColor === 'string') {
@@ -265,7 +316,10 @@ export class EditorDocumentService {
         if (typeof parsed.square.gradientEndColor === 'string') {
           square.gradientEndColor = parsed.square.gradientEndColor;
         }
-        if (parsed.square.gradientType === 'linear' || parsed.square.gradientType === 'radial') {
+        if (
+          parsed.square.gradientType === 'linear' ||
+          parsed.square.gradientType === 'radial'
+        ) {
           square.gradientType = parsed.square.gradientType;
         }
         if (typeof parsed.square.gradientAngle === 'number') {
@@ -278,7 +332,10 @@ export class EditorDocumentService {
       if (typeof parsed.squareStrokeColor === 'string') {
         square.strokeColor = parsed.squareStrokeColor;
       }
-      if (parsed.squareFillMode === 'solid' || parsed.squareFillMode === 'gradient') {
+      if (
+        parsed.squareFillMode === 'solid' ||
+        parsed.squareFillMode === 'gradient'
+      ) {
         square.fillMode = parsed.squareFillMode;
       }
       if (typeof parsed.squareFillColor === 'string') {
@@ -290,7 +347,10 @@ export class EditorDocumentService {
       if (typeof parsed.squareGradientEndColor === 'string') {
         square.gradientEndColor = parsed.squareGradientEndColor;
       }
-      if (parsed.squareGradientType === 'linear' || parsed.squareGradientType === 'radial') {
+      if (
+        parsed.squareGradientType === 'linear' ||
+        parsed.squareGradientType === 'radial'
+      ) {
         square.gradientType = parsed.squareGradientType;
       }
       if (typeof parsed.squareGradientAngle === 'number') {
@@ -299,7 +359,8 @@ export class EditorDocumentService {
       if (!square.fillColor && typeof parsed.squareColor === 'string') {
         square.fillColor = parsed.squareColor;
       }
-      if (Object.keys(square).length) toolSnapshot.square = square as ToolSnapshot['square'];
+      if (Object.keys(square).length)
+        toolSnapshot.square = square as ToolSnapshot['square'];
       if (Object.keys(toolSnapshot).length) {
         this.tools.applySnapshot(toolSnapshot, { maxBrush });
       }
@@ -399,7 +460,11 @@ export class EditorDocumentService {
       this.canvasWidth.set(Math.max(1, Math.floor(w)));
       this.canvasHeight.set(Math.max(1, Math.floor(h)));
 
-      if (parsed.layers && Array.isArray(parsed.layers) && parsed.layers.length > 0) {
+      if (
+        parsed.layers &&
+        Array.isArray(parsed.layers) &&
+        parsed.layers.length > 0
+      ) {
         const layers = (parsed.layers as any[]).map((l) => ({
           id: l.id,
           name: l.name,
@@ -415,9 +480,12 @@ export class EditorDocumentService {
         for (const k of Object.keys(parsed.layerBuffers)) {
           const buf = parsed.layerBuffers[k];
           if (Array.isArray(buf)) {
-            const need = Math.max(1, this.canvasWidth()) * Math.max(1, this.canvasHeight());
+            const need =
+              Math.max(1, this.canvasWidth()) *
+              Math.max(1, this.canvasHeight());
             const next = new Array<string>(need).fill('');
-            for (let i = 0; i < Math.min(buf.length, need); i++) next[i] = buf[i] || '';
+            for (let i = 0; i < Math.min(buf.length, need); i++)
+              next[i] = buf[i] || '';
             this.layerPixels.set(k, next);
           }
         }
@@ -427,78 +495,156 @@ export class EditorDocumentService {
           this.ensureLayerBuffer(l.id, this.canvasWidth(), this.canvasHeight());
       }
 
-      if (parsed.selectedLayerId && typeof parsed.selectedLayerId === 'string') {
-        const exists = this.layers().some((x) => x.id === parsed.selectedLayerId);
+      if (
+        parsed.selectedLayerId &&
+        typeof parsed.selectedLayerId === 'string'
+      ) {
+        const exists = this.layers().some(
+          (x) => x.id === parsed.selectedLayerId,
+        );
         if (exists) this.selectedLayerId.set(parsed.selectedLayerId);
       }
 
-      const maxBrush = Math.max(1, Math.max(this.canvasWidth(), this.canvasHeight()));
+      const maxBrush = Math.max(
+        1,
+        Math.max(this.canvasWidth(), this.canvasHeight()),
+      );
       const toolSnapshot: Partial<ToolSnapshot> = {};
       if (parsed.currentTool && typeof parsed.currentTool === 'string') {
         toolSnapshot.currentTool = parsed.currentTool as ToolId;
       }
       if (parsed.brush && typeof parsed.brush === 'object') {
         const brush: Partial<ToolSnapshot['brush']> = {};
-        if (typeof parsed.brush.size === 'number') brush.size = parsed.brush.size;
-        if (typeof parsed.brush.color === 'string') brush.color = parsed.brush.color;
-        if (Object.keys(brush).length) toolSnapshot.brush = brush as ToolSnapshot['brush'];
+        if (typeof parsed.brush.size === 'number')
+          brush.size = parsed.brush.size;
+        if (typeof parsed.brush.color === 'string')
+          brush.color = parsed.brush.color;
+        if (Object.keys(brush).length)
+          toolSnapshot.brush = brush as ToolSnapshot['brush'];
       }
       if (parsed.eraser && typeof parsed.eraser === 'object') {
         const eraser: Partial<ToolSnapshot['eraser']> = {};
-        if (typeof parsed.eraser.size === 'number') eraser.size = parsed.eraser.size;
-        if (typeof parsed.eraser.strength === 'number') eraser.strength = parsed.eraser.strength;
-        if (Object.keys(eraser).length) toolSnapshot.eraser = eraser as ToolSnapshot['eraser'];
+        if (typeof parsed.eraser.size === 'number')
+          eraser.size = parsed.eraser.size;
+        if (typeof parsed.eraser.strength === 'number')
+          eraser.strength = parsed.eraser.strength;
+        if (Object.keys(eraser).length)
+          toolSnapshot.eraser = eraser as ToolSnapshot['eraser'];
       }
       const line: Partial<ToolSnapshot['line']> = {};
       if (parsed.line && typeof parsed.line === 'object') {
-        if (typeof parsed.line.thickness === 'number') line.thickness = parsed.line.thickness;
-        if (typeof parsed.line.color === 'string') line.color = parsed.line.color;
+        if (typeof parsed.line.thickness === 'number')
+          line.thickness = parsed.line.thickness;
+        if (typeof parsed.line.color === 'string')
+          line.color = parsed.line.color;
       }
-      if (typeof parsed.lineThickness === 'number') line.thickness = parsed.lineThickness;
+      if (typeof parsed.lineThickness === 'number')
+        line.thickness = parsed.lineThickness;
       if (typeof parsed.lineColor === 'string') line.color = parsed.lineColor;
-      if (Object.keys(line).length) toolSnapshot.line = line as ToolSnapshot['line'];
+      if (Object.keys(line).length)
+        toolSnapshot.line = line as ToolSnapshot['line'];
       const circle: Partial<ToolSnapshot['circle']> = {};
       if (parsed.circle && typeof parsed.circle === 'object') {
-        if (typeof parsed.circle.strokeThickness === 'number') circle.strokeThickness = parsed.circle.strokeThickness;
-        if (typeof parsed.circle.strokeColor === 'string') circle.strokeColor = parsed.circle.strokeColor;
-        if (parsed.circle.fillMode === 'solid' || parsed.circle.fillMode === 'gradient') circle.fillMode = parsed.circle.fillMode;
-        if (typeof parsed.circle.fillColor === 'string') circle.fillColor = parsed.circle.fillColor;
-        if (typeof parsed.circle.gradientStartColor === 'string') circle.gradientStartColor = parsed.circle.gradientStartColor;
-        if (typeof parsed.circle.gradientEndColor === 'string') circle.gradientEndColor = parsed.circle.gradientEndColor;
-        if (parsed.circle.gradientType === 'linear' || parsed.circle.gradientType === 'radial') circle.gradientType = parsed.circle.gradientType;
-        if (typeof parsed.circle.gradientAngle === 'number') circle.gradientAngle = parsed.circle.gradientAngle;
+        if (typeof parsed.circle.strokeThickness === 'number')
+          circle.strokeThickness = parsed.circle.strokeThickness;
+        if (typeof parsed.circle.strokeColor === 'string')
+          circle.strokeColor = parsed.circle.strokeColor;
+        if (
+          parsed.circle.fillMode === 'solid' ||
+          parsed.circle.fillMode === 'gradient'
+        )
+          circle.fillMode = parsed.circle.fillMode;
+        if (typeof parsed.circle.fillColor === 'string')
+          circle.fillColor = parsed.circle.fillColor;
+        if (typeof parsed.circle.gradientStartColor === 'string')
+          circle.gradientStartColor = parsed.circle.gradientStartColor;
+        if (typeof parsed.circle.gradientEndColor === 'string')
+          circle.gradientEndColor = parsed.circle.gradientEndColor;
+        if (
+          parsed.circle.gradientType === 'linear' ||
+          parsed.circle.gradientType === 'radial'
+        )
+          circle.gradientType = parsed.circle.gradientType;
+        if (typeof parsed.circle.gradientAngle === 'number')
+          circle.gradientAngle = parsed.circle.gradientAngle;
       }
-      if (typeof parsed.circleStrokeThickness === 'number') circle.strokeThickness = parsed.circleStrokeThickness;
-      if (typeof parsed.circleStrokeColor === 'string') circle.strokeColor = parsed.circleStrokeColor;
-      if (parsed.circleFillMode === 'solid' || parsed.circleFillMode === 'gradient') circle.fillMode = parsed.circleFillMode;
-      if (typeof parsed.circleFillColor === 'string') circle.fillColor = parsed.circleFillColor;
-      if (typeof parsed.circleGradientStartColor === 'string') circle.gradientStartColor = parsed.circleGradientStartColor;
-      if (typeof parsed.circleGradientEndColor === 'string') circle.gradientEndColor = parsed.circleGradientEndColor;
-      if (parsed.circleGradientType === 'linear' || parsed.circleGradientType === 'radial') circle.gradientType = parsed.circleGradientType;
-      if (typeof parsed.circleGradientAngle === 'number') circle.gradientAngle = parsed.circleGradientAngle;
-      if (!circle.fillColor && typeof parsed.circleColor === 'string') circle.fillColor = parsed.circleColor;
-      if (Object.keys(circle).length) toolSnapshot.circle = circle as ToolSnapshot['circle'];
+      if (typeof parsed.circleStrokeThickness === 'number')
+        circle.strokeThickness = parsed.circleStrokeThickness;
+      if (typeof parsed.circleStrokeColor === 'string')
+        circle.strokeColor = parsed.circleStrokeColor;
+      if (
+        parsed.circleFillMode === 'solid' ||
+        parsed.circleFillMode === 'gradient'
+      )
+        circle.fillMode = parsed.circleFillMode;
+      if (typeof parsed.circleFillColor === 'string')
+        circle.fillColor = parsed.circleFillColor;
+      if (typeof parsed.circleGradientStartColor === 'string')
+        circle.gradientStartColor = parsed.circleGradientStartColor;
+      if (typeof parsed.circleGradientEndColor === 'string')
+        circle.gradientEndColor = parsed.circleGradientEndColor;
+      if (
+        parsed.circleGradientType === 'linear' ||
+        parsed.circleGradientType === 'radial'
+      )
+        circle.gradientType = parsed.circleGradientType;
+      if (typeof parsed.circleGradientAngle === 'number')
+        circle.gradientAngle = parsed.circleGradientAngle;
+      if (!circle.fillColor && typeof parsed.circleColor === 'string')
+        circle.fillColor = parsed.circleColor;
+      if (Object.keys(circle).length)
+        toolSnapshot.circle = circle as ToolSnapshot['circle'];
       const square: Partial<ToolSnapshot['square']> = {};
       if (parsed.square && typeof parsed.square === 'object') {
-        if (typeof parsed.square.strokeThickness === 'number') square.strokeThickness = parsed.square.strokeThickness;
-        if (typeof parsed.square.strokeColor === 'string') square.strokeColor = parsed.square.strokeColor;
-        if (parsed.square.fillMode === 'solid' || parsed.square.fillMode === 'gradient') square.fillMode = parsed.square.fillMode;
-        if (typeof parsed.square.fillColor === 'string') square.fillColor = parsed.square.fillColor;
-        if (typeof parsed.square.gradientStartColor === 'string') square.gradientStartColor = parsed.square.gradientStartColor;
-        if (typeof parsed.square.gradientEndColor === 'string') square.gradientEndColor = parsed.square.gradientEndColor;
-        if (parsed.square.gradientType === 'linear' || parsed.square.gradientType === 'radial') square.gradientType = parsed.square.gradientType;
-        if (typeof parsed.square.gradientAngle === 'number') square.gradientAngle = parsed.square.gradientAngle;
+        if (typeof parsed.square.strokeThickness === 'number')
+          square.strokeThickness = parsed.square.strokeThickness;
+        if (typeof parsed.square.strokeColor === 'string')
+          square.strokeColor = parsed.square.strokeColor;
+        if (
+          parsed.square.fillMode === 'solid' ||
+          parsed.square.fillMode === 'gradient'
+        )
+          square.fillMode = parsed.square.fillMode;
+        if (typeof parsed.square.fillColor === 'string')
+          square.fillColor = parsed.square.fillColor;
+        if (typeof parsed.square.gradientStartColor === 'string')
+          square.gradientStartColor = parsed.square.gradientStartColor;
+        if (typeof parsed.square.gradientEndColor === 'string')
+          square.gradientEndColor = parsed.square.gradientEndColor;
+        if (
+          parsed.square.gradientType === 'linear' ||
+          parsed.square.gradientType === 'radial'
+        )
+          square.gradientType = parsed.square.gradientType;
+        if (typeof parsed.square.gradientAngle === 'number')
+          square.gradientAngle = parsed.square.gradientAngle;
       }
-      if (typeof parsed.squareStrokeThickness === 'number') square.strokeThickness = parsed.squareStrokeThickness;
-      if (typeof parsed.squareStrokeColor === 'string') square.strokeColor = parsed.squareStrokeColor;
-      if (parsed.squareFillMode === 'solid' || parsed.squareFillMode === 'gradient') square.fillMode = parsed.squareFillMode;
-      if (typeof parsed.squareFillColor === 'string') square.fillColor = parsed.squareFillColor;
-      if (typeof parsed.squareGradientStartColor === 'string') square.gradientStartColor = parsed.squareGradientStartColor;
-      if (typeof parsed.squareGradientEndColor === 'string') square.gradientEndColor = parsed.squareGradientEndColor;
-      if (parsed.squareGradientType === 'linear' || parsed.squareGradientType === 'radial') square.gradientType = parsed.squareGradientType;
-      if (typeof parsed.squareGradientAngle === 'number') square.gradientAngle = parsed.squareGradientAngle;
-      if (!square.fillColor && typeof parsed.squareColor === 'string') square.fillColor = parsed.squareColor;
-      if (Object.keys(square).length) toolSnapshot.square = square as ToolSnapshot['square'];
+      if (typeof parsed.squareStrokeThickness === 'number')
+        square.strokeThickness = parsed.squareStrokeThickness;
+      if (typeof parsed.squareStrokeColor === 'string')
+        square.strokeColor = parsed.squareStrokeColor;
+      if (
+        parsed.squareFillMode === 'solid' ||
+        parsed.squareFillMode === 'gradient'
+      )
+        square.fillMode = parsed.squareFillMode;
+      if (typeof parsed.squareFillColor === 'string')
+        square.fillColor = parsed.squareFillColor;
+      if (typeof parsed.squareGradientStartColor === 'string')
+        square.gradientStartColor = parsed.squareGradientStartColor;
+      if (typeof parsed.squareGradientEndColor === 'string')
+        square.gradientEndColor = parsed.squareGradientEndColor;
+      if (
+        parsed.squareGradientType === 'linear' ||
+        parsed.squareGradientType === 'radial'
+      )
+        square.gradientType = parsed.squareGradientType;
+      if (typeof parsed.squareGradientAngle === 'number')
+        square.gradientAngle = parsed.squareGradientAngle;
+      if (!square.fillColor && typeof parsed.squareColor === 'string')
+        square.fillColor = parsed.squareColor;
+      if (Object.keys(square).length)
+        toolSnapshot.square = square as ToolSnapshot['square'];
       if (Object.keys(toolSnapshot).length) {
         this.tools.applySnapshot(toolSnapshot, { maxBrush });
       }
@@ -546,7 +692,12 @@ export class EditorDocumentService {
     this.canvasWidth.set(Math.max(1, Math.floor(width)));
     this.canvasHeight.set(Math.max(1, Math.floor(height)));
     const id = `l_${Date.now().toString(36).slice(2, 8)}`;
-    const item: LayerItem = { id, name: 'Layer 1', visible: true, locked: false };
+    const item: LayerItem = {
+      id,
+      name: 'Layer 1',
+      visible: true,
+      locked: false,
+    };
     this.layers.set([item]);
     this.selectedLayerId.set(item.id);
     this.layerPixels = new Map<string, string[]>();
@@ -564,7 +715,10 @@ export class EditorDocumentService {
     try {
       if (typeof window === 'undefined' || !window.localStorage) return false;
       const snapshot = this.exportProjectSnapshot();
-      window.localStorage.setItem(this.PROJECT_STORAGE_KEY, JSON.stringify(snapshot));
+      window.localStorage.setItem(
+        this.PROJECT_STORAGE_KEY,
+        JSON.stringify(snapshot),
+      );
       this.setCanvasSaved(true);
       return true;
     } catch (e) {
@@ -603,7 +757,11 @@ export class EditorDocumentService {
     }
     const nextSnapshot = this.snapshotLayersAndBuffers();
     const nextSize = { width, height, buffers: nextSnapshot.buffers };
-    this.commitMetaChange({ key: 'canvasSnapshot', previous: prevSize, next: nextSize });
+    this.commitMetaChange({
+      key: 'canvasSnapshot',
+      previous: prevSize,
+      next: nextSize,
+    });
   }
 
   // Ensure a pixel buffer exists for a layer with given dimensions. Preserves
@@ -613,7 +771,10 @@ export class EditorDocumentService {
     const existing = this.layerPixels.get(layerId) || [];
     if (existing.length === need) return;
     const next = new Array<string>(need).fill('');
-    const oldW = existing.length > 0 && height > 0 ? Math.floor(existing.length / height) : 0;
+    const oldW =
+      existing.length > 0 && height > 0
+        ? Math.floor(existing.length / height)
+        : 0;
     // Copy what we can (best-effort); assume top-left alignment
     if (oldW > 0) {
       const oldH = Math.floor(existing.length / oldW);
@@ -670,7 +831,8 @@ export class EditorDocumentService {
         const r = Number.parseFloat(parts[0]);
         const g = Number.parseFloat(parts[1]);
         const b = Number.parseFloat(parts[2]);
-        if ([r, g, b].some((v) => Number.isNaN(v))) return { r: 0, g: 0, b: 0, a: 0 };
+        if ([r, g, b].some((v) => Number.isNaN(v)))
+          return { r: 0, g: 0, b: 0, a: 0 };
         let a = 1;
         if (parts.length > 3) {
           const alpha = Number.parseFloat(parts[3]);
@@ -721,11 +883,21 @@ export class EditorDocumentService {
     const erasing = color === null;
     const eraserStrength = erasing ? (options?.eraserStrength ?? 100) : 0;
     const brushColor = color ?? '';
-    for (let yy = Math.max(0, y - half); yy <= Math.min(h - 1, y + half); yy++) {
-      for (let xx = Math.max(0, x - half); xx <= Math.min(w - 1, x + half); xx++) {
+    for (
+      let yy = Math.max(0, y - half);
+      yy <= Math.min(h - 1, y + half);
+      yy++
+    ) {
+      for (
+        let xx = Math.max(0, x - half);
+        xx <= Math.min(w - 1, x + half);
+        xx++
+      ) {
         const idx = yy * w + xx;
         const oldVal = buf[idx] || '';
-        const newVal = erasing ? this.computeEraserValue(oldVal, eraserStrength) : brushColor;
+        const newVal = erasing
+          ? this.computeEraserValue(oldVal, eraserStrength)
+          : brushColor;
         // If a selection exists, skip pixels outside the selection
         if (sel) {
           if (selShape === 'ellipse') {
@@ -742,7 +914,12 @@ export class EditorDocumentService {
             const py = yy + 0.5;
             if (!this._pointInPolygon(px, py, selPoly)) continue;
           } else {
-            if (xx < sel.x || xx >= sel.x + sel.width || yy < sel.y || yy >= sel.y + sel.height)
+            if (
+              xx < sel.x ||
+              xx >= sel.x + sel.width ||
+              yy < sel.y ||
+              yy >= sel.y + sel.height
+            )
               continue;
           }
         }
@@ -772,7 +949,12 @@ export class EditorDocumentService {
   }
 
   // Flood-fill (4-way) on a single layer at logical pixel x,y with color (null = erase)
-  applyFillToLayer(layerId: string, x: number, y: number, color: string | null) {
+  applyFillToLayer(
+    layerId: string,
+    x: number,
+    y: number,
+    color: string | null,
+  ) {
     const buf = this.layerPixels.get(layerId);
     if (!buf) return 0;
     const w = Math.max(1, this.canvasWidth());
@@ -783,10 +965,13 @@ export class EditorDocumentService {
     const newVal = color === null ? '' : color;
     if (target === newVal) return 0;
 
-    let changed = 0;
     const sel = this.selectionRect();
     const shape = this.selectionShape();
     const selPoly = this.selectionPolygon();
+    if (sel && !this.isPixelWithinSelection(x, y, sel, shape, selPoly)) {
+      return 0;
+    }
+    let changed = 0;
     const stack: number[] = [idx0];
     while (stack.length > 0) {
       const idx = stack.pop() as number;
@@ -818,7 +1003,8 @@ export class EditorDocumentService {
           const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
             const dx = (nx - cx) / rx;
             const dy = (ny - cy) / ry;
-            if (dx * dx + dy * dy <= 1 && buf[idxToPush] === target) stack.push(idxToPush);
+            if (dx * dx + dy * dy <= 1 && buf[idxToPush] === target)
+              stack.push(idxToPush);
           };
           if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
           if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
@@ -829,7 +1015,10 @@ export class EditorDocumentService {
           const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
             const px = nx + 0.5;
             const py = ny + 0.5;
-            if (this._pointInPolygon(px, py, selPoly) && buf[idxToPush] === target)
+            if (
+              this._pointInPolygon(px, py, selPoly) &&
+              buf[idxToPush] === target
+            )
               stack.push(idxToPush);
           };
           if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
@@ -838,11 +1027,21 @@ export class EditorDocumentService {
           if (y0 < sel.y + sel.height - 1) pushIfInside(x0, y0 + 1, idx + w);
         } else {
           // rect selection
-          if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x) stack.push(idx - 1);
-          if (x0 < sel.x + sel.width - 1 && buf[idx + 1] === target && x0 + 1 < sel.x + sel.width)
+          if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x)
+            stack.push(idx - 1);
+          if (
+            x0 < sel.x + sel.width - 1 &&
+            buf[idx + 1] === target &&
+            x0 + 1 < sel.x + sel.width
+          )
             stack.push(idx + 1);
-          if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y) stack.push(idx - w);
-          if (y0 < sel.y + sel.height - 1 && buf[idx + w] === target && y0 + 1 < sel.y + sel.height)
+          if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y)
+            stack.push(idx - w);
+          if (
+            y0 < sel.y + sel.height - 1 &&
+            buf[idx + w] === target &&
+            y0 + 1 < sel.y + sel.height
+          )
             stack.push(idx + w);
         }
       } else {
@@ -876,8 +1075,10 @@ export class EditorDocumentService {
     const selRect = this.selectionRect();
     const selShape = this.selectionShape();
     const selPoly = this.selectionPolygon();
-    const clampX = (value: number) => Math.max(0, Math.min(Math.floor(value), w - 1));
-    const clampY = (value: number) => Math.max(0, Math.min(Math.floor(value), h - 1));
+    const clampX = (value: number) =>
+      Math.max(0, Math.min(Math.floor(value), w - 1));
+    const clampY = (value: number) =>
+      Math.max(0, Math.min(Math.floor(value), h - 1));
     let sx = clampX(x0);
     let sy = clampY(y0);
     let ex = clampX(x1);
@@ -890,7 +1091,8 @@ export class EditorDocumentService {
         if (yy < 0 || yy >= h) continue;
         for (let xx = cx - half; xx <= cx + half; xx++) {
           if (xx < 0 || xx >= w) continue;
-          if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly)) continue;
+          if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly))
+            continue;
           const idx = yy * w + xx;
           if (this.writePixelValue(layerId, buf, idx, color)) changed++;
         }
@@ -939,8 +1141,10 @@ export class EditorDocumentService {
     const selRect = this.selectionRect();
     const selShape = this.selectionShape();
     const selPoly = this.selectionPolygon();
-    const clampX = (value: number) => Math.max(0, Math.min(Math.floor(value), w - 1));
-    const clampY = (value: number) => Math.max(0, Math.min(Math.floor(value), h - 1));
+    const clampX = (value: number) =>
+      Math.max(0, Math.min(Math.floor(value), w - 1));
+    const clampY = (value: number) =>
+      Math.max(0, Math.min(Math.floor(value), h - 1));
     const startX = clampX(x0);
     const startY = clampY(y0);
     const targetX = clampX(x1);
@@ -960,17 +1164,22 @@ export class EditorDocumentService {
     const maxY = Math.min(h - 1, Math.max(startY, endY));
     const stroke = Math.max(0, Math.floor(options.strokeThickness ?? 0));
     const strokeColor = (options.strokeColor || '').trim();
-    const fillMode: ShapeFillMode = options.fillMode === 'gradient' ? 'gradient' : 'solid';
+    const fillMode: ShapeFillMode =
+      options.fillMode === 'gradient' ? 'gradient' : 'solid';
     const fillColor = (options.fillColor || '').trim();
     const gradientStartColor = (options.gradientStartColor || fillColor).trim();
-    const gradientEndColor = (options.gradientEndColor || gradientStartColor).trim();
+    const gradientEndColor = (
+      options.gradientEndColor || gradientStartColor
+    ).trim();
     const gradientStartParsed = this.parseHexColor(gradientStartColor);
     const gradientEndParsed = this.parseHexColor(gradientEndColor);
     const fallbackStart = gradientStartColor || gradientEndColor || fillColor;
     const fallbackEnd = gradientEndColor || gradientStartColor || fillColor;
     const gradientAvailable = !!(fallbackStart || fallbackEnd);
-    const gradientType: GradientType = options.gradientType === 'radial' ? 'radial' : 'linear';
-    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const gradientType: GradientType =
+      options.gradientType === 'radial' ? 'radial' : 'linear';
+    const gradientAngle =
+      typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
     const angleRad = (gradientAngle * Math.PI) / 180;
     const dirX = Math.cos(angleRad);
     const dirY = Math.sin(angleRad);
@@ -1006,10 +1215,16 @@ export class EditorDocumentService {
     let changed = 0;
     for (let yy = minY; yy <= maxY; yy++) {
       for (let xx = minX; xx <= maxX; xx++) {
-        if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly)) continue;
+        if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly))
+          continue;
         const idx = yy * w + xx;
         let pixelColor: string | null = null;
-        const distanceToEdge = Math.min(xx - minX, maxX - xx, yy - minY, maxY - yy);
+        const distanceToEdge = Math.min(
+          xx - minX,
+          maxX - xx,
+          yy - minY,
+          maxY - yy,
+        );
         const strokePixel = stroke > 0 && distanceToEdge < stroke;
         if (strokePixel && strokeColor) {
           pixelColor = strokeColor;
@@ -1040,7 +1255,11 @@ export class EditorDocumentService {
             );
           }
         }
-        if (pixelColor !== null && this.writePixelValue(layerId, buf, idx, pixelColor)) changed++;
+        if (
+          pixelColor !== null &&
+          this.writePixelValue(layerId, buf, idx, pixelColor)
+        )
+          changed++;
       }
     }
     if (changed > 0) {
@@ -1057,6 +1276,7 @@ export class EditorDocumentService {
     x1: number,
     y1: number,
     options: ShapeDrawOptions,
+    constrainToCircle = true,
   ) {
     const buf = this.layerPixels.get(layerId);
     if (!buf) return 0;
@@ -1065,38 +1285,51 @@ export class EditorDocumentService {
     const selRect = this.selectionRect();
     const selShape = this.selectionShape();
     const selPoly = this.selectionPolygon();
-    const clampX = (value: number) => Math.max(0, Math.min(Math.floor(value), w - 1));
-    const clampY = (value: number) => Math.max(0, Math.min(Math.floor(value), h - 1));
+    const clampX = (value: number) =>
+      Math.max(0, Math.min(Math.floor(value), w - 1));
+    const clampY = (value: number) =>
+      Math.max(0, Math.min(Math.floor(value), h - 1));
     const startX = clampX(x0);
     const startY = clampY(y0);
     const targetX = clampX(x1);
     const targetY = clampY(y1);
-    const stepX = targetX >= startX ? 1 : -1;
-    const stepY = targetY >= startY ? 1 : -1;
-    const span = Math.max(Math.abs(targetX - startX), Math.abs(targetY - startY));
-    const endX = clampX(startX + stepX * span);
-    const endY = clampY(startY + stepY * span);
+    let endX = targetX;
+    let endY = targetY;
+    if (constrainToCircle) {
+      const stepX = endX >= startX ? 1 : -1;
+      const stepY = endY >= startY ? 1 : -1;
+      const span = Math.max(Math.abs(endX - startX), Math.abs(endY - startY));
+      endX = clampX(startX + stepX * span);
+      endY = clampY(startY + stepY * span);
+    }
     const minX = Math.max(0, Math.min(startX, endX));
     const maxX = Math.min(w - 1, Math.max(startX, endX));
     const minY = Math.max(0, Math.min(startY, endY));
     const maxY = Math.min(h - 1, Math.max(startY, endY));
-    const width = maxX - minX + 1;
+    const width = Math.max(1, maxX - minX + 1);
+    const height = Math.max(1, maxY - minY + 1);
     const cx = minX + width / 2;
-    const cy = minY + width / 2;
-    const radius = width / 2;
+    const cy = minY + height / 2;
+    const rx = width / 2;
+    const ry = height / 2;
     const stroke = Math.max(0, Math.floor(options.strokeThickness ?? 0));
     const strokeColor = (options.strokeColor || '').trim();
-    const fillMode: ShapeFillMode = options.fillMode === 'gradient' ? 'gradient' : 'solid';
+    const fillMode: ShapeFillMode =
+      options.fillMode === 'gradient' ? 'gradient' : 'solid';
     const fillColor = (options.fillColor || '').trim();
     const gradientStartColor = (options.gradientStartColor || fillColor).trim();
-    const gradientEndColor = (options.gradientEndColor || gradientStartColor).trim();
+    const gradientEndColor = (
+      options.gradientEndColor || gradientStartColor
+    ).trim();
     const fallbackStart = gradientStartColor || gradientEndColor || fillColor;
     const fallbackEnd = gradientEndColor || gradientStartColor || fillColor;
     const gradientAvailable = !!(fallbackStart || fallbackEnd);
     const gradientStartParsed = this.parseHexColor(gradientStartColor);
     const gradientEndParsed = this.parseHexColor(gradientEndColor);
-    const gradientType: GradientType = options.gradientType === 'linear' ? 'linear' : 'radial';
-    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const gradientType: GradientType =
+      options.gradientType === 'linear' ? 'linear' : 'radial';
+    const gradientAngle =
+      typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
     const angleRad = (gradientAngle * Math.PI) / 180;
     const dirX = Math.cos(angleRad);
     const dirY = Math.sin(angleRad);
@@ -1124,6 +1357,8 @@ export class EditorDocumentService {
         maxProj = maxVal;
       }
     }
+    const invRx = rx > 0 ? 1 / rx : 0;
+    const invRy = ry > 0 ? 1 / ry : 0;
     let changed = 0;
     for (let yy = minY; yy <= maxY; yy++) {
       for (let xx = minX; xx <= maxX; xx++) {
@@ -1131,20 +1366,28 @@ export class EditorDocumentService {
         const py = yy + 0.5;
         const dx = px - cx;
         const dy = py - cy;
-        if (dx * dx + dy * dy > radius * radius) continue;
-        if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly)) continue;
+        const norm =
+          invRx > 0 && invRy > 0
+            ? dx * dx * invRx * invRx + dy * dy * invRy * invRy
+            : 0;
+        if (norm > 1) continue;
+        if (!this.isPixelWithinSelection(xx, yy, selRect, selShape, selPoly))
+          continue;
         const idx = yy * w + xx;
         let pixelColor: string | null = null;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const strokePixel = stroke > 0 && radius - distance < stroke;
+        const distanceNorm = Math.sqrt(Math.max(0, norm));
+        const strokePixel =
+          stroke > 0 &&
+          Math.min(rx, ry) > 0 &&
+          (1 - distanceNorm) * Math.min(rx, ry) < stroke;
         if (strokePixel && strokeColor) {
           pixelColor = strokeColor;
         } else if (fillMode === 'solid') {
           if (fillColor) pixelColor = fillColor;
-        } else if (gradientAvailable && radius > 0) {
+        } else if (gradientAvailable && rx > 0 && ry > 0) {
           let ratio = 0;
           if (gradientType === 'radial') {
-            ratio = distance / radius;
+            ratio = distanceNorm;
           } else {
             const proj = (xx + 0.5) * dirX + (yy + 0.5) * dirY;
             const span = maxProj - minProj;
@@ -1163,7 +1406,11 @@ export class EditorDocumentService {
             );
           }
         }
-        if (pixelColor !== null && this.writePixelValue(layerId, buf, idx, pixelColor)) changed++;
+        if (
+          pixelColor !== null &&
+          this.writePixelValue(layerId, buf, idx, pixelColor)
+        )
+          changed++;
       }
     }
     if (changed > 0) {
@@ -1179,7 +1426,11 @@ export class EditorDocumentService {
     if (this.currentAction) {
       this.endAction();
     }
-    this.currentAction = { map: new Map(), meta: [], description: description || '' };
+    this.currentAction = {
+      map: new Map(),
+      meta: [],
+      description: description || '',
+    };
   }
 
   endAction() {
@@ -1222,7 +1473,11 @@ export class EditorDocumentService {
   }
 
   // Selection APIs
-  beginSelection(x: number, y: number, shape: 'rect' | 'ellipse' | 'lasso' = 'rect') {
+  beginSelection(
+    x: number,
+    y: number,
+    shape: 'rect' | 'ellipse' | 'lasso' = 'rect',
+  ) {
     // start a temporary selection; caller should call updateSelection/endSelection
     this.selectionShape.set(shape);
     if (shape === 'lasso') {
@@ -1263,7 +1518,11 @@ export class EditorDocumentService {
   }
 
   // Point-in-polygon test (ray-casting). px/py are in same coordinate space as polygon points.
-  private _pointInPolygon(px: number, py: number, poly: { x: number; y: number }[]) {
+  private _pointInPolygon(
+    px: number,
+    py: number,
+    poly: { x: number; y: number }[],
+  ) {
     let inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
       const xi = poly[i].x,
@@ -1271,7 +1530,8 @@ export class EditorDocumentService {
       const xj = poly[j].x,
         yj = poly[j].y;
       const intersect =
-        yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi + Number.EPSILON) + xi;
+        yi > py !== yj > py &&
+        px < ((xj - xi) * (py - yi)) / (yj - yi + Number.EPSILON) + xi;
       if (intersect) inside = !inside;
     }
     return inside;
@@ -1314,11 +1574,11 @@ export class EditorDocumentService {
     const scaled = clamped * steps;
     const base = Math.floor(scaled);
     const fraction = scaled - base;
-  const matrix = this.bayer4;
-  const matrixSize = matrix.length;
-  const xi = x % matrixSize;
-  const yi = y % matrixSize;
-  const threshold = (matrix[yi][xi] + 0.5) / (matrixSize * matrixSize);
+    const matrix = this.bayer4;
+    const matrixSize = matrix.length;
+    const xi = x % matrixSize;
+    const yi = y % matrixSize;
+    const threshold = (matrix[yi][xi] + 0.5) / (matrixSize * matrixSize);
     const offset = fraction > threshold ? 1 : 0;
     const index = Math.min(steps, Math.max(0, base + offset));
     return index / steps;
@@ -1365,7 +1625,12 @@ export class EditorDocumentService {
     return t <= 0.5 ? startValue : endValue;
   }
 
-  private writePixelValue(layerId: string, buf: string[], idx: number, value: string) {
+  private writePixelValue(
+    layerId: string,
+    buf: string[],
+    idx: number,
+    value: string,
+  ) {
     const previous = buf[idx] || '';
     if (previous === value) return false;
     if (this.currentAction) {
@@ -1409,7 +1674,11 @@ export class EditorDocumentService {
         next: { rect, shape, polygon: poly },
       });
     } else {
-      this.commitMetaChange({ key: 'selectionSnapshot', previous: null, next: { rect, shape } });
+      this.commitMetaChange({
+        key: 'selectionSnapshot',
+        previous: null,
+        next: { rect, shape },
+      });
     }
   }
 
@@ -1429,7 +1698,10 @@ export class EditorDocumentService {
   }
 
   // Snapshot current buffers and layers for structural operations
-  private snapshotLayersAndBuffers(): { layers: LayerItem[]; buffers: Record<string, string[]> } {
+  private snapshotLayersAndBuffers(): {
+    layers: LayerItem[];
+    buffers: Record<string, string[]>;
+  } {
     const layersCopy = this.layers().map((l) => ({ ...l }));
     const buffers: Record<string, string[]> = {};
     for (const [id, buf] of this.layerPixels.entries()) {
@@ -1601,7 +1873,9 @@ export class EditorDocumentService {
 
   toggleLayerVisibility(id: string) {
     const prev = this.snapshotLayersAndBuffers();
-    this.layers.update((arr) => arr.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)));
+    this.layers.update((arr) =>
+      arr.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)),
+    );
     // trigger redraw
     this.layerPixelsVersion.update((v) => v + 1);
     const next = this.snapshotLayersAndBuffers();
@@ -1626,7 +1900,11 @@ export class EditorDocumentService {
       this.selectedLayerId.set(next[newIdx]?.id ?? next[0].id);
     }
     const nextSnapshot = this.snapshotLayersAndBuffers();
-    this.commitMetaChange({ key: 'layersSnapshot', previous: prevSnapshot, next: nextSnapshot });
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
     return true;
   }
 
@@ -1645,7 +1923,11 @@ export class EditorDocumentService {
     // create pixel buffer for new layer matching current canvas size
     this.ensureLayerBuffer(item.id, this.canvasWidth(), this.canvasHeight());
     const nextSnapshot = this.snapshotLayersAndBuffers();
-    this.commitMetaChange({ key: 'layersSnapshot', previous: prevSnapshot, next: nextSnapshot });
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
     return item;
   }
 

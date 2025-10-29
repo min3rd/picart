@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import {
+  FillToolMode,
   GradientType,
   ToolDefinition,
   ToolHistoryAdapter,
@@ -23,7 +24,7 @@ import { SquareToolService } from './tools/square-tool.service';
 
 @Injectable({ providedIn: 'root' })
 export class EditorToolsService {
-  private readonly STORAGE_KEY = 'picart.editor.settings.v1';
+  private readonly STORAGE_KEY = 'pixart.editor.settings.v1';
   private historyAdapter?: ToolHistoryAdapter;
 
   private readonly selectLayerTool = inject(SelectLayerToolService);
@@ -57,6 +58,8 @@ export class EditorToolsService {
   );
 
   readonly currentTool = signal<ToolId>('select-layer');
+  readonly fillColor = this.fillTool.color.asReadonly();
+  readonly fillMode = this.fillTool.mode.asReadonly();
   readonly brushSize = this.brushTool.size.asReadonly();
   readonly brushColor = this.brushTool.color.asReadonly();
   readonly eraserSize = this.eraserTool.size.asReadonly();
@@ -67,16 +70,20 @@ export class EditorToolsService {
   readonly circleStrokeColor = this.circleTool.strokeColor.asReadonly();
   readonly circleFillMode = this.circleTool.fillMode.asReadonly();
   readonly circleFillColor = this.circleTool.fillColor.asReadonly();
-  readonly circleGradientStartColor = this.circleTool.gradientStartColor.asReadonly();
-  readonly circleGradientEndColor = this.circleTool.gradientEndColor.asReadonly();
+  readonly circleGradientStartColor =
+    this.circleTool.gradientStartColor.asReadonly();
+  readonly circleGradientEndColor =
+    this.circleTool.gradientEndColor.asReadonly();
   readonly circleGradientType = this.circleTool.gradientType.asReadonly();
   readonly circleGradientAngle = this.circleTool.gradientAngle.asReadonly();
   readonly squareStrokeThickness = this.squareTool.strokeThickness.asReadonly();
   readonly squareStrokeColor = this.squareTool.strokeColor.asReadonly();
   readonly squareFillMode = this.squareTool.fillMode.asReadonly();
   readonly squareFillColor = this.squareTool.fillColor.asReadonly();
-  readonly squareGradientStartColor = this.squareTool.gradientStartColor.asReadonly();
-  readonly squareGradientEndColor = this.squareTool.gradientEndColor.asReadonly();
+  readonly squareGradientStartColor =
+    this.squareTool.gradientStartColor.asReadonly();
+  readonly squareGradientEndColor =
+    this.squareTool.gradientEndColor.asReadonly();
   readonly squareGradientType = this.squareTool.gradientType.asReadonly();
   readonly squareGradientAngle = this.squareTool.gradientAngle.asReadonly();
 
@@ -101,6 +108,16 @@ export class EditorToolsService {
     if (prev === id) return;
     this.historyAdapter?.('currentTool', prev, id);
     this.currentTool.set(id);
+    this.saveToStorage();
+  }
+
+  setFillColor(color: string) {
+    this.fillTool.setColor(color);
+    this.saveToStorage();
+  }
+
+  setFillMode(mode: FillToolMode) {
+    this.fillTool.setMode(mode);
     this.saveToStorage();
   }
 
@@ -219,6 +236,7 @@ export class EditorToolsService {
     if (snapshot.currentTool && this.hasTool(snapshot.currentTool)) {
       this.currentTool.set(snapshot.currentTool);
     }
+    this.fillTool.restore(snapshot.fill);
     this.brushTool.restore(snapshot.brush, context);
     this.eraserTool.restore(snapshot.eraser, context);
     this.lineTool.restore(snapshot.line, context);
@@ -237,6 +255,7 @@ export class EditorToolsService {
     }
 
     const handled =
+      (this.fillTool.applyMeta?.(key, value) ?? false) ||
       (this.brushTool.applyMeta?.(key, value) ?? false) ||
       (this.eraserTool.applyMeta?.(key, value) ?? false) ||
       (this.lineTool.applyMeta?.(key, value) ?? false) ||
@@ -251,6 +270,7 @@ export class EditorToolsService {
   snapshot(): ToolSnapshot {
     return {
       currentTool: this.currentTool(),
+      fill: this.fillTool.snapshot(),
       brush: this.brushTool.snapshot(),
       eraser: this.eraserTool.snapshot(),
       line: this.lineTool.snapshot(),
@@ -264,6 +284,8 @@ export class EditorToolsService {
       if (typeof window === 'undefined' || !window.localStorage) return;
       const data = {
         currentTool: this.currentTool(),
+        fillColor: this.fillTool.color(),
+        fillMode: this.fillTool.mode(),
         brushSize: this.brushTool.size(),
         brushColor: this.brushTool.color(),
         eraserStrength: this.eraserTool.strength(),
@@ -298,6 +320,8 @@ export class EditorToolsService {
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<{
         currentTool: ToolId;
+        fillColor: string;
+        fillMode: FillToolMode;
         brushSize: number;
         brushColor: string;
         eraserStrength: number;
@@ -327,6 +351,13 @@ export class EditorToolsService {
       if (parsed.currentTool && this.hasTool(parsed.currentTool)) {
         this.currentTool.set(parsed.currentTool);
       }
+      const fillSnapshot: Partial<ToolSnapshot['fill']> = {};
+      if (typeof parsed.fillColor === 'string' && parsed.fillColor.length) {
+        fillSnapshot.color = parsed.fillColor;
+      }
+      if (parsed.fillMode === 'color' || parsed.fillMode === 'erase') {
+        fillSnapshot.mode = parsed.fillMode;
+      }
       const brushSnapshot: Partial<ToolSnapshot['brush']> = {};
       if (typeof parsed.brushSize === 'number') {
         brushSnapshot.size = parsed.brushSize;
@@ -352,58 +383,109 @@ export class EditorToolsService {
       if (typeof parsed.circleStrokeThickness === 'number') {
         circleSnapshot.strokeThickness = parsed.circleStrokeThickness;
       }
-      if (typeof parsed.circleStrokeColor === 'string' && parsed.circleStrokeColor.length) {
+      if (
+        typeof parsed.circleStrokeColor === 'string' &&
+        parsed.circleStrokeColor.length
+      ) {
         circleSnapshot.strokeColor = parsed.circleStrokeColor;
       }
-      if (parsed.circleFillMode === 'solid' || parsed.circleFillMode === 'gradient') {
+      if (
+        parsed.circleFillMode === 'solid' ||
+        parsed.circleFillMode === 'gradient'
+      ) {
         circleSnapshot.fillMode = parsed.circleFillMode;
       }
-      if (typeof parsed.circleFillColor === 'string' && parsed.circleFillColor.length) {
+      if (
+        typeof parsed.circleFillColor === 'string' &&
+        parsed.circleFillColor.length
+      ) {
         circleSnapshot.fillColor = parsed.circleFillColor;
       }
-      if (typeof parsed.circleGradientStartColor === 'string' && parsed.circleGradientStartColor.length) {
+      if (
+        typeof parsed.circleGradientStartColor === 'string' &&
+        parsed.circleGradientStartColor.length
+      ) {
         circleSnapshot.gradientStartColor = parsed.circleGradientStartColor;
       }
-      if (typeof parsed.circleGradientEndColor === 'string' && parsed.circleGradientEndColor.length) {
+      if (
+        typeof parsed.circleGradientEndColor === 'string' &&
+        parsed.circleGradientEndColor.length
+      ) {
         circleSnapshot.gradientEndColor = parsed.circleGradientEndColor;
       }
-      if (parsed.circleGradientType === 'linear' || parsed.circleGradientType === 'radial') {
+      if (
+        parsed.circleGradientType === 'linear' ||
+        parsed.circleGradientType === 'radial'
+      ) {
         circleSnapshot.gradientType = parsed.circleGradientType;
       }
-      if (typeof parsed.circleGradientAngle === 'number' && !Number.isNaN(parsed.circleGradientAngle)) {
+      if (
+        typeof parsed.circleGradientAngle === 'number' &&
+        !Number.isNaN(parsed.circleGradientAngle)
+      ) {
         circleSnapshot.gradientAngle = parsed.circleGradientAngle;
       }
-      if (!circleSnapshot.fillColor && typeof parsed.circleColor === 'string' && parsed.circleColor.length) {
+      if (
+        !circleSnapshot.fillColor &&
+        typeof parsed.circleColor === 'string' &&
+        parsed.circleColor.length
+      ) {
         circleSnapshot.fillColor = parsed.circleColor;
       }
       const squareSnapshot: Partial<ToolSnapshot['square']> = {};
       if (typeof parsed.squareStrokeThickness === 'number') {
         squareSnapshot.strokeThickness = parsed.squareStrokeThickness;
       }
-      if (typeof parsed.squareStrokeColor === 'string' && parsed.squareStrokeColor.length) {
+      if (
+        typeof parsed.squareStrokeColor === 'string' &&
+        parsed.squareStrokeColor.length
+      ) {
         squareSnapshot.strokeColor = parsed.squareStrokeColor;
       }
-      if (parsed.squareFillMode === 'solid' || parsed.squareFillMode === 'gradient') {
+      if (
+        parsed.squareFillMode === 'solid' ||
+        parsed.squareFillMode === 'gradient'
+      ) {
         squareSnapshot.fillMode = parsed.squareFillMode;
       }
-      if (typeof parsed.squareFillColor === 'string' && parsed.squareFillColor.length) {
+      if (
+        typeof parsed.squareFillColor === 'string' &&
+        parsed.squareFillColor.length
+      ) {
         squareSnapshot.fillColor = parsed.squareFillColor;
       }
-      if (typeof parsed.squareGradientStartColor === 'string' && parsed.squareGradientStartColor.length) {
+      if (
+        typeof parsed.squareGradientStartColor === 'string' &&
+        parsed.squareGradientStartColor.length
+      ) {
         squareSnapshot.gradientStartColor = parsed.squareGradientStartColor;
       }
-      if (typeof parsed.squareGradientEndColor === 'string' && parsed.squareGradientEndColor.length) {
+      if (
+        typeof parsed.squareGradientEndColor === 'string' &&
+        parsed.squareGradientEndColor.length
+      ) {
         squareSnapshot.gradientEndColor = parsed.squareGradientEndColor;
       }
-      if (parsed.squareGradientType === 'linear' || parsed.squareGradientType === 'radial') {
+      if (
+        parsed.squareGradientType === 'linear' ||
+        parsed.squareGradientType === 'radial'
+      ) {
         squareSnapshot.gradientType = parsed.squareGradientType;
       }
-      if (typeof parsed.squareGradientAngle === 'number' && !Number.isNaN(parsed.squareGradientAngle)) {
+      if (
+        typeof parsed.squareGradientAngle === 'number' &&
+        !Number.isNaN(parsed.squareGradientAngle)
+      ) {
         squareSnapshot.gradientAngle = parsed.squareGradientAngle;
       }
-      if (!squareSnapshot.fillColor && typeof parsed.squareColor === 'string' && parsed.squareColor.length) {
+      if (
+        !squareSnapshot.fillColor &&
+        typeof parsed.squareColor === 'string' &&
+        parsed.squareColor.length
+      ) {
         squareSnapshot.fillColor = parsed.squareColor;
       }
+      this.fillTool.restore(fillSnapshot);
       this.brushTool.restore(brushSnapshot);
       this.eraserTool.restore(eraserSnapshot);
       this.lineTool.restore(lineSnapshot);
