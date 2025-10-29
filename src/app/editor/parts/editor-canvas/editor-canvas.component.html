@@ -291,4 +291,55 @@
       </div>
     }
   }
+
+  @if (inputDialogVisible()) {
+    <div
+      id="editor-canvas-input-dialog-overlay"
+      class="absolute inset-0 z-50"
+      (pointerdown)="onInputDialogCancel()"
+    ></div>
+    <div
+      id="editor-canvas-input-dialog"
+      class="absolute z-50 min-w-64 rounded-sm border border-neutral-200/70 dark:border-neutral-700/60 bg-neutral-50/95 dark:bg-neutral-900/90 backdrop-blur px-4 py-3 shadow-lg"
+      [style.left.px]="inputDialogPosition().x"
+      [style.top.px]="inputDialogPosition().y"
+    >
+      <div
+        id="editor-canvas-input-dialog-title"
+        class="text-xs font-medium text-neutral-700 dark:text-neutral-200 mb-2"
+      >
+        {{ inputDialogTitle() }}
+      </div>
+      <div id="editor-canvas-input-dialog-content" class="flex gap-2">
+        <input
+          #inputField
+          id="editor-canvas-input-dialog-field"
+          type="number"
+          [value]="inputDialogValue()"
+          (input)="inputDialogValue.set($any($event.target).value)"
+          (keydown.enter)="onInputDialogSubmit()"
+          (keydown.escape)="onInputDialogCancel()"
+          class="flex-1 text-sm rounded-sm border border-neutral-300 dark:border-neutral-600 px-2 py-1 bg-white dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100"
+          min="1"
+          max="100"
+        />
+        <button
+          id="editor-canvas-input-dialog-ok"
+          type="button"
+          class="px-3 py-1 text-xs rounded-sm bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 hover:bg-neutral-300 dark:hover:bg-neutral-600"
+          (click)="onInputDialogSubmit()"
+        >
+          OK
+        </button>
+        <button
+          id="editor-canvas-input-dialog-cancel"
+          type="button"
+          class="px-3 py-1 text-xs rounded-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+          (click)="onInputDialogCancel()"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  }
 </div>

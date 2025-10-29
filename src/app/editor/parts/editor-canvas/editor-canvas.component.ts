@@ -108,6 +108,11 @@ export class EditorCanvas {
   readonly submenuVisible = signal(false);
   readonly submenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly submenuActions = signal<ContextMenuAction[]>([]);
+  readonly inputDialogVisible = signal(false);
+  readonly inputDialogPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  readonly inputDialogValue = signal('10');
+  readonly inputDialogTitle = signal('');
+  readonly inputDialogCallback = signal<((value: string) => void) | null>(null);
   private resizeListener: (() => void) | null = null;
   private keyListener: ((e: KeyboardEvent) => void) | null = null;
   private readonly defaultCursor = `url('/cursors/link.png') 12 12, link`;
@@ -670,12 +675,23 @@ export class EditorCanvas {
     } else if (actionId === 'growBy5px') {
       this.document.growSelection(5);
     } else if (actionId === 'growCustom') {
-      const input = prompt('Enter growth amount in pixels:', '10');
-      if (input) {
-        const value = parseInt(input, 10);
-        if (!isNaN(value) && value > 0) {
-          this.document.growSelection(value);
-        }
+      if (event) {
+        const containerRect =
+          this.canvasContainer.nativeElement.getBoundingClientRect();
+        const offsetX = event.clientX - containerRect.left;
+        const offsetY = event.clientY - containerRect.top;
+        this.inputDialogPosition.set({ x: offsetX + 10, y: offsetY });
+        this.inputDialogTitle.set('Enter growth amount (pixels):');
+        this.inputDialogValue.set('10');
+        this.inputDialogCallback.set((value: string) => {
+          const parsed = parseInt(value, 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            this.document.growSelection(parsed);
+          }
+          this.closeInputDialog();
+        });
+        this.inputDialogVisible.set(true);
+        return;
       }
     } else if (actionId === 'makeCopyLayer') {
       this.document.makeCopyLayer();
@@ -683,6 +699,22 @@ export class EditorCanvas {
       this.document.mergeVisibleToNewLayer();
     }
     this.closeContextMenu();
+  }
+
+  closeInputDialog() {
+    this.inputDialogVisible.set(false);
+    this.inputDialogCallback.set(null);
+  }
+
+  onInputDialogSubmit() {
+    const callback = this.inputDialogCallback();
+    if (callback) {
+      callback(this.inputDialogValue());
+    }
+  }
+
+  onInputDialogCancel() {
+    this.closeInputDialog();
   }
 
   onPointerUp(ev: PointerEvent) {

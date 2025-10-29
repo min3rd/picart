@@ -1719,79 +1719,50 @@ export class EditorDocumentService {
     const w = this.canvasWidth();
     const h = this.canvasHeight();
     const newPoly: { x: number; y: number }[] = [];
-    if (shape === 'lasso' && poly && poly.length >= 3) {
-      for (let y = rect.y; y < rect.y + rect.height && y < h; y++) {
-        for (let x = rect.x; x < rect.x + rect.width && x < w; x++) {
+    
+    // For all selection types, we need to invert the entire canvas:
+    // pixels currently selected become unselected, unselected become selected
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let isCurrentlySelected = false;
+        
+        if (shape === 'lasso' && poly && poly.length >= 3) {
           const px = x + 0.5;
           const py = y + 0.5;
-          if (!this._pointInPolygon(px, py, poly)) {
-            newPoly.push({ x, y });
-          }
-        }
-      }
-      if (newPoly.length === 0) {
-        this.clearSelectionState();
-      } else {
-        this.selectionPolygon.set(newPoly);
-        let minX = Infinity,
-          minY = Infinity,
-          maxX = -Infinity,
-          maxY = -Infinity;
-        for (const p of newPoly) {
-          if (p.x < minX) minX = p.x;
-          if (p.y < minY) minY = p.y;
-          if (p.x > maxX) maxX = p.x;
-          if (p.y > maxY) maxY = p.y;
-        }
-        this.selectionRect.set({
-          x: Math.max(0, Math.floor(minX)),
-          y: Math.max(0, Math.floor(minY)),
-          width: Math.max(1, Math.ceil(maxX - minX) + 1),
-          height: Math.max(1, Math.ceil(maxY - minY) + 1),
-        });
-      }
-    } else if (shape === 'ellipse') {
-      const cx = rect.x + rect.width / 2 - 0.5;
-      const cy = rect.y + rect.height / 2 - 0.5;
-      const rx = Math.max(0.5, rect.width / 2);
-      const ry = Math.max(0.5, rect.height / 2);
-      for (let y = rect.y; y < rect.y + rect.height && y < h; y++) {
-        for (let x = rect.x; x < rect.x + rect.width && x < w; x++) {
+          isCurrentlySelected = this._pointInPolygon(px, py, poly);
+        } else if (shape === 'ellipse') {
+          const cx = rect.x + rect.width / 2 - 0.5;
+          const cy = rect.y + rect.height / 2 - 0.5;
+          const rx = Math.max(0.5, rect.width / 2);
+          const ry = Math.max(0.5, rect.height / 2);
           const dx = (x - cx) / rx;
           const dy = (y - cy) / ry;
-          const insideEllipse = dx * dx + dy * dy <= 1;
-          if (!insideEllipse) {
-            newPoly.push({ x, y });
-          }
-        }
-      }
-      if (newPoly.length === 0) {
-        this.clearSelectionState();
-      } else {
-        this.selectionPolygon.set(newPoly);
-        this.setSelectionShape('lasso');
-      }
-    } else if (shape === 'rect') {
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          const insideRect =
+          isCurrentlySelected = dx * dx + dy * dy <= 1;
+        } else if (shape === 'rect') {
+          isCurrentlySelected =
             x >= rect.x &&
             x < rect.x + rect.width &&
             y >= rect.y &&
             y < rect.y + rect.height;
-          if (!insideRect) {
-            newPoly.push({ x, y });
-          }
+        }
+        
+        // Invert: if currently selected, don't add; if not selected, add
+        if (!isCurrentlySelected) {
+          newPoly.push({ x, y });
         }
       }
-      if (newPoly.length === 0) {
-        this.clearSelectionState();
-      } else {
-        this.selectionPolygon.set(newPoly);
-        this.setSelectionShape('lasso');
-        this.selectionRect.set({ x: 0, y: 0, width: w, height: h });
-      }
     }
+    
+    if (newPoly.length === 0) {
+      this.clearSelectionState();
+    } else {
+      // Convert to lasso selection with the inverted pixels
+      this.selectionPolygon.set(newPoly);
+      this.setSelectionShape('lasso');
+      // Set rect to entire canvas since inverted selection spans the whole canvas
+      this.selectionRect.set({ x: 0, y: 0, width: w, height: h });
+    }
+    
     this.commitMetaChange({
       key: 'selectionSnapshot',
       previous: { rect, shape, polygon: poly },
