@@ -92,8 +92,8 @@ export class FileService {
         const [handle] = await (window as any).showOpenFilePicker({
           types: [
             {
-              description: 'PicArt project (JSON)',
-              accept: { 'application/json': ['.json'] },
+              description: 'PixArt project (JSON)',
+              accept: { 'application/json': ['.json', '.pix'] },
             },
           ],
           multiple: false,
@@ -104,7 +104,8 @@ export class FileService {
         const parsed = JSON.parse(text) as Project;
         // remember handle by project id if present or by new id
         const projectId =
-          parsed.id || `proj_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+          parsed.id ||
+          `proj_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
         parsed.id = projectId;
         this.fileHandles.set(projectId, handle);
         return parsed;
@@ -125,7 +126,9 @@ export class FileService {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text) as Project;
-      parsed.id = parsed.id || `proj_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      parsed.id =
+        parsed.id ||
+        `proj_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       // Note: cannot obtain a persistent file handle from a plain File
       return parsed;
     } catch (e) {
@@ -154,7 +157,10 @@ export class FileService {
    * Otherwise, prompt the user to pick a save location (File System Access API) or fall back to
    * downloading a JSON file.
    */
-  async saveProjectToFile(project: Project, suggestedName?: string): Promise<boolean> {
+  async saveProjectToFile(
+    project: Project,
+    suggestedName?: string,
+  ): Promise<boolean> {
     const contents = this.projectToJson(project);
 
     // If we have a file handle for this project, try to write to it
@@ -167,7 +173,10 @@ export class FileService {
         project.modified = new Date().toISOString();
         return true;
       } catch (e) {
-        console.warn('Failed to write to known handle, will fallback to save-as', e);
+        console.warn(
+          'Failed to write to known handle, will fallback to save-as',
+          e,
+        );
       }
     }
 
@@ -178,8 +187,8 @@ export class FileService {
           suggestedName: suggestedName || `${project.name || 'project'}.json`,
           types: [
             {
-              description: 'PicArt project (JSON)',
-              accept: { 'application/json': ['.json'] },
+              description: 'PixArt project (JSON)',
+              accept: { 'application/json': ['.json', '.pix'] },
             },
           ],
         });
@@ -197,7 +206,10 @@ export class FileService {
     }
 
     // Fallback: trigger a download
-    this.downloadString(contents, suggestedName || `${project.name || 'project'}.json`);
+    this.downloadString(
+      contents,
+      suggestedName || `${project.name || 'project'}.json`,
+    );
     project.modified = new Date().toISOString();
     return true;
   }
@@ -207,7 +219,10 @@ export class FileService {
    */
   exportProjectToDownload(project: Project, filename?: string): void {
     const contents = this.projectToJson(project);
-    this.downloadString(contents, filename || `${project.name || 'project'}.json`);
+    this.downloadString(
+      contents,
+      filename || `${project.name || 'project'}.json`,
+    );
   }
 
   /**

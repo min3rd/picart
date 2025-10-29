@@ -1,4 +1,4 @@
-# Picart
+# Pixart
 
 A minimal 2D pixel editor and animation timeline (work in progress). This is an open-source Angular app with Tailwind CSS.
 

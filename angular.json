@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "picart": {
+    "pixart": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -52,10 +52,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "picart:build:production"
+              "buildTarget": "pixart:build:production"
             },
             "development": {
-              "buildTarget": "picart:build:development"
+              "buildTarget": "pixart:build:development"
             }
           },
           "defaultConfiguration": "development"

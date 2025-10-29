@@ -60,7 +60,7 @@ export class EditorHeader {
   async onSaveToComputer() {
     try {
       const snapshot = this.document.exportProjectSnapshot();
-      const name = `${(snapshot as any).name || 'project'}.picart`;
+      const name = `${(snapshot as any).name || 'project'}.pix`;
       this.fileService.exportProjectToDownload(snapshot as any, name);
     } catch (e) {
       console.error('Save to computer failed', e);

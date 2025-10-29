@@ -15,7 +15,7 @@ export interface UserSettings {
 
 @Injectable({ providedIn: 'root' })
 export class UserSettingsService {
-  private readonly STORAGE_KEY = 'picart.user.settings.v1';
+  private readonly STORAGE_KEY = 'pixart.user.settings.v1';
   private readonly transloco = inject(TranslocoService);
   private readonly _state = signal<UserSettings>(this.createInitialState());
   private customThemePreference = false;
