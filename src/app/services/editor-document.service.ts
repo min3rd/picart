@@ -2007,17 +2007,18 @@ export class EditorDocumentService {
         }
         break;
       case 'selectionSnapshot':
-        // restore selection (rect + shape)
         if (val === null) {
           this.selectionRect.set(null);
           this.selectionShape.set('rect');
+          this.selectionPolygon.set(null);
         } else if (val && typeof val === 'object') {
-          // expected { rect: {x,y,width,height}, shape: 'rect'|'ellipse' }
           const rr = (val as any).rect;
           const shape = (val as any).shape || 'rect';
+          const polygon = (val as any).polygon || null;
           if (!rr) {
             this.selectionRect.set(null);
             this.selectionShape.set('rect');
+            this.selectionPolygon.set(null);
           } else {
             this.selectionRect.set({
               x: Math.max(0, Math.floor(rr.x)),
@@ -2025,7 +2026,23 @@ export class EditorDocumentService {
               width: Math.max(0, Math.floor(rr.width)),
               height: Math.max(0, Math.floor(rr.height)),
             });
-            this.selectionShape.set(shape === 'ellipse' ? 'ellipse' : 'rect');
+            if (shape === 'ellipse') {
+              this.selectionShape.set('ellipse');
+            } else if (shape === 'lasso') {
+              this.selectionShape.set('lasso');
+            } else {
+              this.selectionShape.set('rect');
+            }
+            if (polygon && Array.isArray(polygon)) {
+              this.selectionPolygon.set(
+                polygon.map((p: any) => ({
+                  x: Math.floor(p.x),
+                  y: Math.floor(p.y),
+                })),
+              );
+            } else {
+              this.selectionPolygon.set(null);
+            }
           }
         }
         break;
