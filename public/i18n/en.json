@@ -138,6 +138,8 @@
     "insertImage": "Insert Image",
     "imageResizeTitle": "Resize Image",
     "imageResizePrompt": "Enter new dimensions (leave empty to keep original size)",
+    "preview": "Preview",
+    "originalSize": "Original size",
     "width": "Width",
     "height": "Height",
     "cancel": "Cancel",
