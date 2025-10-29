@@ -28,7 +28,10 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-
+      - name: Set up transloco loader for GitHub Pages
+        run: |
+          rm src/app/i18n/transloco-loader.ts
+          mv src/app/i18n/transloco-loader.github-deployment.ts src/app/i18n/transloco-loader.ts
       - name: Build
         run: npm run build -- --base-href /pixart/
 
