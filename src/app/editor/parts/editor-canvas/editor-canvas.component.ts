@@ -29,12 +29,23 @@ interface ShapeDrawOptions {
   gradientAngle: number;
 }
 
-type ContextMenuActionId = 'deselect';
+type ContextMenuActionId =
+  | 'deselect'
+  | 'invertSelection'
+  | 'growSelection'
+  | 'growBy1px'
+  | 'growBy2px'
+  | 'growBy5px'
+  | 'growCustom'
+  | 'makeCopyLayer'
+  | 'mergeVisibleToNewLayer';
 
 interface ContextMenuAction {
   id: ContextMenuActionId;
   labelKey: string;
   icon: string;
+  disabled?: boolean;
+  submenu?: ContextMenuAction[];
 }
 
 @Component({
@@ -94,6 +105,9 @@ export class EditorCanvas {
     y: 0,
   });
   readonly contextMenuActions = signal<ContextMenuAction[]>([]);
+  readonly submenuVisible = signal(false);
+  readonly submenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  readonly submenuActions = signal<ContextMenuAction[]>([]);
   private resizeListener: (() => void) | null = null;
   private keyListener: ((e: KeyboardEvent) => void) | null = null;
   private readonly defaultCursor = `url('/cursors/link.png') 12 12, link`;
@@ -522,7 +536,55 @@ export class EditorCanvas {
       return;
     }
     const actions: ContextMenuAction[] = [];
-    if (this.document.selectionRect()) {
+    const hasSelection = !!this.document.selectionRect();
+    const hasNonEmptySelection = this.hasNonEmptySelection();
+    if (hasSelection) {
+      actions.push({
+        id: 'invertSelection',
+        labelKey: 'editor.canvas.menu.invertSelection',
+        icon: 'heroIconsBarsArrowUpMini',
+        disabled: false,
+      });
+      actions.push({
+        id: 'growSelection',
+        labelKey: 'editor.canvas.menu.growSelection',
+        icon: 'heroIconsArrowsPointingOutMini',
+        disabled: false,
+        submenu: [
+          {
+            id: 'growBy1px',
+            labelKey: 'editor.canvas.menu.growBy1px',
+            icon: 'heroIconsPlusSmallMini',
+          },
+          {
+            id: 'growBy2px',
+            labelKey: 'editor.canvas.menu.growBy2px',
+            icon: 'heroIconsPlusSmallMini',
+          },
+          {
+            id: 'growBy5px',
+            labelKey: 'editor.canvas.menu.growBy5px',
+            icon: 'heroIconsPlusSmallMini',
+          },
+          {
+            id: 'growCustom',
+            labelKey: 'editor.canvas.menu.growCustom',
+            icon: 'heroIconsEllipsisHorizontalMini',
+          },
+        ],
+      });
+      actions.push({
+        id: 'makeCopyLayer',
+        labelKey: 'editor.canvas.menu.makeCopyLayer',
+        icon: 'heroIconsDocumentDuplicateMini',
+        disabled: !hasNonEmptySelection,
+      });
+      actions.push({
+        id: 'mergeVisibleToNewLayer',
+        labelKey: 'editor.canvas.menu.mergeVisibleToNewLayer',
+        icon: 'heroIconsRectangleStackMini',
+        disabled: false,
+      });
       actions.push({
         id: 'deselect',
         labelKey: 'editor.canvas.menu.deselect',
@@ -537,7 +599,7 @@ export class EditorCanvas {
       this.canvasContainer.nativeElement.getBoundingClientRect();
     const offsetX = ev.clientX - containerRect.left;
     const offsetY = ev.clientY - containerRect.top;
-    const estimatedWidth = 160;
+    const estimatedWidth = 200;
     const estimatedHeight = Math.max(40, actions.length * 36);
     const maxX = Math.max(0, containerRect.width - estimatedWidth);
     const maxY = Math.max(0, containerRect.height - estimatedHeight);
@@ -548,14 +610,77 @@ export class EditorCanvas {
     this.contextMenuVisible.set(true);
   }
 
+  private hasNonEmptySelection(): boolean {
+    const sel = this.document.selectionRect();
+    if (!sel) return false;
+    const shape = this.document.selectionShape();
+    const poly = this.document.selectionPolygon();
+    const layerId = this.document.selectedLayerId();
+    const buf = this.document.getLayerBuffer(layerId);
+    if (!buf) return false;
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
+    for (let y = sel.y; y < sel.y + sel.height && y < h; y++) {
+      for (let x = sel.x; x < sel.x + sel.width && x < w; x++) {
+        if (
+          this.isPointInSelection(x, y) &&
+          buf[y * w + x] &&
+          buf[y * w + x].length > 0
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   closeContextMenu() {
     this.contextMenuVisible.set(false);
     this.contextMenuActions.set([]);
+    this.submenuVisible.set(false);
+    this.submenuActions.set([]);
   }
 
-  onContextMenuAction(actionId: ContextMenuActionId) {
+  onSubmenuTrigger(
+    action: ContextMenuAction,
+    event: MouseEvent,
+    buttonElement: HTMLElement,
+  ) {
+    if (!action.submenu || action.submenu.length === 0) return;
+    event.stopPropagation();
+    const rect = buttonElement.getBoundingClientRect();
+    const containerRect =
+      this.canvasContainer.nativeElement.getBoundingClientRect();
+    const submenuX = rect.right - containerRect.left + 4;
+    const submenuY = rect.top - containerRect.top;
+    this.submenuPosition.set({ x: submenuX, y: submenuY });
+    this.submenuActions.set(action.submenu);
+    this.submenuVisible.set(true);
+  }
+
+  onContextMenuAction(actionId: ContextMenuActionId, event?: MouseEvent) {
     if (actionId === 'deselect') {
       this.document.clearSelection();
+    } else if (actionId === 'invertSelection') {
+      this.document.invertSelection();
+    } else if (actionId === 'growBy1px') {
+      this.document.growSelection(1);
+    } else if (actionId === 'growBy2px') {
+      this.document.growSelection(2);
+    } else if (actionId === 'growBy5px') {
+      this.document.growSelection(5);
+    } else if (actionId === 'growCustom') {
+      const input = prompt('Enter growth amount in pixels:', '10');
+      if (input) {
+        const value = parseInt(input, 10);
+        if (!isNaN(value) && value > 0) {
+          this.document.growSelection(value);
+        }
+      }
+    } else if (actionId === 'makeCopyLayer') {
+      this.document.makeCopyLayer();
+    } else if (actionId === 'mergeVisibleToNewLayer') {
+      this.document.mergeVisibleToNewLayer();
     }
     this.closeContextMenu();
   }

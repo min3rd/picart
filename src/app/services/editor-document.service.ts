@@ -1697,6 +1697,225 @@ export class EditorDocumentService {
     });
   }
 
+  invertSelection() {
+    const rect = this.selectionRect();
+    if (!rect) return;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const newPoly: { x: number; y: number }[] = [];
+    if (shape === 'lasso' && poly && poly.length >= 3) {
+      for (let y = rect.y; y < rect.y + rect.height; y++) {
+        for (let x = rect.x; x < rect.x + rect.width; x++) {
+          const px = x + 0.5;
+          const py = y + 0.5;
+          if (!this._pointInPolygon(px, py, poly)) {
+            newPoly.push({ x, y });
+          }
+        }
+      }
+      this.selectionPolygon.set(newPoly);
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      for (const p of newPoly) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      this.selectionRect.set({
+        x: Math.max(0, Math.floor(minX)),
+        y: Math.max(0, Math.floor(minY)),
+        width: Math.max(1, Math.ceil(maxX - minX) + 1),
+        height: Math.max(1, Math.ceil(maxY - minY) + 1),
+      });
+    }
+    this.commitMetaChange({
+      key: 'selectionSnapshot',
+      previous: { rect, shape, polygon: poly },
+      next: {
+        rect: this.selectionRect(),
+        shape: this.selectionShape(),
+        polygon: this.selectionPolygon(),
+      },
+    });
+  }
+
+  growSelection(pixels: number) {
+    const rect = this.selectionRect();
+    if (!rect || pixels <= 0) return;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const expansion = Math.max(1, Math.floor(pixels));
+    const newRect = {
+      x: Math.max(0, rect.x - expansion),
+      y: Math.max(0, rect.y - expansion),
+      width: Math.min(
+        w - Math.max(0, rect.x - expansion),
+        rect.width + expansion * 2,
+      ),
+      height: Math.min(
+        h - Math.max(0, rect.y - expansion),
+        rect.height + expansion * 2,
+      ),
+    };
+    if (shape === 'lasso' && poly && poly.length >= 3) {
+      const visited = new Set<string>();
+      const queue: { x: number; y: number }[] = [];
+      for (const p of poly) {
+        for (let dy = -expansion; dy <= expansion; dy++) {
+          for (let dx = -expansion; dx <= expansion; dx++) {
+            const nx = p.x + dx;
+            const ny = p.y + dy;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+              const key = `${nx},${ny}`;
+              if (!visited.has(key)) {
+                visited.add(key);
+                queue.push({ x: nx, y: ny });
+              }
+            }
+          }
+        }
+      }
+      this.selectionPolygon.set(queue);
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      for (const p of queue) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      this.selectionRect.set({
+        x: Math.max(0, Math.floor(minX)),
+        y: Math.max(0, Math.floor(minY)),
+        width: Math.max(1, Math.ceil(maxX - minX) + 1),
+        height: Math.max(1, Math.ceil(maxY - minY) + 1),
+      });
+    } else {
+      this.selectionRect.set(newRect);
+    }
+    this.commitMetaChange({
+      key: 'selectionSnapshot',
+      previous: { rect, shape, polygon: poly },
+      next: {
+        rect: this.selectionRect(),
+        shape: this.selectionShape(),
+        polygon: this.selectionPolygon(),
+      },
+    });
+  }
+
+  makeCopyLayer() {
+    const sel = this.selectionRect();
+    if (!sel) return null;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const sourceLayerId = this.selectedLayerId();
+    const sourceBuf = this.layerPixels.get(sourceLayerId);
+    if (!sourceBuf) return null;
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    const sourceLayer = this.layers().find((l) => l.id === sourceLayerId);
+    const newName = sourceLayer ? `${sourceLayer.name}-copy` : 'Layer copy';
+    const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newLayer: LayerItem = {
+      id: newLayerId,
+      name: newName,
+      visible: true,
+      locked: false,
+    };
+    const newBuf = new Array<string>(w * h).fill('');
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (this.isPixelWithinSelection(x, y, sel, shape, poly)) {
+          const idx = y * w + x;
+          newBuf[idx] = sourceBuf[idx] || '';
+        }
+      }
+    }
+    const currentLayers = this.layers();
+    const sourceIndex = currentLayers.findIndex((l) => l.id === sourceLayerId);
+    if (sourceIndex >= 0) {
+      this.layers.update((arr) => [
+        ...arr.slice(0, sourceIndex),
+        newLayer,
+        ...arr.slice(sourceIndex),
+      ]);
+    } else {
+      this.layers.update((arr) => [newLayer, ...arr]);
+    }
+    this.layerPixels.set(newLayerId, newBuf);
+    this.selectedLayerId.set(newLayerId);
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    return newLayer;
+  }
+
+  mergeVisibleToNewLayer() {
+    const sel = this.selectionRect();
+    if (!sel) return null;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    const mergedBuf = new Array<string>(w * h).fill('');
+    const layers = this.layers();
+    for (let li = layers.length - 1; li >= 0; li--) {
+      const layer = layers[li];
+      if (!layer.visible) continue;
+      const buf = this.layerPixels.get(layer.id);
+      if (!buf || buf.length !== w * h) continue;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (!this.isPixelWithinSelection(x, y, sel, shape, poly)) continue;
+          const idx = y * w + x;
+          const pixel = buf[idx];
+          if (pixel && pixel.length > 0) {
+            const existing = mergedBuf[idx];
+            if (!existing || existing.length === 0) {
+              mergedBuf[idx] = pixel;
+            } else {
+              mergedBuf[idx] = pixel;
+            }
+          }
+        }
+      }
+    }
+    const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newLayer: LayerItem = {
+      id: newLayerId,
+      name: 'Merged layer',
+      visible: true,
+      locked: false,
+    };
+    this.layers.update((arr) => [newLayer, ...arr]);
+    this.layerPixels.set(newLayerId, mergedBuf);
+    this.selectedLayerId.set(newLayerId);
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    return newLayer;
+  }
+
   // Snapshot current buffers and layers for structural operations
   private snapshotLayersAndBuffers(): {
     layers: LayerItem[];

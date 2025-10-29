@@ -113,7 +113,15 @@
     },
     "canvas": {
       "menu": {
-        "deselect": "Deselect"
+        "deselect": "Deselect",
+        "invertSelection": "Invert selection",
+        "growSelection": "Grow selection",
+        "growBy1px": "+1 px",
+        "growBy2px": "+2 px",
+        "growBy5px": "+5 px",
+        "growCustom": "Custom...",
+        "makeCopyLayer": "Make a copy layer",
+        "mergeVisibleToNewLayer": "Merge visible to new layer"
       }
     }
   },
