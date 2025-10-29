@@ -1687,14 +1687,28 @@ export class EditorDocumentService {
     if (!prev) return;
     const prevShape = this.selectionShape();
     const prevPoly = this.selectionPolygon();
-    this.selectionRect.set(null);
-    this.selectionShape.set('rect');
-    this.selectionPolygon.set(null);
+    this.clearSelectionState();
     this.commitMetaChange({
       key: 'selectionSnapshot',
       previous: { rect: prev, shape: prevShape, polygon: prevPoly },
       next: null,
     });
+  }
+
+  private clearSelectionState() {
+    this.selectionRect.set(null);
+    this.selectionShape.set('rect');
+    this.selectionPolygon.set(null);
+  }
+
+  private setSelectionShape(shape: string) {
+    if (shape === 'ellipse') {
+      this.selectionShape.set('ellipse');
+    } else if (shape === 'lasso') {
+      this.selectionShape.set('lasso');
+    } else {
+      this.selectionShape.set('rect');
+    }
   }
 
   invertSelection() {
@@ -1716,9 +1730,7 @@ export class EditorDocumentService {
         }
       }
       if (newPoly.length === 0) {
-        this.selectionRect.set(null);
-        this.selectionPolygon.set(null);
-        this.selectionShape.set('rect');
+        this.clearSelectionState();
       } else {
         this.selectionPolygon.set(newPoly);
         let minX = Infinity,
@@ -1754,12 +1766,10 @@ export class EditorDocumentService {
         }
       }
       if (newPoly.length === 0) {
-        this.selectionRect.set(null);
-        this.selectionPolygon.set(null);
-        this.selectionShape.set('rect');
+        this.clearSelectionState();
       } else {
         this.selectionPolygon.set(newPoly);
-        this.selectionShape.set('lasso');
+        this.setSelectionShape('lasso');
       }
     }
     this.commitMetaChange({
@@ -2008,17 +2018,13 @@ export class EditorDocumentService {
         break;
       case 'selectionSnapshot':
         if (val === null) {
-          this.selectionRect.set(null);
-          this.selectionShape.set('rect');
-          this.selectionPolygon.set(null);
+          this.clearSelectionState();
         } else if (val && typeof val === 'object') {
           const rr = (val as any).rect;
           const shape = (val as any).shape || 'rect';
           const polygon = (val as any).polygon || null;
           if (!rr) {
-            this.selectionRect.set(null);
-            this.selectionShape.set('rect');
-            this.selectionPolygon.set(null);
+            this.clearSelectionState();
           } else {
             this.selectionRect.set({
               x: Math.max(0, Math.floor(rr.x)),
@@ -2026,13 +2032,7 @@ export class EditorDocumentService {
               width: Math.max(0, Math.floor(rr.width)),
               height: Math.max(0, Math.floor(rr.height)),
             });
-            if (shape === 'ellipse') {
-              this.selectionShape.set('ellipse');
-            } else if (shape === 'lasso') {
-              this.selectionShape.set('lasso');
-            } else {
-              this.selectionShape.set('rect');
-            }
+            this.setSelectionShape(shape);
             if (polygon && Array.isArray(polygon)) {
               this.selectionPolygon.set(
                 polygon.map((p: any) => ({
