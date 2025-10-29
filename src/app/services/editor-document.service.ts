@@ -1771,6 +1771,26 @@ export class EditorDocumentService {
         this.selectionPolygon.set(newPoly);
         this.setSelectionShape('lasso');
       }
+    } else if (shape === 'rect') {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const insideRect =
+            x >= rect.x &&
+            x < rect.x + rect.width &&
+            y >= rect.y &&
+            y < rect.y + rect.height;
+          if (!insideRect) {
+            newPoly.push({ x, y });
+          }
+        }
+      }
+      if (newPoly.length === 0) {
+        this.clearSelectionState();
+      } else {
+        this.selectionPolygon.set(newPoly);
+        this.setSelectionShape('lasso');
+        this.selectionRect.set({ x: 0, y: 0, width: w, height: h });
+      }
     }
     this.commitMetaChange({
       key: 'selectionSnapshot',
