@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import {
+  GradientType,
   ToolDefinition,
   ToolHistoryAdapter,
   ToolId,
@@ -68,12 +69,16 @@ export class EditorToolsService {
   readonly circleFillColor = this.circleTool.fillColor.asReadonly();
   readonly circleGradientStartColor = this.circleTool.gradientStartColor.asReadonly();
   readonly circleGradientEndColor = this.circleTool.gradientEndColor.asReadonly();
+  readonly circleGradientType = this.circleTool.gradientType.asReadonly();
+  readonly circleGradientAngle = this.circleTool.gradientAngle.asReadonly();
   readonly squareStrokeThickness = this.squareTool.strokeThickness.asReadonly();
   readonly squareStrokeColor = this.squareTool.strokeColor.asReadonly();
   readonly squareFillMode = this.squareTool.fillMode.asReadonly();
   readonly squareFillColor = this.squareTool.fillColor.asReadonly();
   readonly squareGradientStartColor = this.squareTool.gradientStartColor.asReadonly();
   readonly squareGradientEndColor = this.squareTool.gradientEndColor.asReadonly();
+  readonly squareGradientType = this.squareTool.gradientType.asReadonly();
+  readonly squareGradientAngle = this.squareTool.gradientAngle.asReadonly();
 
   constructor() {
     this.loadFromStorage();
@@ -159,6 +164,16 @@ export class EditorToolsService {
     this.saveToStorage();
   }
 
+  setCircleGradientType(type: GradientType) {
+    this.circleTool.setGradientType(type);
+    this.saveToStorage();
+  }
+
+  setCircleGradientAngle(angle: number) {
+    this.circleTool.setGradientAngle(angle);
+    this.saveToStorage();
+  }
+
   setSquareStrokeThickness(value: number, max?: number) {
     this.squareTool.setStrokeThickness(value, max);
     this.saveToStorage();
@@ -186,6 +201,16 @@ export class EditorToolsService {
 
   setSquareGradientEndColor(color: string) {
     this.squareTool.setGradientEndColor(color);
+    this.saveToStorage();
+  }
+
+  setSquareGradientType(type: GradientType) {
+    this.squareTool.setGradientType(type);
+    this.saveToStorage();
+  }
+
+  setSquareGradientAngle(angle: number) {
+    this.squareTool.setGradientAngle(angle);
     this.saveToStorage();
   }
 
@@ -251,12 +276,16 @@ export class EditorToolsService {
         circleFillColor: this.circleTool.fillColor(),
         circleGradientStartColor: this.circleTool.gradientStartColor(),
         circleGradientEndColor: this.circleTool.gradientEndColor(),
+        circleGradientType: this.circleTool.gradientType(),
+        circleGradientAngle: this.circleTool.gradientAngle(),
         squareStrokeThickness: this.squareTool.strokeThickness(),
         squareStrokeColor: this.squareTool.strokeColor(),
         squareFillMode: this.squareTool.fillMode(),
         squareFillColor: this.squareTool.fillColor(),
         squareGradientStartColor: this.squareTool.gradientStartColor(),
         squareGradientEndColor: this.squareTool.gradientEndColor(),
+        squareGradientType: this.squareTool.gradientType(),
+        squareGradientAngle: this.squareTool.gradientAngle(),
       } as const;
       window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch {}
@@ -281,12 +310,16 @@ export class EditorToolsService {
         circleFillColor: string;
         circleGradientStartColor: string;
         circleGradientEndColor: string;
+        circleGradientType: GradientType;
+        circleGradientAngle: number;
         squareStrokeThickness: number;
         squareStrokeColor: string;
         squareFillMode: 'solid' | 'gradient';
         squareFillColor: string;
         squareGradientStartColor: string;
         squareGradientEndColor: string;
+        squareGradientType: GradientType;
+        squareGradientAngle: number;
         circleColor: string;
         squareColor: string;
       }> | null;
@@ -334,6 +367,12 @@ export class EditorToolsService {
       if (typeof parsed.circleGradientEndColor === 'string' && parsed.circleGradientEndColor.length) {
         circleSnapshot.gradientEndColor = parsed.circleGradientEndColor;
       }
+      if (parsed.circleGradientType === 'linear' || parsed.circleGradientType === 'radial') {
+        circleSnapshot.gradientType = parsed.circleGradientType;
+      }
+      if (typeof parsed.circleGradientAngle === 'number' && !Number.isNaN(parsed.circleGradientAngle)) {
+        circleSnapshot.gradientAngle = parsed.circleGradientAngle;
+      }
       if (!circleSnapshot.fillColor && typeof parsed.circleColor === 'string' && parsed.circleColor.length) {
         circleSnapshot.fillColor = parsed.circleColor;
       }
@@ -355,6 +394,12 @@ export class EditorToolsService {
       }
       if (typeof parsed.squareGradientEndColor === 'string' && parsed.squareGradientEndColor.length) {
         squareSnapshot.gradientEndColor = parsed.squareGradientEndColor;
+      }
+      if (parsed.squareGradientType === 'linear' || parsed.squareGradientType === 'radial') {
+        squareSnapshot.gradientType = parsed.squareGradientType;
+      }
+      if (typeof parsed.squareGradientAngle === 'number' && !Number.isNaN(parsed.squareGradientAngle)) {
+        squareSnapshot.gradientAngle = parsed.squareGradientAngle;
       }
       if (!squareSnapshot.fillColor && typeof parsed.squareColor === 'string' && parsed.squareColor.length) {
         squareSnapshot.fillColor = parsed.squareColor;

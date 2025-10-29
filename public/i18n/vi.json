@@ -70,7 +70,11 @@
         "fillGradient": "Dải màu",
         "fillColor": "Màu tô",
         "gradientStart": "Màu bắt đầu",
-        "gradientEnd": "Màu kết thúc"
+        "gradientEnd": "Màu kết thúc",
+        "gradientType": "Loại dải màu",
+        "gradientTypeRadial": "Tâm tròn",
+        "gradientTypeLinear": "Theo góc",
+        "gradientAngle": "Góc đổ"
       },
       "square": {
         "title": "Hình vuông",
@@ -81,7 +85,11 @@
         "fillGradient": "Dải màu",
         "fillColor": "Màu tô",
         "gradientStart": "Màu bắt đầu",
-        "gradientEnd": "Màu kết thúc"
+        "gradientEnd": "Màu kết thúc",
+        "gradientType": "Loại dải màu",
+        "gradientTypeLinear": "Theo góc",
+        "gradientTypeRadial": "Tâm tròn",
+        "gradientAngle": "Góc đổ"
       },
       "fill": {
         "title": "Đổ màu",

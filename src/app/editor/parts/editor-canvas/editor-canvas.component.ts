@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { EditorToolsService } from '../../../services/editor-tools.service';
-import { ShapeFillMode } from '../../../services/tools/tool.types';
+import { GradientType, ShapeFillMode } from '../../../services/tools/tool.types';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 import { CommonModule } from '@angular/common';
@@ -22,6 +22,8 @@ interface ShapeDrawOptions {
   fillColor: string;
   gradientStartColor: string;
   gradientEndColor: string;
+  gradientType: GradientType;
+  gradientAngle: number;
 }
 
 @Component({
@@ -77,6 +79,13 @@ export class EditorCanvas {
   private readonly brushCursor = `url('/cursors/handwriting.png') 12 12, crosshair`;
   private readonly eraserCursor = `url('/cursors/unavailable.png') 12 12, cell`;
   private readonly handGrabbingCursor = `url('/cursors/grab.png') 12 12, grab`;
+  private readonly bayer4 = [
+    [0, 8, 2, 10],
+    [12, 4, 14, 6],
+    [3, 11, 1, 9],
+    [15, 7, 13, 5],
+  ];
+  private readonly gradientSteps = 8;
 
   constructor() {
     // Use static cursor images placed in public/cursors directory.
@@ -923,6 +932,8 @@ export class EditorCanvas {
       fillColor: this.tools.circleFillColor(),
       gradientStartColor: this.tools.circleGradientStartColor(),
       gradientEndColor: this.tools.circleGradientEndColor(),
+      gradientType: this.tools.circleGradientType(),
+      gradientAngle: this.tools.circleGradientAngle(),
     };
   }
 
@@ -934,6 +945,8 @@ export class EditorCanvas {
       fillColor: this.tools.squareFillColor(),
       gradientStartColor: this.tools.squareGradientStartColor(),
       gradientEndColor: this.tools.squareGradientEndColor(),
+      gradientType: this.tools.squareGradientType(),
+      gradientAngle: this.tools.squareGradientAngle(),
     };
   }
 
@@ -945,27 +958,8 @@ export class EditorCanvas {
   ) {
     const widthRect = Math.max(1, bounds.maxX - bounds.minX + 1);
     const heightRect = Math.max(1, bounds.maxY - bounds.minY + 1);
-    const gradientStart = options.gradientStartColor || options.fillColor;
-    const gradientEnd = options.gradientEndColor || gradientStart;
-    const gradientValid = bounds.maxX !== bounds.minX || bounds.maxY !== bounds.minY;
     if (options.fillMode === 'gradient') {
-      if (gradientStart && gradientEnd && gradientValid) {
-        const gradient = ctx.createLinearGradient(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
-        gradient.addColorStop(0, gradientStart);
-        gradient.addColorStop(1, gradientEnd);
-        ctx.fillStyle = gradient;
-        ctx.globalAlpha = 0.35;
-        ctx.fillRect(bounds.minX, bounds.minY, widthRect, heightRect);
-        ctx.globalAlpha = 1;
-      } else {
-        const solid = gradientEnd || gradientStart;
-        if (solid) {
-          ctx.fillStyle = solid;
-          ctx.globalAlpha = 0.35;
-          ctx.fillRect(bounds.minX, bounds.minY, widthRect, heightRect);
-          ctx.globalAlpha = 1;
-        }
-      }
+      this.fillSquareGradientPreview(ctx, bounds, options);
     } else if (options.fillColor) {
       ctx.fillStyle = options.fillColor;
       ctx.globalAlpha = 0.35;
@@ -992,23 +986,7 @@ export class EditorCanvas {
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     if (options.fillMode === 'gradient' && radius > 0) {
-      const startColor = options.gradientStartColor || options.fillColor;
-      const endColor = options.gradientEndColor || startColor;
-      if (startColor && endColor) {
-        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        gradient.addColorStop(0, startColor);
-        gradient.addColorStop(1, endColor);
-        ctx.fillStyle = gradient;
-        ctx.globalAlpha = 0.35;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      } else if (startColor || endColor) {
-        const solid = startColor || endColor;
-        ctx.fillStyle = solid;
-        ctx.globalAlpha = 0.35;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
+      this.fillCircleGradientPreview(ctx, bounds, options, cx, cy, radius);
     } else if (options.fillColor) {
       ctx.fillStyle = options.fillColor;
       ctx.globalAlpha = 0.35;
@@ -1020,6 +998,215 @@ export class EditorCanvas {
       ctx.strokeStyle = options.strokeColor;
       ctx.stroke();
     }
+  }
+
+  private fillSquareGradientPreview(
+    ctx: CanvasRenderingContext2D,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    options: ShapeDrawOptions,
+  ) {
+    const minX = bounds.minX;
+    const minY = bounds.minY;
+    const maxX = bounds.maxX;
+    const maxY = bounds.maxY;
+    const widthRect = Math.max(1, maxX - minX + 1);
+    const heightRect = Math.max(1, maxY - minY + 1);
+    const fillColor = options.fillColor;
+    const startColor = options.gradientStartColor || fillColor;
+    const endColor = options.gradientEndColor || startColor;
+    const fallbackStart = startColor || endColor;
+    const fallbackEnd = endColor || startColor;
+    if (!fallbackStart && !fallbackEnd) return;
+    const parsedStart = this.parseHexColor(startColor);
+    const parsedEnd = this.parseHexColor(endColor);
+    const gradientType: GradientType = options.gradientType === 'radial' ? 'radial' : 'linear';
+    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const angleRad = (gradientAngle * Math.PI) / 180;
+    const dirX = Math.cos(angleRad);
+    const dirY = Math.sin(angleRad);
+    const centerX = minX + widthRect / 2;
+    const centerY = minY + heightRect / 2;
+    let minProj = 0;
+    let maxProj = 1;
+    if (gradientType === 'linear') {
+      let minVal = Number.POSITIVE_INFINITY;
+      let maxVal = Number.NEGATIVE_INFINITY;
+      const corners = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: minX, y: maxY },
+        { x: maxX, y: maxY },
+      ];
+      for (const corner of corners) {
+        const proj = (corner.x + 0.5) * dirX + (corner.y + 0.5) * dirY;
+        if (proj < minVal) minVal = proj;
+        if (proj > maxVal) maxVal = proj;
+      }
+      if (Number.isFinite(minVal) && Number.isFinite(maxVal)) {
+        if (minVal === maxVal) maxVal = minVal + 1;
+        minProj = minVal;
+        maxProj = maxVal;
+      }
+    }
+    const radius = Math.max(widthRect, heightRect) / 2;
+    const prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = 0.35;
+    for (let yy = minY; yy <= maxY; yy++) {
+      for (let xx = minX; xx <= maxX; xx++) {
+        let ratio = 0;
+        if (gradientType === 'radial') {
+          const dx = xx + 0.5 - centerX;
+          const dy = yy + 0.5 - centerY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          ratio = radius > 0 ? dist / radius : 0;
+        } else {
+          const proj = (xx + 0.5) * dirX + (yy + 0.5) * dirY;
+          const span = maxProj - minProj;
+          ratio = span !== 0 ? (proj - minProj) / span : 0;
+        }
+        const dither = this.computeDitheredRatio(ratio, xx, yy);
+        const startFallback = fallbackStart || fallbackEnd;
+        const endFallback = fallbackEnd || fallbackStart;
+        if (!startFallback || !endFallback) continue;
+        const color = this.mixParsedColors(parsedStart, parsedEnd, dither, startFallback, endFallback);
+        ctx.fillStyle = color;
+        ctx.fillRect(xx, yy, 1, 1);
+      }
+    }
+    ctx.globalAlpha = prevAlpha;
+  }
+
+  private fillCircleGradientPreview(
+    ctx: CanvasRenderingContext2D,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    options: ShapeDrawOptions,
+    cx: number,
+    cy: number,
+    radius: number,
+  ) {
+    const minX = bounds.minX;
+    const minY = bounds.minY;
+    const maxX = bounds.maxX;
+    const maxY = bounds.maxY;
+    const fillColor = options.fillColor;
+    const startColor = options.gradientStartColor || fillColor;
+    const endColor = options.gradientEndColor || startColor;
+    const fallbackStart = startColor || endColor;
+    const fallbackEnd = endColor || startColor;
+    if (!fallbackStart && !fallbackEnd) return;
+    const parsedStart = this.parseHexColor(startColor);
+    const parsedEnd = this.parseHexColor(endColor);
+    const gradientType: GradientType = options.gradientType === 'linear' ? 'linear' : 'radial';
+    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const angleRad = (gradientAngle * Math.PI) / 180;
+    const dirX = Math.cos(angleRad);
+    const dirY = Math.sin(angleRad);
+    let minProj = 0;
+    let maxProj = 1;
+    if (gradientType === 'linear') {
+      let minVal = Number.POSITIVE_INFINITY;
+      let maxVal = Number.NEGATIVE_INFINITY;
+      const corners = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: minX, y: maxY },
+        { x: maxX, y: maxY },
+      ];
+      for (const corner of corners) {
+        const proj = (corner.x + 0.5) * dirX + (corner.y + 0.5) * dirY;
+        if (proj < minVal) minVal = proj;
+        if (proj > maxVal) maxVal = proj;
+      }
+      if (Number.isFinite(minVal) && Number.isFinite(maxVal)) {
+        if (minVal === maxVal) maxVal = minVal + 1;
+        minProj = minVal;
+        maxProj = maxVal;
+      }
+    }
+    const prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = 0.35;
+    const radiusSq = radius * radius;
+    for (let yy = minY; yy <= maxY; yy++) {
+      for (let xx = minX; xx <= maxX; xx++) {
+        const dx = xx + 0.5 - cx;
+        const dy = yy + 0.5 - cy;
+        if (dx * dx + dy * dy > radiusSq) continue;
+        let ratio = 0;
+        if (gradientType === 'radial') {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          ratio = radius > 0 ? dist / radius : 0;
+        } else {
+          const proj = (xx + 0.5) * dirX + (yy + 0.5) * dirY;
+          const span = maxProj - minProj;
+          ratio = span !== 0 ? (proj - minProj) / span : 0;
+        }
+        const dither = this.computeDitheredRatio(ratio, xx, yy);
+        const startFallback = fallbackStart || fallbackEnd;
+        const endFallback = fallbackEnd || fallbackStart;
+        if (!startFallback || !endFallback) continue;
+        const color = this.mixParsedColors(parsedStart, parsedEnd, dither, startFallback, endFallback);
+        ctx.fillStyle = color;
+        ctx.fillRect(xx, yy, 1, 1);
+      }
+    }
+    ctx.globalAlpha = prevAlpha;
+  }
+
+  private computeDitheredRatio(ratio: number, x: number, y: number) {
+    const clamped = Math.min(1, Math.max(0, ratio));
+    const steps = this.gradientSteps;
+    if (steps <= 0) return clamped;
+    const scaled = clamped * steps;
+    const base = Math.floor(scaled);
+    const fraction = scaled - base;
+    const matrix = this.bayer4;
+    const size = matrix.length;
+    const xi = x % size;
+    const yi = y % size;
+    const threshold = (matrix[yi][xi] + 0.5) / (size * size);
+    const offset = fraction > threshold ? 1 : 0;
+    const index = Math.min(steps, Math.max(0, base + offset));
+    return index / steps;
+  }
+
+  private parseHexColor(value: string | undefined) {
+    if (!value || typeof value !== 'string') return null;
+    const match = /^#?([0-9a-fA-F]{6})$/.exec(value.trim());
+    if (!match) return null;
+    const raw = match[1];
+    const r = Number.parseInt(raw.slice(0, 2), 16);
+    const g = Number.parseInt(raw.slice(2, 4), 16);
+    const b = Number.parseInt(raw.slice(4, 6), 16);
+    if ([r, g, b].some((v) => Number.isNaN(v))) return null;
+    return { r, g, b };
+  }
+
+  private componentToHex(value: number) {
+    const clamped = Math.max(0, Math.min(255, Math.round(value)));
+    return clamped.toString(16).padStart(2, '0');
+  }
+
+  private composeHexColor(r: number, g: number, b: number) {
+    return `#${this.componentToHex(r)}${this.componentToHex(g)}${this.componentToHex(b)}`;
+  }
+
+  private mixParsedColors(
+    start: { r: number; g: number; b: number } | null,
+    end: { r: number; g: number; b: number } | null,
+    ratio: number,
+    fallbackStart: string,
+    fallbackEnd: string,
+  ) {
+    const t = Math.min(1, Math.max(0, ratio));
+    if (start && end) {
+      const r = start.r + (end.r - start.r) * t;
+      const g = start.g + (end.g - start.g) * t;
+      const b = start.b + (end.b - start.b) * t;
+      return this.composeHexColor(r, g, b);
+    }
+    const startValue = fallbackStart || fallbackEnd || '#000000';
+    const endValue = fallbackEnd || fallbackStart || '#000000';
+    return t <= 0.5 ? startValue : endValue;
   }
 
   private measureContainer() {

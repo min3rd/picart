@@ -170,6 +170,49 @@
           <div id="layers-circle-fill-color-value" class="text-xs ml-2">{{ tools.circleFillColor() }}</div>
         </div>
       } @else {
+        <div id="layers-circle-gradient-type-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-circle-gradient-type-label" class="text-xs opacity-80 w-20" for="layers-circle-gradient-type-select">
+            {{ 'editor.tools.circle.gradientType' | transloco }}
+          </label>
+          <select
+            id="layers-circle-gradient-type-select"
+            [value]="tools.circleGradientType()"
+            (change)="onCircleGradientTypeChange($event)"
+            class="flex-1 text-xs border rounded px-2 py-1 bg-white dark:bg-neutral-900"
+          >
+            <option id="layers-circle-gradient-type-option-radial" value="radial">
+              {{ 'editor.tools.circle.gradientTypeRadial' | transloco }}
+            </option>
+            <option id="layers-circle-gradient-type-option-linear" value="linear">
+              {{ 'editor.tools.circle.gradientTypeLinear' | transloco }}
+            </option>
+          </select>
+        </div>
+        @if (tools.circleGradientType() === 'linear') {
+          <div id="layers-circle-gradient-angle-row" class="flex items-center gap-2 mt-2">
+            <label id="layers-circle-gradient-angle-label" class="text-xs opacity-80 w-20" for="layers-circle-gradient-angle-range">
+              {{ 'editor.tools.circle.gradientAngle' | transloco }}
+            </label>
+            <input
+              id="layers-circle-gradient-angle-range"
+              type="range"
+              min="0"
+              max="359"
+              [value]="tools.circleGradientAngle()"
+              (input)="onCircleGradientAngleInput($event)"
+              class="flex-1"
+            />
+            <input
+              id="layers-circle-gradient-angle-number"
+              type="number"
+              min="0"
+              max="359"
+              [value]="tools.circleGradientAngle()"
+              (input)="onCircleGradientAngleInput($event)"
+              class="w-16 text-xs border rounded px-1"
+            />
+          </div>
+        }
         <div id="layers-circle-gradient-start-row" class="flex items-center gap-2 mt-2">
           <label id="layers-circle-gradient-start-label" class="text-xs opacity-80 w-20" for="layers-circle-gradient-start-input">
             {{ 'editor.tools.circle.gradientStart' | transloco }}
@@ -277,6 +320,49 @@
           <div id="layers-square-fill-color-value" class="text-xs ml-2">{{ tools.squareFillColor() }}</div>
         </div>
       } @else {
+        <div id="layers-square-gradient-type-row" class="flex items-center gap-2 mt-2">
+          <label id="layers-square-gradient-type-label" class="text-xs opacity-80 w-20" for="layers-square-gradient-type-select">
+            {{ 'editor.tools.square.gradientType' | transloco }}
+          </label>
+          <select
+            id="layers-square-gradient-type-select"
+            [value]="tools.squareGradientType()"
+            (change)="onSquareGradientTypeChange($event)"
+            class="flex-1 text-xs border rounded px-2 py-1 bg-white dark:bg-neutral-900"
+          >
+            <option id="layers-square-gradient-type-option-linear" value="linear">
+              {{ 'editor.tools.square.gradientTypeLinear' | transloco }}
+            </option>
+            <option id="layers-square-gradient-type-option-radial" value="radial">
+              {{ 'editor.tools.square.gradientTypeRadial' | transloco }}
+            </option>
+          </select>
+        </div>
+        @if (tools.squareGradientType() === 'linear') {
+          <div id="layers-square-gradient-angle-row" class="flex items-center gap-2 mt-2">
+            <label id="layers-square-gradient-angle-label" class="text-xs opacity-80 w-20" for="layers-square-gradient-angle-range">
+              {{ 'editor.tools.square.gradientAngle' | transloco }}
+            </label>
+            <input
+              id="layers-square-gradient-angle-range"
+              type="range"
+              min="0"
+              max="359"
+              [value]="tools.squareGradientAngle()"
+              (input)="onSquareGradientAngleInput($event)"
+              class="flex-1"
+            />
+            <input
+              id="layers-square-gradient-angle-number"
+              type="number"
+              min="0"
+              max="359"
+              [value]="tools.squareGradientAngle()"
+              (input)="onSquareGradientAngleInput($event)"
+              class="w-16 text-xs border rounded px-1"
+            />
+          </div>
+        }
         <div id="layers-square-gradient-start-row" class="flex items-center gap-2 mt-2">
           <label id="layers-square-gradient-start-label" class="text-xs opacity-80 w-20" for="layers-square-gradient-start-input">
             {{ 'editor.tools.square.gradientStart' | transloco }}

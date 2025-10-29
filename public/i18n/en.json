@@ -70,7 +70,11 @@
         "fillGradient": "Gradient",
         "fillColor": "Fill color",
         "gradientStart": "Gradient start",
-        "gradientEnd": "Gradient end"
+        "gradientEnd": "Gradient end",
+  "gradientType": "Gradient type",
+  "gradientTypeRadial": "Radial (center)",
+        "gradientTypeLinear": "Linear",
+        "gradientAngle": "Angle"
       },
       "square": {
         "title": "Square",
@@ -81,7 +85,11 @@
         "fillGradient": "Gradient",
         "fillColor": "Fill color",
         "gradientStart": "Gradient start",
-        "gradientEnd": "Gradient end"
+        "gradientEnd": "Gradient end",
+  "gradientType": "Gradient type",
+  "gradientTypeLinear": "Linear",
+  "gradientTypeRadial": "Radial (center)",
+        "gradientAngle": "Angle"
       },
       "fill": {
         "title": "Fill",

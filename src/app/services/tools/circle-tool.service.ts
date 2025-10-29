@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import {
   CircleToolSnapshot,
+  GradientType,
   ShapeFillMode,
   ToolDefinition,
   ToolHistoryAdapter,
@@ -23,6 +24,8 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
   readonly fillColor = signal<string>('#000000');
   readonly gradientStartColor = signal<string>('#000000');
   readonly gradientEndColor = signal<string>('#ffffff');
+  readonly gradientType = signal<GradientType>('radial');
+  readonly gradientAngle = signal<number>(0);
 
   private historyAdapter?: ToolHistoryAdapter;
 
@@ -79,6 +82,23 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
     this.gradientEndColor.set(color);
   }
 
+  setGradientType(type: GradientType) {
+    if (type !== 'linear' && type !== 'radial') return;
+    const prev = this.gradientType();
+    if (prev === type) return;
+    this.historyAdapter?.('circleGradientType', prev, type);
+    this.gradientType.set(type);
+  }
+
+  setGradientAngle(angle: number) {
+    if (typeof angle !== 'number' || Number.isNaN(angle)) return;
+    const normalized = ((Math.round(angle) % 360) + 360) % 360;
+    const prev = this.gradientAngle();
+    if (prev === normalized) return;
+    this.historyAdapter?.('circleGradientAngle', prev, normalized);
+    this.gradientAngle.set(normalized);
+  }
+
   snapshot(): CircleToolSnapshot {
     return {
       strokeThickness: this.strokeThickness(),
@@ -87,6 +107,8 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
       fillColor: this.fillColor(),
       gradientStartColor: this.gradientStartColor(),
       gradientEndColor: this.gradientEndColor(),
+      gradientType: this.gradientType(),
+      gradientAngle: this.gradientAngle(),
     };
   }
 
@@ -109,6 +131,13 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
     }
     if (typeof snapshot.gradientEndColor === 'string' && snapshot.gradientEndColor.length) {
       this.gradientEndColor.set(snapshot.gradientEndColor);
+    }
+    if (snapshot.gradientType === 'linear' || snapshot.gradientType === 'radial') {
+      this.gradientType.set(snapshot.gradientType);
+    }
+    if (typeof snapshot.gradientAngle === 'number' && !Number.isNaN(snapshot.gradientAngle)) {
+      const normalized = ((Math.round(snapshot.gradientAngle) % 360) + 360) % 360;
+      this.gradientAngle.set(normalized);
     }
   }
 
@@ -135,6 +164,15 @@ export class CircleToolService implements ToolService<CircleToolSnapshot> {
     }
     if (key === 'circleGradientEnd' && typeof value === 'string' && value.length) {
       this.gradientEndColor.set(value);
+      return true;
+    }
+    if (key === 'circleGradientType' && (value === 'linear' || value === 'radial')) {
+      this.gradientType.set(value);
+      return true;
+    }
+    if (key === 'circleGradientAngle' && typeof value === 'number' && !Number.isNaN(value)) {
+      const normalized = ((Math.round(value) % 360) + 360) % 360;
+      this.gradientAngle.set(normalized);
       return true;
     }
     return false;

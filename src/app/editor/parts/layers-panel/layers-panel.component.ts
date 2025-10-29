@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { EditorToolsService } from '../../../services/editor-tools.service';
+import { GradientType } from '../../../services/tools/tool.types';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 
@@ -87,6 +88,17 @@ export class LayersPanel {
     this.tools.setCircleGradientEndColor(v);
   }
 
+  onCircleGradientTypeChange(event: Event) {
+    const v = (event.target as HTMLSelectElement).value as GradientType;
+    this.tools.setCircleGradientType(v === 'radial' ? 'radial' : 'linear');
+  }
+
+  onCircleGradientAngleInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.tools.setCircleGradientAngle(Math.round(n));
+  }
+
   onSquareStrokeThicknessInput(event: Event) {
     const v = (event.target as HTMLInputElement).value;
     const n = Number(v);
@@ -116,6 +128,17 @@ export class LayersPanel {
   onSquareGradientEndInput(event: Event) {
     const v = (event.target as HTMLInputElement).value;
     this.tools.setSquareGradientEndColor(v);
+  }
+
+  onSquareGradientTypeChange(event: Event) {
+    const v = (event.target as HTMLSelectElement).value as GradientType;
+    this.tools.setSquareGradientType(v === 'radial' ? 'radial' : 'linear');
+  }
+
+  onSquareGradientAngleInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n)) this.tools.setSquareGradientAngle(Math.round(n));
   }
 
   private dragIndex: number | null = null;

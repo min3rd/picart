@@ -32,14 +32,19 @@ export type ToolMetaKey =
   | 'circleFillColor'
   | 'circleGradientStart'
   | 'circleGradientEnd'
+  | 'circleGradientType'
+  | 'circleGradientAngle'
   | 'squareStrokeThickness'
   | 'squareStrokeColor'
   | 'squareFillMode'
   | 'squareFillColor'
   | 'squareGradientStart'
-  | 'squareGradientEnd';
+  | 'squareGradientEnd'
+  | 'squareGradientType'
+  | 'squareGradientAngle';
 
 export type ShapeFillMode = 'solid' | 'gradient';
+export type GradientType = 'linear' | 'radial';
 
 export interface ToolRestoreContext {
   maxBrush?: number;
@@ -77,6 +82,8 @@ export interface CircleToolSnapshot {
   fillColor: string;
   gradientStartColor: string;
   gradientEndColor: string;
+  gradientType: GradientType;
+  gradientAngle: number;
 }
 
 export interface SquareToolSnapshot {
@@ -86,6 +93,8 @@ export interface SquareToolSnapshot {
   fillColor: string;
   gradientStartColor: string;
   gradientEndColor: string;
+  gradientType: GradientType;
+  gradientAngle: number;
 }
 
 export interface ToolSnapshot {

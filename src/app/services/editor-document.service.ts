@@ -1,7 +1,7 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { EditorToolsService } from './editor-tools.service';
-import { ShapeFillMode, ToolId, ToolMetaKey, ToolSnapshot } from './tools/tool.types';
+import { GradientType, ShapeFillMode, ToolId, ToolMetaKey, ToolSnapshot } from './tools/tool.types';
 
 export interface LayerItem {
   id: string;
@@ -48,6 +48,8 @@ interface ShapeDrawOptions {
   fillColor: string;
   gradientStartColor: string;
   gradientEndColor: string;
+  gradientType: GradientType;
+  gradientAngle: number;
 }
 
 interface ParsedColor {
@@ -93,6 +95,13 @@ export class EditorDocumentService {
   readonly undoVersion = signal(0);
   readonly redoVersion = signal(0);
   private currentAction: CurrentAction | null = null;
+  private readonly bayer4 = [
+    [0, 8, 2, 10],
+    [12, 4, 14, 6],
+    [3, 11, 1, 9],
+    [15, 7, 13, 5],
+  ];
+  private readonly gradientSteps = 8;
 
   constructor() {
     this.tools.registerHistoryAdapter((key, previous, next) =>
@@ -201,6 +210,12 @@ export class EditorDocumentService {
         if (typeof parsed.circle.gradientEndColor === 'string') {
           circle.gradientEndColor = parsed.circle.gradientEndColor;
         }
+        if (parsed.circle.gradientType === 'linear' || parsed.circle.gradientType === 'radial') {
+          circle.gradientType = parsed.circle.gradientType;
+        }
+        if (typeof parsed.circle.gradientAngle === 'number') {
+          circle.gradientAngle = parsed.circle.gradientAngle;
+        }
       }
       if (typeof parsed.circleStrokeThickness === 'number') {
         circle.strokeThickness = parsed.circleStrokeThickness;
@@ -219,6 +234,12 @@ export class EditorDocumentService {
       }
       if (typeof parsed.circleGradientEndColor === 'string') {
         circle.gradientEndColor = parsed.circleGradientEndColor;
+      }
+      if (parsed.circleGradientType === 'linear' || parsed.circleGradientType === 'radial') {
+        circle.gradientType = parsed.circleGradientType;
+      }
+      if (typeof parsed.circleGradientAngle === 'number') {
+        circle.gradientAngle = parsed.circleGradientAngle;
       }
       if (!circle.fillColor && typeof parsed.circleColor === 'string') {
         circle.fillColor = parsed.circleColor;
@@ -244,6 +265,12 @@ export class EditorDocumentService {
         if (typeof parsed.square.gradientEndColor === 'string') {
           square.gradientEndColor = parsed.square.gradientEndColor;
         }
+        if (parsed.square.gradientType === 'linear' || parsed.square.gradientType === 'radial') {
+          square.gradientType = parsed.square.gradientType;
+        }
+        if (typeof parsed.square.gradientAngle === 'number') {
+          square.gradientAngle = parsed.square.gradientAngle;
+        }
       }
       if (typeof parsed.squareStrokeThickness === 'number') {
         square.strokeThickness = parsed.squareStrokeThickness;
@@ -262,6 +289,12 @@ export class EditorDocumentService {
       }
       if (typeof parsed.squareGradientEndColor === 'string') {
         square.gradientEndColor = parsed.squareGradientEndColor;
+      }
+      if (parsed.squareGradientType === 'linear' || parsed.squareGradientType === 'radial') {
+        square.gradientType = parsed.squareGradientType;
+      }
+      if (typeof parsed.squareGradientAngle === 'number') {
+        square.gradientAngle = parsed.squareGradientAngle;
       }
       if (!square.fillColor && typeof parsed.squareColor === 'string') {
         square.fillColor = parsed.squareColor;
@@ -432,6 +465,8 @@ export class EditorDocumentService {
         if (typeof parsed.circle.fillColor === 'string') circle.fillColor = parsed.circle.fillColor;
         if (typeof parsed.circle.gradientStartColor === 'string') circle.gradientStartColor = parsed.circle.gradientStartColor;
         if (typeof parsed.circle.gradientEndColor === 'string') circle.gradientEndColor = parsed.circle.gradientEndColor;
+        if (parsed.circle.gradientType === 'linear' || parsed.circle.gradientType === 'radial') circle.gradientType = parsed.circle.gradientType;
+        if (typeof parsed.circle.gradientAngle === 'number') circle.gradientAngle = parsed.circle.gradientAngle;
       }
       if (typeof parsed.circleStrokeThickness === 'number') circle.strokeThickness = parsed.circleStrokeThickness;
       if (typeof parsed.circleStrokeColor === 'string') circle.strokeColor = parsed.circleStrokeColor;
@@ -439,6 +474,8 @@ export class EditorDocumentService {
       if (typeof parsed.circleFillColor === 'string') circle.fillColor = parsed.circleFillColor;
       if (typeof parsed.circleGradientStartColor === 'string') circle.gradientStartColor = parsed.circleGradientStartColor;
       if (typeof parsed.circleGradientEndColor === 'string') circle.gradientEndColor = parsed.circleGradientEndColor;
+      if (parsed.circleGradientType === 'linear' || parsed.circleGradientType === 'radial') circle.gradientType = parsed.circleGradientType;
+      if (typeof parsed.circleGradientAngle === 'number') circle.gradientAngle = parsed.circleGradientAngle;
       if (!circle.fillColor && typeof parsed.circleColor === 'string') circle.fillColor = parsed.circleColor;
       if (Object.keys(circle).length) toolSnapshot.circle = circle as ToolSnapshot['circle'];
       const square: Partial<ToolSnapshot['square']> = {};
@@ -449,6 +486,8 @@ export class EditorDocumentService {
         if (typeof parsed.square.fillColor === 'string') square.fillColor = parsed.square.fillColor;
         if (typeof parsed.square.gradientStartColor === 'string') square.gradientStartColor = parsed.square.gradientStartColor;
         if (typeof parsed.square.gradientEndColor === 'string') square.gradientEndColor = parsed.square.gradientEndColor;
+        if (parsed.square.gradientType === 'linear' || parsed.square.gradientType === 'radial') square.gradientType = parsed.square.gradientType;
+        if (typeof parsed.square.gradientAngle === 'number') square.gradientAngle = parsed.square.gradientAngle;
       }
       if (typeof parsed.squareStrokeThickness === 'number') square.strokeThickness = parsed.squareStrokeThickness;
       if (typeof parsed.squareStrokeColor === 'string') square.strokeColor = parsed.squareStrokeColor;
@@ -456,6 +495,8 @@ export class EditorDocumentService {
       if (typeof parsed.squareFillColor === 'string') square.fillColor = parsed.squareFillColor;
       if (typeof parsed.squareGradientStartColor === 'string') square.gradientStartColor = parsed.squareGradientStartColor;
       if (typeof parsed.squareGradientEndColor === 'string') square.gradientEndColor = parsed.squareGradientEndColor;
+      if (parsed.squareGradientType === 'linear' || parsed.squareGradientType === 'radial') square.gradientType = parsed.squareGradientType;
+      if (typeof parsed.squareGradientAngle === 'number') square.gradientAngle = parsed.squareGradientAngle;
       if (!square.fillColor && typeof parsed.squareColor === 'string') square.fillColor = parsed.squareColor;
       if (Object.keys(square).length) toolSnapshot.square = square as ToolSnapshot['square'];
       if (Object.keys(toolSnapshot).length) {
@@ -923,7 +964,40 @@ export class EditorDocumentService {
     const fallbackStart = gradientStartColor || gradientEndColor || fillColor;
     const fallbackEnd = gradientEndColor || gradientStartColor || fillColor;
     const gradientAvailable = !!(fallbackStart || fallbackEnd);
-    const perimeterSpan = Math.max(1, maxX - minX + maxY - minY);
+    const gradientType: GradientType = options.gradientType === 'radial' ? 'radial' : 'linear';
+    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const angleRad = (gradientAngle * Math.PI) / 180;
+    const dirX = Math.cos(angleRad);
+    const dirY = Math.sin(angleRad);
+    const widthRect = Math.max(1, maxX - minX + 1);
+    const heightRect = Math.max(1, maxY - minY + 1);
+    const centerX = minX + widthRect / 2;
+    const centerY = minY + heightRect / 2;
+    let minProj = 0;
+    let maxProj = 1;
+    if (gradientType === 'linear') {
+      let minVal = Number.POSITIVE_INFINITY;
+      let maxVal = Number.NEGATIVE_INFINITY;
+      const corners = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: minX, y: maxY },
+        { x: maxX, y: maxY },
+      ];
+      for (const corner of corners) {
+        const proj = (corner.x + 0.5) * dirX + (corner.y + 0.5) * dirY;
+        if (proj < minVal) minVal = proj;
+        if (proj > maxVal) maxVal = proj;
+      }
+      if (Number.isFinite(minVal) && Number.isFinite(maxVal)) {
+        if (minVal === maxVal) {
+          maxVal = minVal + 1;
+        }
+        minProj = minVal;
+        maxProj = maxVal;
+      }
+    }
+    const radius = Math.max(widthRect, heightRect) / 2;
     let changed = 0;
     for (let yy = minY; yy <= maxY; yy++) {
       for (let xx = minX; xx <= maxX; xx++) {
@@ -937,15 +1011,25 @@ export class EditorDocumentService {
         } else if (fillMode === 'solid') {
           if (fillColor) pixelColor = fillColor;
         } else if (gradientAvailable) {
-          const ratioBase = perimeterSpan > 0 ? (xx - minX + (yy - minY)) / perimeterSpan : 0;
-          const ratio = Math.min(1, Math.max(0, ratioBase));
+          let ratio = 0;
+          if (gradientType === 'radial') {
+            const dx = xx + 0.5 - centerX;
+            const dy = yy + 0.5 - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            ratio = radius > 0 ? dist / radius : 0;
+          } else {
+            const proj = (xx + 0.5) * dirX + (yy + 0.5) * dirY;
+            const span = maxProj - minProj;
+            ratio = span !== 0 ? (proj - minProj) / span : 0;
+          }
+          const ditherRatio = this.computeDitheredRatio(ratio, xx, yy);
           const startFallback = fallbackStart || fallbackEnd;
           const endFallback = fallbackEnd || fallbackStart;
           if (startFallback && endFallback) {
             pixelColor = this.mixParsedColors(
               gradientStartParsed,
               gradientEndParsed,
-              ratio,
+              ditherRatio,
               startFallback,
               endFallback,
             );
@@ -1006,6 +1090,35 @@ export class EditorDocumentService {
     const gradientAvailable = !!(fallbackStart || fallbackEnd);
     const gradientStartParsed = this.parseHexColor(gradientStartColor);
     const gradientEndParsed = this.parseHexColor(gradientEndColor);
+    const gradientType: GradientType = options.gradientType === 'linear' ? 'linear' : 'radial';
+    const gradientAngle = typeof options.gradientAngle === 'number' ? options.gradientAngle : 0;
+    const angleRad = (gradientAngle * Math.PI) / 180;
+    const dirX = Math.cos(angleRad);
+    const dirY = Math.sin(angleRad);
+    let minProj = 0;
+    let maxProj = 1;
+    if (gradientType === 'linear') {
+      let minVal = Number.POSITIVE_INFINITY;
+      let maxVal = Number.NEGATIVE_INFINITY;
+      const corners = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: minX, y: maxY },
+        { x: maxX, y: maxY },
+      ];
+      for (const corner of corners) {
+        const proj = (corner.x + 0.5) * dirX + (corner.y + 0.5) * dirY;
+        if (proj < minVal) minVal = proj;
+        if (proj > maxVal) maxVal = proj;
+      }
+      if (Number.isFinite(minVal) && Number.isFinite(maxVal)) {
+        if (minVal === maxVal) {
+          maxVal = minVal + 1;
+        }
+        minProj = minVal;
+        maxProj = maxVal;
+      }
+    }
     let changed = 0;
     for (let yy = minY; yy <= maxY; yy++) {
       for (let xx = minX; xx <= maxX; xx++) {
@@ -1024,14 +1137,22 @@ export class EditorDocumentService {
         } else if (fillMode === 'solid') {
           if (fillColor) pixelColor = fillColor;
         } else if (gradientAvailable && radius > 0) {
-          const ratio = Math.min(1, Math.max(0, distance / radius));
+          let ratio = 0;
+          if (gradientType === 'radial') {
+            ratio = distance / radius;
+          } else {
+            const proj = (xx + 0.5) * dirX + (yy + 0.5) * dirY;
+            const span = maxProj - minProj;
+            ratio = span !== 0 ? (proj - minProj) / span : 0;
+          }
+          const ditherRatio = this.computeDitheredRatio(ratio, xx, yy);
           const startFallback = fallbackStart || fallbackEnd;
           const endFallback = fallbackEnd || fallbackStart;
           if (startFallback && endFallback) {
             pixelColor = this.mixParsedColors(
               gradientStartParsed,
               gradientEndParsed,
-              ratio,
+              ditherRatio,
               startFallback,
               endFallback,
             );
@@ -1179,6 +1300,23 @@ export class EditorDocumentService {
       y >= rect.y &&
       y < rect.y + rect.height
     );
+  }
+
+  private computeDitheredRatio(ratio: number, x: number, y: number) {
+    const clamped = Math.min(1, Math.max(0, ratio));
+    const steps = this.gradientSteps;
+    if (steps <= 0) return clamped;
+    const scaled = clamped * steps;
+    const base = Math.floor(scaled);
+    const fraction = scaled - base;
+  const matrix = this.bayer4;
+  const matrixSize = matrix.length;
+  const xi = x % matrixSize;
+  const yi = y % matrixSize;
+  const threshold = (matrix[yi][xi] + 0.5) / (matrixSize * matrixSize);
+    const offset = fraction > threshold ? 1 : 0;
+    const index = Math.min(steps, Math.max(0, base + offset));
+    return index / steps;
   }
 
   private parseHexColor(value: string): ParsedColor | null {
