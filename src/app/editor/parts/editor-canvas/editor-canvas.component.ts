@@ -8,7 +8,10 @@ import {
   EffectRef,
   EnvironmentInjector,
 } from '@angular/core';
-import { EditorDocumentService } from '../../../services/editor-document.service';
+import {
+  EditorDocumentService,
+  isLayer,
+} from '../../../services/editor-document.service';
 import { EditorToolsService } from '../../../services/editor-tools.service';
 import {
   GradientType,
@@ -195,8 +198,8 @@ export class EditorCanvas {
     }
     this.updateTileSize(this.tools.brushSize());
 
-    // ensure pixel buffers exist for all layers
-    for (const l of this.document.layers()) {
+    const flatLayers = this.document.getFlattenedLayers();
+    for (const l of flatLayers) {
       this.document.ensureLayerBuffer(
         l.id,
         this.document.canvasWidth(),
@@ -777,8 +780,8 @@ export class EditorCanvas {
     const width = parseInt(target.value, 10);
     if (width > 0) {
       this.document.setCanvasSize(width, this.document.canvasHeight());
-      // ensure buffers for all layers
-      for (const l of this.document.layers()) {
+      const flatLayers = this.document.getFlattenedLayers();
+      for (const l of flatLayers) {
         this.document.ensureLayerBuffer(
           l.id,
           width,
@@ -793,8 +796,8 @@ export class EditorCanvas {
     const height = parseInt(target.value, 10);
     if (height > 0) {
       this.document.setCanvasSize(this.document.canvasWidth(), height);
-      // ensure buffers for all layers
-      for (const l of this.document.layers()) {
+      const flatLayers = this.document.getFlattenedLayers();
+      for (const l of flatLayers) {
         this.document.ensureLayerBuffer(
           l.id,
           this.document.canvasWidth(),
@@ -1028,10 +1031,7 @@ export class EditorCanvas {
     // depend on layer pixel version so effect reruns when any layer buffer changes
     this.document.layerPixelsVersion();
 
-    // draw layers in reverse order so the first layer in the UI (layers()[0])
-    // is treated as the topmost and drawn last. Iterate from last -> first to
-    // draw bottom layers first and top layers last (so top overlays lower ones).
-    const layers = this.document.layers();
+    const layers = this.document.getFlattenedLayers();
     for (let li = layers.length - 1; li >= 0; li--) {
       const layer = layers[li];
       if (!layer.visible) continue;

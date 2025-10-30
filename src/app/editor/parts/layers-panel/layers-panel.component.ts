@@ -1,14 +1,20 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { EditorDocumentService } from '../../../services/editor-document.service';
+import {
+  EditorDocumentService,
+  isGroup,
+  isLayer,
+  LayerTreeItem,
+} from '../../../services/editor-document.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'pa-layers-panel',
   templateUrl: './layers-panel.component.html',
   styleUrls: ['./layers-panel.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoPipe, NgIcon],
+  imports: [TranslocoPipe, NgIcon, FormsModule],
   host: {
     class: 'block h-full',
   },
@@ -20,6 +26,11 @@ export class LayersPanel {
   readonly contextMenuVisible = signal(false);
   readonly contextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly contextMenuLayerId = signal<string | null>(null);
+  readonly editingLayerId = signal<string | null>(null);
+  readonly editingLayerName = signal('');
+
+  readonly isGroup = isGroup;
+  readonly isLayer = isLayer;
 
   select(id: string, event?: MouseEvent) {
     if (event?.ctrlKey || event?.metaKey) {
@@ -137,5 +148,48 @@ export class LayersPanel {
 
   get selectedCount(): number {
     return this.document.selectedLayerIds().size;
+  }
+
+  onToggleExpand(id: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.document.toggleGroupExpanded(id);
+  }
+
+  onDoubleClick(item: LayerTreeItem) {
+    this.editingLayerId.set(item.id);
+    this.editingLayerName.set(item.name);
+  }
+
+  onRenameBlur() {
+    const id = this.editingLayerId();
+    const newName = this.editingLayerName().trim();
+    if (id && newName) {
+      this.document.renameLayer(id, newName);
+    }
+    this.editingLayerId.set(null);
+  }
+
+  onRenameKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.onRenameBlur();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.editingLayerId.set(null);
+    }
+  }
+
+  getFlattenedLayers(): { item: LayerTreeItem; depth: number }[] {
+    const result: { item: LayerTreeItem; depth: number }[] = [];
+    const traverse = (items: LayerTreeItem[], depth: number) => {
+      for (const item of items) {
+        result.push({ item, depth });
+        if (isGroup(item) && item.expanded) {
+          traverse(item.children, depth + 1);
+        }
+      }
+    };
+    traverse(this.document.layers(), 0);
+    return result;
   }
 }

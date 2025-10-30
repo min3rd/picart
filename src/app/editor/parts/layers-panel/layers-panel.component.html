@@ -3,74 +3,127 @@
     {{ "editor.layers.title" | transloco }}
   </div>
   <div id="layers-list-container" class="flex flex-col gap-1">
-    @for (layer of document.layers(); let layerIndex = $index; track layer.id) {
+    @for (
+      entry of getFlattenedLayers();
+      let layerIndex = $index;
+      track entry.item.id
+    ) {
       <div
-        id="layers-list-item-{{ layer.id }}"
-        class="px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center"
+        id="layers-list-item-{{ entry.item.id }}"
+        class="py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center"
         draggable="true"
         (dragstart)="onDragStart($event, layerIndex)"
         (dragover)="onDragOver($event, layerIndex)"
         (drop)="onDrop($event, layerIndex)"
-        (contextmenu)="onContextMenu($event, layer.id)"
+        (contextmenu)="onContextMenu($event, entry.item.id)"
         [class]="
-          isSelected(layer.id)
-            ? 'px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center bg-neutral-200 dark:bg-neutral-700'
-            : 'px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'
+          isSelected(entry.item.id)
+            ? 'py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center bg-neutral-200 dark:bg-neutral-700'
+            : 'py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'
         "
+        [style.padding-left.px]="8 + entry.depth * 16"
       >
+        @if (isGroup(entry.item)) {
+          <button
+            type="button"
+            id="layers-list-item-expand-{{ entry.item.id }}"
+            class="w-4 h-4 flex items-center justify-center mr-1"
+            (click)="onToggleExpand(entry.item.id, $event)"
+          >
+            <ng-icon
+              id="layers-list-item-expand-icon-{{ entry.item.id }}"
+              [name]="
+                entry.item.expanded
+                  ? 'heroIconsChevronDownMini'
+                  : 'heroIconsChevronRightMini'
+              "
+              class="w-4 h-4"
+            ></ng-icon>
+          </button>
+        } @else {
+          <div class="w-4 h-4 mr-1"></div>
+        }
         <div
-          id="layers-list-item-handle-{{ layer.id }}"
+          id="layers-list-item-handle-{{ entry.item.id }}"
           class="w-4 h-6 flex items-center justify-center cursor-grab mr-2"
         >
           <ng-icon
-            id="layers-list-item-handle-icon-{{ layer.id }}"
+            id="layers-list-item-handle-icon-{{ entry.item.id }}"
             name="featherAlignJustify"
             class="w-4 h-4"
           ></ng-icon>
         </div>
         <button
           type="button"
-          id="layers-list-item-visibility-{{ layer.id }}"
+          id="layers-list-item-visibility-{{ entry.item.id }}"
           class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center"
-          (click)="document.toggleLayerVisibility(layer.id)"
+          (click)="document.toggleLayerVisibility(entry.item.id)"
           [title]="
-            layer.visible
+            entry.item.visible
               ? ('editor.layers.hide' | transloco)
               : ('editor.layers.show' | transloco)
           "
         >
           <ng-icon
-            id="layers-list-item-visibility-icon-{{ layer.id }}"
-            [name]="layer.visible ? 'featherEye' : 'featherEyeOff'"
+            id="layers-list-item-visibility-icon-{{ entry.item.id }}"
+            [name]="entry.item.visible ? 'featherEye' : 'featherEyeOff'"
             class="w-4 h-4"
           ></ng-icon>
         </button>
-        <button
-          type="button"
-          id="layers-list-item-select-{{ layer.id }}"
-          class="flex-1 text-left ml-2"
-          (click)="select(layer.id, $event)"
-        >
-          <span
-            id="layers-list-item-name-{{ layer.id }}"
-            class="truncate opacity-90"
-            >{{ layer.name }}</span
+        @if (editingLayerId() === entry.item.id) {
+          <input
+            type="text"
+            id="layers-list-item-rename-{{ entry.item.id }}"
+            class="flex-1 ml-2 px-1 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-sm"
+            [(ngModel)]="editingLayerName"
+            (blur)="onRenameBlur()"
+            (keydown)="onRenameKeydown($event)"
+            autofocus
+          />
+        } @else {
+          <button
+            type="button"
+            id="layers-list-item-select-{{ entry.item.id }}"
+            class="flex-1 text-left ml-2"
+            (click)="select(entry.item.id, $event)"
+            (dblclick)="onDoubleClick(entry.item)"
           >
-        </button>
-        <button
-          type="button"
-          id="layers-list-item-delete-{{ layer.id }}"
-          class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
-          (click)="document.removeLayer(layer.id)"
-          [disabled]="document.layers().length <= 1"
-          [title]="'editor.layers.delete' | transloco"
-        >
-          <ng-icon
-            id="layers-list-item-delete-icon-{{ layer.id }}"
-            name="featherTrash"
-            class="w-4 h-4"
-          ></ng-icon>
-        </button>
+            <span
+              id="layers-list-item-name-{{ entry.item.id }}"
+              class="truncate opacity-90"
+              >{{ entry.item.name }}</span
+            >
+          </button>
+        }
+        @if (isGroup(entry.item)) {
+          <button
+            type="button"
+            id="layers-list-item-ungroup-{{ entry.item.id }}"
+            class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center ml-2"
+            (click)="document.ungroupLayers(entry.item.id)"
+            [title]="'editor.layers.ungroup' | transloco"
+          >
+            <ng-icon
+              id="layers-list-item-ungroup-icon-{{ entry.item.id }}"
+              name="heroIconsFolderOpenMini"
+              class="w-4 h-4"
+            ></ng-icon>
+          </button>
+        } @else {
+          <button
+            type="button"
+            id="layers-list-item-delete-{{ entry.item.id }}"
+            class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
+            (click)="document.removeLayer(entry.item.id)"
+            [title]="'editor.layers.delete' | transloco"
+          >
+            <ng-icon
+              id="layers-list-item-delete-icon-{{ entry.item.id }}"
+              name="featherTrash"
+              class="w-4 h-4"
+            ></ng-icon>
+          </button>
+        }
       </div>
     }
   </div>
@@ -176,7 +229,6 @@
           id="layers-context-menu-delete"
           class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
           (click)="onDelete()"
-          [disabled]="document.layers().length <= 1"
         >
           <ng-icon
             id="layers-context-menu-delete-icon"
