@@ -74,6 +74,7 @@ export class EditorDocumentService {
     { id: 'l1', name: 'Layer 1', visible: true, locked: false },
   ]);
   readonly selectedLayerId = signal<string>('l1');
+  readonly selectedLayerIds = signal<Set<string>>(new Set(['l1']));
 
   readonly frames = signal<FrameItem[]>([
     { id: 'f1', name: 'Frame 1', duration: 100 },
@@ -735,6 +736,40 @@ export class EditorDocumentService {
 
   selectLayer(id: string) {
     this.selectedLayerId.set(id);
+    this.selectedLayerIds.set(new Set([id]));
+  }
+
+  toggleLayerSelection(id: string, multi = false) {
+    if (!multi) {
+      this.selectLayer(id);
+      return;
+    }
+    const current = new Set(this.selectedLayerIds());
+    if (current.has(id)) {
+      current.delete(id);
+      if (current.size === 0) {
+        current.add(id);
+      }
+    } else {
+      current.add(id);
+    }
+    this.selectedLayerIds.set(current);
+    this.selectedLayerId.set(Array.from(current)[0] || id);
+  }
+
+  selectLayerRange(fromId: string, toId: string) {
+    const layers = this.layers();
+    const fromIndex = layers.findIndex((l) => l.id === fromId);
+    const toIndex = layers.findIndex((l) => l.id === toId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const start = Math.min(fromIndex, toIndex);
+    const end = Math.max(fromIndex, toIndex);
+    const selected = new Set<string>();
+    for (let i = start; i <= end; i++) {
+      selected.add(layers[i].id);
+    }
+    this.selectedLayerIds.set(selected);
+    this.selectedLayerId.set(layers[start].id);
   }
 
   setCurrentFrame(index: number) {
@@ -1640,6 +1675,61 @@ export class EditorDocumentService {
     });
   }
 
+  moveSelection(dx: number, dy: number) {
+    const rect = this.selectionRect();
+    if (!rect) return;
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const newX = Math.max(0, Math.min(w - rect.width, rect.x + dx));
+    const newY = Math.max(0, Math.min(h - rect.height, rect.y + dy));
+    const prevSelection = {
+      rect,
+      shape: this.selectionShape(),
+      polygon: this.selectionPolygon(),
+      mask: this.selectionMask(),
+    };
+    const shape = this.selectionShape();
+    if (shape === 'lasso') {
+      const poly = this.selectionPolygon();
+      if (poly && poly.length > 0) {
+        const movedPoly = poly.map((p) => ({
+          x: Math.max(0, Math.min(w - 1, p.x + dx)),
+          y: Math.max(0, Math.min(h - 1, p.y + dy)),
+        }));
+        this.selectionPolygon.set(movedPoly);
+      }
+    }
+    const mask = this.selectionMask();
+    if (mask) {
+      const movedMask = new Set<string>();
+      for (const key of mask) {
+        const [xStr, yStr] = key.split(',');
+        const x = parseInt(xStr, 10);
+        const y = parseInt(yStr, 10);
+        const newMaskX = Math.max(0, Math.min(w - 1, x + dx));
+        const newMaskY = Math.max(0, Math.min(h - 1, y + dy));
+        movedMask.add(`${newMaskX},${newMaskY}`);
+      }
+      this.selectionMask.set(movedMask);
+    }
+    this.selectionRect.set({
+      x: newX,
+      y: newY,
+      width: rect.width,
+      height: rect.height,
+    });
+    this.commitMetaChange({
+      key: 'selectionSnapshot',
+      previous: prevSelection,
+      next: {
+        rect: this.selectionRect(),
+        shape: this.selectionShape(),
+        polygon: this.selectionPolygon(),
+        mask: this.selectionMask(),
+      },
+    });
+  }
+
   private clearSelectionState() {
     this.selectionRect.set(null);
     this.selectionShape.set('rect');
@@ -2153,6 +2243,166 @@ export class EditorDocumentService {
     const next = this.snapshotLayersAndBuffers();
     this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
     return true;
+  }
+
+  duplicateLayer(layerId?: string): LayerItem | null {
+    const id = layerId || this.selectedLayerId();
+    const layer = this.layers().find((l) => l.id === id);
+    if (!layer) return null;
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newLayer: LayerItem = {
+      id: newLayerId,
+      name: `${layer.name} copy`,
+      visible: layer.visible,
+      locked: layer.locked,
+    };
+    const sourceBuf = this.layerPixels.get(id);
+    if (sourceBuf) {
+      this.layerPixels.set(newLayerId, sourceBuf.slice());
+    } else {
+      this.ensureLayerBuffer(
+        newLayerId,
+        this.canvasWidth(),
+        this.canvasHeight(),
+      );
+    }
+    const currentLayers = this.layers();
+    const sourceIndex = currentLayers.findIndex((l) => l.id === id);
+    if (sourceIndex >= 0) {
+      this.layers.update((arr) => [
+        ...arr.slice(0, sourceIndex),
+        newLayer,
+        ...arr.slice(sourceIndex),
+      ]);
+    } else {
+      this.layers.update((arr) => [newLayer, ...arr]);
+    }
+    this.selectedLayerId.set(newLayerId);
+    this.selectedLayerIds.set(new Set([newLayerId]));
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    this.setCanvasSaved(false);
+    return newLayer;
+  }
+
+  selectPixelForLayer(layerId?: string) {
+    const id = layerId || this.selectedLayerId();
+    const buf = this.layerPixels.get(id);
+    if (!buf) return;
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    let minX = w;
+    let minY = h;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        const pixel = buf[idx];
+        if (pixel && pixel.length > 0) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (minX > maxX || minY > maxY) {
+      return;
+    }
+    const prevSelection = {
+      rect: this.selectionRect(),
+      shape: this.selectionShape(),
+      polygon: this.selectionPolygon(),
+      mask: this.selectionMask(),
+    };
+    this.selectionRect.set({
+      x: minX,
+      y: minY,
+      width: maxX - minX + 1,
+      height: maxY - minY + 1,
+    });
+    this.selectionShape.set('rect');
+    this.selectionPolygon.set(null);
+    this.selectionMask.set(null);
+    this.commitMetaChange({
+      key: 'selectionSnapshot',
+      previous: prevSelection,
+      next: {
+        rect: this.selectionRect(),
+        shape: this.selectionShape(),
+        polygon: this.selectionPolygon(),
+        mask: this.selectionMask(),
+      },
+    });
+  }
+
+  mergeLayers(layerIds: string[]): LayerItem | null {
+    if (layerIds.length < 2) return null;
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const mergedBuf = new Array<string>(w * h).fill('');
+    const layers = this.layers();
+    const layerSet = new Set(layerIds);
+    const selectedLayers = layers.filter((l) => layerSet.has(l.id));
+    for (let li = selectedLayers.length - 1; li >= 0; li--) {
+      const layer = selectedLayers[li];
+      const buf = this.layerPixels.get(layer.id);
+      if (!buf || buf.length !== w * h) continue;
+      for (let idx = 0; idx < w * h; idx++) {
+        const pixel = buf[idx];
+        if (pixel && pixel.length > 0) {
+          mergedBuf[idx] = pixel;
+        }
+      }
+    }
+    const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newLayer: LayerItem = {
+      id: newLayerId,
+      name: 'Merged layer',
+      visible: true,
+      locked: false,
+    };
+    const firstSelectedIndex = layers.findIndex((l) => layerSet.has(l.id));
+    const remainingLayers = layers.filter((l) => !layerSet.has(l.id));
+    if (firstSelectedIndex >= 0) {
+      const beforeLayers = remainingLayers.slice(0, firstSelectedIndex);
+      const afterLayers = remainingLayers.slice(firstSelectedIndex);
+      this.layers.set([...beforeLayers, newLayer, ...afterLayers]);
+    } else {
+      this.layers.set([newLayer, ...remainingLayers]);
+    }
+    for (const lid of layerIds) {
+      this.layerPixels.delete(lid);
+    }
+    this.layerPixels.set(newLayerId, mergedBuf);
+    this.selectedLayerId.set(newLayerId);
+    this.selectedLayerIds.set(new Set([newLayerId]));
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    this.setCanvasSaved(false);
+    return newLayer;
+  }
+
+  groupLayers(layerIds: string[]): boolean {
+    if (layerIds.length < 2) return false;
+    return false;
+  }
+
+  ungroupLayers(groupId: string): boolean {
+    return false;
   }
 
   async insertImageAsLayer(

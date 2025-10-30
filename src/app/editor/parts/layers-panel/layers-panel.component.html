@@ -1,4 +1,4 @@
-<div id="layers-panel-root" class="p-2 text-sm">
+<div id="layers-panel-root" class="p-2 text-sm relative">
   <div id="layers-list-heading" class="font-semibold mb-2">
     {{ "editor.layers.title" | transloco }}
   </div>
@@ -11,8 +11,9 @@
         (dragstart)="onDragStart($event, layerIndex)"
         (dragover)="onDragOver($event, layerIndex)"
         (drop)="onDrop($event, layerIndex)"
+        (contextmenu)="onContextMenu($event, layer.id)"
         [class]="
-          document.selectedLayerId() === layer.id
+          isSelected(layer.id)
             ? 'px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center bg-neutral-200 dark:bg-neutral-700'
             : 'px-2 py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60'
         "
@@ -48,7 +49,7 @@
           type="button"
           id="layers-list-item-select-{{ layer.id }}"
           class="flex-1 text-left ml-2"
-          (click)="select(layer.id)"
+          (click)="select(layer.id, $event)"
         >
           <span
             id="layers-list-item-name-{{ layer.id }}"
@@ -88,4 +89,110 @@
       }}</span>
     </button>
   </div>
+
+  @if (contextMenuVisible()) {
+    <div
+      id="layers-context-menu"
+      class="absolute z-50 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-sm shadow-lg min-w-[12rem]"
+      [style.left.px]="contextMenuPosition().x"
+      [style.top.px]="contextMenuPosition().y"
+      (click)="closeContextMenu()"
+    >
+      <div id="layers-context-menu-list" class="py-1">
+        <button
+          type="button"
+          id="layers-context-menu-select-pixel"
+          class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+          (click)="onSelectPixel()"
+        >
+          <ng-icon
+            id="layers-context-menu-select-pixel-icon"
+            name="heroIconsSquare2StackMini"
+            class="w-4 h-4"
+          ></ng-icon>
+          <span id="layers-context-menu-select-pixel-label">{{
+            "editor.layers.selectPixel" | transloco
+          }}</span>
+        </button>
+        <button
+          type="button"
+          id="layers-context-menu-duplicate"
+          class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+          (click)="onDuplicate()"
+        >
+          <ng-icon
+            id="layers-context-menu-duplicate-icon"
+            name="heroIconsDocumentDuplicateMini"
+            class="w-4 h-4"
+          ></ng-icon>
+          <span id="layers-context-menu-duplicate-label">{{
+            "editor.layers.duplicate" | transloco
+          }}</span>
+          <span
+            id="layers-context-menu-duplicate-shortcut"
+            class="ml-auto text-xs opacity-60"
+            >Ctrl+D</span
+          >
+        </button>
+        @if (selectedCount >= 2) {
+          <button
+            type="button"
+            id="layers-context-menu-merge"
+            class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+            (click)="onMerge()"
+          >
+            <ng-icon
+              id="layers-context-menu-merge-icon"
+              name="heroIconsRectangleStackMini"
+              class="w-4 h-4"
+            ></ng-icon>
+            <span id="layers-context-menu-merge-label">{{
+              "editor.layers.merge" | transloco
+            }}</span>
+          </button>
+          <button
+            type="button"
+            id="layers-context-menu-group"
+            class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+            (click)="onGroup()"
+          >
+            <ng-icon
+              id="layers-context-menu-group-icon"
+              name="heroIconsFolderMini"
+              class="w-4 h-4"
+            ></ng-icon>
+            <span id="layers-context-menu-group-label">{{
+              "editor.layers.group" | transloco
+            }}</span>
+            <span
+              id="layers-context-menu-group-shortcut"
+              class="ml-auto text-xs opacity-60"
+              >Ctrl+G</span
+            >
+          </button>
+        }
+        <button
+          type="button"
+          id="layers-context-menu-delete"
+          class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+          (click)="onDelete()"
+          [disabled]="document.layers().length <= 1"
+        >
+          <ng-icon
+            id="layers-context-menu-delete-icon"
+            name="heroIconsTrashMini"
+            class="w-4 h-4"
+          ></ng-icon>
+          <span id="layers-context-menu-delete-label">{{
+            "editor.layers.delete" | transloco
+          }}</span>
+          <span
+            id="layers-context-menu-delete-shortcut"
+            class="ml-auto text-xs opacity-60"
+            >Del</span
+          >
+        </button>
+      </div>
+    </div>
+  }
 </div>

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { EditorDocumentService } from '../../../services/editor-document.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
@@ -16,9 +16,32 @@ import { NgIcon } from '@ng-icons/core';
 export class LayersPanel {
   readonly document = inject(EditorDocumentService);
   private dragIndex: number | null = null;
+  private lastSelectedIndex: number | null = null;
+  readonly contextMenuVisible = signal(false);
+  readonly contextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  readonly contextMenuLayerId = signal<string | null>(null);
 
-  select(id: string) {
-    this.document.selectLayer(id);
+  select(id: string, event?: MouseEvent) {
+    if (event?.ctrlKey || event?.metaKey) {
+      this.document.toggleLayerSelection(id, true);
+      const layers = this.document.layers();
+      this.lastSelectedIndex = layers.findIndex((l) => l.id === id);
+    } else if (event?.shiftKey && this.lastSelectedIndex !== null) {
+      const layers = this.document.layers();
+      const currentIndex = layers.findIndex((l) => l.id === id);
+      if (currentIndex !== -1) {
+        const fromId = layers[this.lastSelectedIndex].id;
+        this.document.selectLayerRange(fromId, id);
+      }
+    } else {
+      this.document.selectLayer(id);
+      const layers = this.document.layers();
+      this.lastSelectedIndex = layers.findIndex((l) => l.id === id);
+    }
+  }
+
+  isSelected(id: string): boolean {
+    return this.document.selectedLayerIds().has(id);
   }
 
   onAddLayer() {
@@ -45,5 +68,74 @@ export class LayersPanel {
       this.document.reorderLayers(from, index);
     }
     this.dragIndex = null;
+  }
+
+  onContextMenu(event: MouseEvent, layerId: string) {
+    event.preventDefault();
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    this.contextMenuPosition.set({
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    });
+    this.contextMenuLayerId.set(layerId);
+    this.contextMenuVisible.set(true);
+  }
+
+  closeContextMenu() {
+    this.contextMenuVisible.set(false);
+    this.contextMenuLayerId.set(null);
+  }
+
+  onSelectPixel() {
+    const layerId = this.contextMenuLayerId();
+    if (layerId) {
+      this.document.selectPixelForLayer(layerId);
+    }
+    this.closeContextMenu();
+  }
+
+  onDuplicate() {
+    const layerId = this.contextMenuLayerId();
+    if (layerId) {
+      this.document.duplicateLayer(layerId);
+    }
+    this.closeContextMenu();
+  }
+
+  onDelete() {
+    const layerId = this.contextMenuLayerId();
+    if (layerId) {
+      this.document.removeLayer(layerId);
+    }
+    this.closeContextMenu();
+  }
+
+  onMerge() {
+    const selectedIds = Array.from(this.document.selectedLayerIds());
+    if (selectedIds.length >= 2) {
+      this.document.mergeLayers(selectedIds);
+    }
+    this.closeContextMenu();
+  }
+
+  onGroup() {
+    const selectedIds = Array.from(this.document.selectedLayerIds());
+    if (selectedIds.length >= 2) {
+      this.document.groupLayers(selectedIds);
+    }
+    this.closeContextMenu();
+  }
+
+  onUngroup() {
+    const layerId = this.contextMenuLayerId();
+    if (layerId) {
+      this.document.ungroupLayers(layerId);
+    }
+    this.closeContextMenu();
+  }
+
+  get selectedCount(): number {
+    return this.document.selectedLayerIds().size;
   }
 }

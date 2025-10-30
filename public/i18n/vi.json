@@ -110,7 +110,12 @@
       "hide": "Ẩn",
       "show": "Hiện",
       "delete": "Xóa layer",
-      "add": "Thêm layer"
+      "add": "Thêm layer",
+      "selectPixel": "Chọn pixel",
+      "duplicate": "Nhân bản",
+      "merge": "Gộp layer",
+      "group": "Nhóm",
+      "ungroup": "Tách nhóm"
     },
     "canvas": {
       "menu": {
