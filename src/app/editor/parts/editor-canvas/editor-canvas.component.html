@@ -223,21 +223,123 @@
     >
       @for (item of contextMenuActions(); track item.id) {
         <button
+          #menuButton
           id="editor-canvas-context-action-{{ item.id }}"
           type="button"
-          class="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200/70 dark:hover:bg-neutral-800/70"
-          (click)="onContextMenuAction(item.id)"
+          [class]="
+            'flex w-full items-center gap-2 rounded-sm px-3 py-2 text-xs text-neutral-700 dark:text-neutral-200 ' +
+            (item.disabled
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-neutral-200/70 dark:hover:bg-neutral-800/70')
+          "
+          [disabled]="item.disabled"
+          (click)="
+            item.submenu && item.submenu.length > 0
+              ? onSubmenuTrigger(item, $event, menuButton)
+              : onContextMenuAction(item.id, $event)
+          "
+          (mouseenter)="
+            item.submenu && item.submenu.length > 0
+              ? onSubmenuTrigger(item, $event, menuButton)
+              : null
+          "
         >
           <ng-icon
             id="editor-canvas-context-action-icon-{{ item.id }}"
             [name]="item.icon"
             class="h-4 w-4 text-neutral-600 dark:text-neutral-300"
           ></ng-icon>
-          <span id="editor-canvas-context-action-label-{{ item.id }}">
+          <span
+            id="editor-canvas-context-action-label-{{ item.id }}"
+            class="flex-1 text-left"
+          >
             {{ item.labelKey | transloco }}
           </span>
+          @if (item.submenu && item.submenu.length > 0) {
+            <ng-icon
+              name="heroIconsChevronRightMini"
+              class="h-4 w-4 text-neutral-500 dark:text-neutral-400"
+            ></ng-icon>
+          }
         </button>
       }
+    </div>
+    @if (submenuVisible()) {
+      <div
+        id="editor-canvas-context-submenu"
+        class="absolute z-50 min-w-32 rounded-sm border border-neutral-200/70 dark:border-neutral-700/60 bg-neutral-50/90 dark:bg-neutral-900/80 backdrop-blur px-1 py-1 shadow-lg"
+        [style.left.px]="submenuPosition().x"
+        [style.top.px]="submenuPosition().y"
+      >
+        @for (subitem of submenuActions(); track subitem.id) {
+          <button
+            id="editor-canvas-context-subaction-{{ subitem.id }}"
+            type="button"
+            class="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200/70 dark:hover:bg-neutral-800/70"
+            (click)="onContextMenuAction(subitem.id, $event)"
+          >
+            <ng-icon
+              id="editor-canvas-context-subaction-icon-{{ subitem.id }}"
+              [name]="subitem.icon"
+              class="h-3 w-3 text-neutral-600 dark:text-neutral-300"
+            ></ng-icon>
+            <span id="editor-canvas-context-subaction-label-{{ subitem.id }}">
+              {{ subitem.labelKey | transloco }}
+            </span>
+          </button>
+        }
+      </div>
+    }
+  }
+
+  @if (inputDialogVisible()) {
+    <div
+      id="editor-canvas-input-dialog-overlay"
+      class="absolute inset-0 z-50"
+      (pointerdown)="onInputDialogCancel()"
+    ></div>
+    <div
+      id="editor-canvas-input-dialog"
+      class="absolute z-50 min-w-64 rounded-sm border border-neutral-200/70 dark:border-neutral-700/60 bg-neutral-50/95 dark:bg-neutral-900/90 backdrop-blur px-4 py-3 shadow-lg"
+      [style.left.px]="inputDialogPosition().x"
+      [style.top.px]="inputDialogPosition().y"
+    >
+      <div
+        id="editor-canvas-input-dialog-title"
+        class="text-xs font-medium text-neutral-700 dark:text-neutral-200 mb-2"
+      >
+        {{ inputDialogTitle() }}
+      </div>
+      <div id="editor-canvas-input-dialog-content" class="flex gap-2">
+        <input
+          #inputField
+          id="editor-canvas-input-dialog-field"
+          type="number"
+          [value]="inputDialogValue()"
+          (input)="inputDialogValue.set($any($event.target).value)"
+          (keydown.enter)="onInputDialogSubmit()"
+          (keydown.escape)="onInputDialogCancel()"
+          class="flex-1 text-sm rounded-sm border border-neutral-300 dark:border-neutral-600 px-2 py-1 bg-white dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100"
+          min="1"
+          max="100"
+        />
+        <button
+          id="editor-canvas-input-dialog-ok"
+          type="button"
+          class="px-3 py-1 text-xs rounded-sm bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 hover:bg-neutral-300 dark:hover:bg-neutral-600"
+          (click)="onInputDialogSubmit()"
+        >
+          OK
+        </button>
+        <button
+          id="editor-canvas-input-dialog-cancel"
+          type="button"
+          class="px-3 py-1 text-xs rounded-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+          (click)="onInputDialogCancel()"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   }
 </div>

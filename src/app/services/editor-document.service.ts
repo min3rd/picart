@@ -94,6 +94,7 @@ export class EditorDocumentService {
   } | null>(null);
   readonly selectionShape = signal<'rect' | 'ellipse' | 'lasso'>('rect');
   readonly selectionPolygon = signal<{ x: number; y: number }[] | null>(null);
+  readonly selectionMask = signal<Set<string> | null>(null);
 
   readonly layerPixelsVersion = signal(0);
   private layerPixels = new Map<string, string[]>();
@@ -899,29 +900,8 @@ export class EditorDocumentService {
           ? this.computeEraserValue(oldVal, eraserStrength)
           : brushColor;
         // If a selection exists, skip pixels outside the selection
-        if (sel) {
-          if (selShape === 'ellipse') {
-            const cx = sel.x + sel.width / 2 - 0.5;
-            const cy = sel.y + sel.height / 2 - 0.5;
-            const rx = Math.max(0.5, sel.width / 2);
-            const ry = Math.max(0.5, sel.height / 2);
-            const dx = (xx - cx) / rx;
-            const dy = (yy - cy) / ry;
-            if (dx * dx + dy * dy > 1) continue;
-          } else if (selShape === 'lasso' && selPoly && selPoly.length > 2) {
-            // point-in-polygon test using pixel center
-            const px = xx + 0.5;
-            const py = yy + 0.5;
-            if (!this._pointInPolygon(px, py, selPoly)) continue;
-          } else {
-            if (
-              xx < sel.x ||
-              xx >= sel.x + sel.width ||
-              yy < sel.y ||
-              yy >= sel.y + sel.height
-            )
-              continue;
-          }
+        if (sel && !this.isPixelWithinSelection(xx, yy, sel, selShape, selPoly)) {
+          continue;
         }
 
         if (oldVal !== newVal) {
@@ -993,63 +973,18 @@ export class EditorDocumentService {
       const y0 = Math.floor(idx / w);
       const x0 = idx - y0 * w;
       // neighbors: left, right, up, down
-      if (sel) {
-        if (shape === 'ellipse') {
-          // push neighbor only if inside ellipse bounds
-          const cx = sel.x + sel.width / 2 - 0.5;
-          const cy = sel.y + sel.height / 2 - 0.5;
-          const rx = Math.max(0.5, sel.width / 2);
-          const ry = Math.max(0.5, sel.height / 2);
-          const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
-            const dx = (nx - cx) / rx;
-            const dy = (ny - cy) / ry;
-            if (dx * dx + dy * dy <= 1 && buf[idxToPush] === target)
-              stack.push(idxToPush);
-          };
-          if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
-          if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
-          if (y0 > sel.y) pushIfInside(x0, y0 - 1, idx - w);
-          if (y0 < sel.y + sel.height - 1) pushIfInside(x0, y0 + 1, idx + w);
-        } else if (shape === 'lasso' && selPoly && selPoly.length > 2) {
-          // push neighbor only if inside polygon bounds
-          const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
-            const px = nx + 0.5;
-            const py = ny + 0.5;
-            if (
-              this._pointInPolygon(px, py, selPoly) &&
-              buf[idxToPush] === target
-            )
-              stack.push(idxToPush);
-          };
-          if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
-          if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
-          if (y0 > sel.y) pushIfInside(x0, y0 - 1, idx - w);
-          if (y0 < sel.y + sel.height - 1) pushIfInside(x0, y0 + 1, idx + w);
-        } else {
-          // rect selection
-          if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x)
-            stack.push(idx - 1);
-          if (
-            x0 < sel.x + sel.width - 1 &&
-            buf[idx + 1] === target &&
-            x0 + 1 < sel.x + sel.width
-          )
-            stack.push(idx + 1);
-          if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y)
-            stack.push(idx - w);
-          if (
-            y0 < sel.y + sel.height - 1 &&
-            buf[idx + w] === target &&
-            y0 + 1 < sel.y + sel.height
-          )
-            stack.push(idx + w);
-        }
-      } else {
-        if (x0 > 0) stack.push(idx - 1);
-        if (x0 < w - 1) stack.push(idx + 1);
-        if (y0 > 0) stack.push(idx - w);
-        if (y0 < h - 1) stack.push(idx + w);
-      }
+      const pushIfValid = (nx: number, ny: number) => {
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
+        const nidx = ny * w + nx;
+        if (buf[nidx] !== target) return;
+        if (sel && !this.isPixelWithinSelection(nx, ny, sel, shape, selPoly)) return;
+        stack.push(nidx);
+      };
+      
+      pushIfValid(x0 - 1, y0); // left
+      pushIfValid(x0 + 1, y0); // right
+      pushIfValid(x0, y0 - 1); // up
+      pushIfValid(x0, y0 + 1); // down
     }
 
     if (changed > 0) {
@@ -1480,6 +1415,7 @@ export class EditorDocumentService {
   ) {
     // start a temporary selection; caller should call updateSelection/endSelection
     this.selectionShape.set(shape);
+    this.selectionMask.set(null); // Clear any existing mask
     if (shape === 'lasso') {
       this.selectionPolygon.set([{ x, y }]);
       this.selectionRect.set({ x, y, width: 1, height: 1 });
@@ -1545,6 +1481,13 @@ export class EditorDocumentService {
     poly: { x: number; y: number }[] | null,
   ) {
     if (!rect) return true;
+    
+    // Check mask first if available
+    const mask = this.selectionMask();
+    if (mask) {
+      return mask.has(`${x},${y}`);
+    }
+    
     if (shape === 'ellipse') {
       const cx = rect.x + rect.width / 2 - 0.5;
       const cy = rect.y + rect.height / 2 - 0.5;
@@ -1666,18 +1609,19 @@ export class EditorDocumentService {
     if (!rect) return;
     // record selection into history as a meta change so undo/redo restores it
     const shape = this.selectionShape();
+    const mask = this.selectionMask();
     if (shape === 'lasso') {
       const poly = this.selectionPolygon();
       this.commitMetaChange({
         key: 'selectionSnapshot',
         previous: null,
-        next: { rect, shape, polygon: poly },
+        next: { rect, shape, polygon: poly, mask },
       });
     } else {
       this.commitMetaChange({
         key: 'selectionSnapshot',
         previous: null,
-        next: { rect, shape },
+        next: { rect, shape, mask },
       });
     }
   }
@@ -1687,14 +1631,265 @@ export class EditorDocumentService {
     if (!prev) return;
     const prevShape = this.selectionShape();
     const prevPoly = this.selectionPolygon();
+    const prevMask = this.selectionMask();
+    this.clearSelectionState();
+    this.commitMetaChange({
+      key: 'selectionSnapshot',
+      previous: { rect: prev, shape: prevShape, polygon: prevPoly, mask: prevMask },
+      next: null,
+    });
+  }
+
+  private clearSelectionState() {
     this.selectionRect.set(null);
     this.selectionShape.set('rect');
     this.selectionPolygon.set(null);
+    this.selectionMask.set(null);
+  }
+
+  private setSelectionShape(shape: string) {
+    if (shape === 'ellipse') {
+      this.selectionShape.set('ellipse');
+    } else if (shape === 'lasso') {
+      this.selectionShape.set('lasso');
+    } else {
+      this.selectionShape.set('rect');
+    }
+  }
+
+  invertSelection() {
+    const rect = this.selectionRect();
+    if (!rect) return;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const oldMask = this.selectionMask();
+    
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    
+    // Create a mask of all currently selected pixels
+    let currentlySelectedMask: Set<string>;
+    
+    if (oldMask) {
+      // If we already have a mask, use it
+      currentlySelectedMask = new Set(oldMask);
+    } else {
+      // Build mask from current selection
+      currentlySelectedMask = new Set<string>();
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (this.isPixelWithinSelection(x, y, rect, shape, poly)) {
+            currentlySelectedMask.add(`${x},${y}`);
+          }
+        }
+      }
+    }
+    
+    // Invert the mask: create a new mask with all pixels NOT in the current mask
+    const invertedMask = new Set<string>();
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const key = `${x},${y}`;
+        if (!currentlySelectedMask.has(key)) {
+          invertedMask.add(key);
+        }
+      }
+    }
+    
+    // Store the inverted mask
+    this.selectionMask.set(invertedMask);
+    
+    // Update selection shape to 'lasso' and set bounding box
+    this.setSelectionShape('lasso');
+    
+    // Set polygon to null since we're using mask
+    this.selectionPolygon.set(null);
+    
+    // Set rect to entire canvas
+    this.selectionRect.set({ x: 0, y: 0, width: w, height: h });
+    
     this.commitMetaChange({
       key: 'selectionSnapshot',
-      previous: { rect: prev, shape: prevShape, polygon: prevPoly },
-      next: null,
+      previous: { rect, shape, polygon: poly, mask: oldMask },
+      next: {
+        rect: this.selectionRect(),
+        shape: this.selectionShape(),
+        polygon: this.selectionPolygon(),
+        mask: this.selectionMask(),
+      },
     });
+  }
+
+  growSelection(pixels: number) {
+    const rect = this.selectionRect();
+    if (!rect || pixels <= 0) return;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const expansion = Math.max(1, Math.floor(pixels));
+    const newRect = {
+      x: Math.max(0, rect.x - expansion),
+      y: Math.max(0, rect.y - expansion),
+      width: Math.min(
+        w - Math.max(0, rect.x - expansion),
+        rect.width + expansion * 2,
+      ),
+      height: Math.min(
+        h - Math.max(0, rect.y - expansion),
+        rect.height + expansion * 2,
+      ),
+    };
+    if (shape === 'lasso' && poly && poly.length >= 3) {
+      const visited = new Set<string>();
+      const queue: { x: number; y: number }[] = [];
+      for (const p of poly) {
+        for (let dy = -expansion; dy <= expansion; dy++) {
+          for (let dx = -expansion; dx <= expansion; dx++) {
+            const nx = p.x + dx;
+            const ny = p.y + dy;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+              const key = `${nx},${ny}`;
+              if (!visited.has(key)) {
+                visited.add(key);
+                queue.push({ x: nx, y: ny });
+              }
+            }
+          }
+        }
+      }
+      this.selectionPolygon.set(queue);
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      for (const p of queue) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      this.selectionRect.set({
+        x: Math.max(0, Math.floor(minX)),
+        y: Math.max(0, Math.floor(minY)),
+        width: Math.max(1, Math.ceil(maxX - minX) + 1),
+        height: Math.max(1, Math.ceil(maxY - minY) + 1),
+      });
+    } else {
+      this.selectionRect.set(newRect);
+    }
+    this.commitMetaChange({
+      key: 'selectionSnapshot',
+      previous: { rect, shape, polygon: poly },
+      next: {
+        rect: this.selectionRect(),
+        shape: this.selectionShape(),
+        polygon: this.selectionPolygon(),
+      },
+    });
+  }
+
+  makeCopyLayer() {
+    const sel = this.selectionRect();
+    if (!sel) return null;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const sourceLayerId = this.selectedLayerId();
+    const sourceBuf = this.layerPixels.get(sourceLayerId);
+    if (!sourceBuf) return null;
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    const sourceLayer = this.layers().find((l) => l.id === sourceLayerId);
+    const newName = sourceLayer ? `${sourceLayer.name}-copy` : 'Layer copy';
+    const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newLayer: LayerItem = {
+      id: newLayerId,
+      name: newName,
+      visible: true,
+      locked: false,
+    };
+    const newBuf = new Array<string>(w * h).fill('');
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (this.isPixelWithinSelection(x, y, sel, shape, poly)) {
+          const idx = y * w + x;
+          newBuf[idx] = sourceBuf[idx] || '';
+        }
+      }
+    }
+    const currentLayers = this.layers();
+    const sourceIndex = currentLayers.findIndex((l) => l.id === sourceLayerId);
+    if (sourceIndex >= 0) {
+      this.layers.update((arr) => [
+        ...arr.slice(0, sourceIndex),
+        newLayer,
+        ...arr.slice(sourceIndex),
+      ]);
+    } else {
+      this.layers.update((arr) => [newLayer, ...arr]);
+    }
+    this.layerPixels.set(newLayerId, newBuf);
+    this.selectedLayerId.set(newLayerId);
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    return newLayer;
+  }
+
+  mergeVisibleToNewLayer() {
+    const sel = this.selectionRect();
+    if (!sel) return null;
+    const shape = this.selectionShape();
+    const poly = this.selectionPolygon();
+    const w = this.canvasWidth();
+    const h = this.canvasHeight();
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    const mergedBuf = new Array<string>(w * h).fill('');
+    const layers = this.layers();
+    for (let li = layers.length - 1; li >= 0; li--) {
+      const layer = layers[li];
+      if (!layer.visible) continue;
+      const buf = this.layerPixels.get(layer.id);
+      if (!buf || buf.length !== w * h) continue;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (!this.isPixelWithinSelection(x, y, sel, shape, poly)) continue;
+          const idx = y * w + x;
+          const pixel = buf[idx];
+          if (pixel && pixel.length > 0) {
+            const existing = mergedBuf[idx];
+            if (!existing || existing.length === 0) {
+              mergedBuf[idx] = pixel;
+            } else {
+              mergedBuf[idx] = pixel;
+            }
+          }
+        }
+      }
+    }
+    const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newLayer: LayerItem = {
+      id: newLayerId,
+      name: 'Merged layer',
+      visible: true,
+      locked: false,
+    };
+    this.layers.update((arr) => [newLayer, ...arr]);
+    this.layerPixels.set(newLayerId, mergedBuf);
+    this.selectedLayerId.set(newLayerId);
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    return newLayer;
   }
 
   // Snapshot current buffers and layers for structural operations
@@ -1759,17 +1954,15 @@ export class EditorDocumentService {
         }
         break;
       case 'selectionSnapshot':
-        // restore selection (rect + shape)
         if (val === null) {
-          this.selectionRect.set(null);
-          this.selectionShape.set('rect');
+          this.clearSelectionState();
         } else if (val && typeof val === 'object') {
-          // expected { rect: {x,y,width,height}, shape: 'rect'|'ellipse' }
           const rr = (val as any).rect;
           const shape = (val as any).shape || 'rect';
+          const polygon = (val as any).polygon || null;
+          const mask = (val as any).mask || null;
           if (!rr) {
-            this.selectionRect.set(null);
-            this.selectionShape.set('rect');
+            this.clearSelectionState();
           } else {
             this.selectionRect.set({
               x: Math.max(0, Math.floor(rr.x)),
@@ -1777,7 +1970,24 @@ export class EditorDocumentService {
               width: Math.max(0, Math.floor(rr.width)),
               height: Math.max(0, Math.floor(rr.height)),
             });
-            this.selectionShape.set(shape === 'ellipse' ? 'ellipse' : 'rect');
+            this.setSelectionShape(shape);
+            if (polygon && Array.isArray(polygon)) {
+              this.selectionPolygon.set(
+                polygon.map((p: any) => ({
+                  x: Math.floor(p.x),
+                  y: Math.floor(p.y),
+                })),
+              );
+            } else {
+              this.selectionPolygon.set(null);
+            }
+            if (mask && mask instanceof Set) {
+              this.selectionMask.set(mask);
+            } else if (mask && Array.isArray(mask)) {
+              this.selectionMask.set(new Set(mask));
+            } else {
+              this.selectionMask.set(null);
+            }
           }
         }
         break;

@@ -29,12 +29,23 @@ interface ShapeDrawOptions {
   gradientAngle: number;
 }
 
-type ContextMenuActionId = 'deselect';
+type ContextMenuActionId =
+  | 'deselect'
+  | 'invertSelection'
+  | 'growSelection'
+  | 'growBy1px'
+  | 'growBy2px'
+  | 'growBy5px'
+  | 'growCustom'
+  | 'makeCopyLayer'
+  | 'mergeVisibleToNewLayer';
 
 interface ContextMenuAction {
   id: ContextMenuActionId;
   labelKey: string;
   icon: string;
+  disabled?: boolean;
+  submenu?: ContextMenuAction[];
 }
 
 @Component({
@@ -94,6 +105,14 @@ export class EditorCanvas {
     y: 0,
   });
   readonly contextMenuActions = signal<ContextMenuAction[]>([]);
+  readonly submenuVisible = signal(false);
+  readonly submenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  readonly submenuActions = signal<ContextMenuAction[]>([]);
+  readonly inputDialogVisible = signal(false);
+  readonly inputDialogPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  readonly inputDialogValue = signal('10');
+  readonly inputDialogTitle = signal('');
+  readonly inputDialogCallback = signal<((value: string) => void) | null>(null);
   private resizeListener: (() => void) | null = null;
   private keyListener: ((e: KeyboardEvent) => void) | null = null;
   private readonly defaultCursor = `url('/cursors/link.png') 12 12, link`;
@@ -253,11 +272,14 @@ export class EditorCanvas {
 
     // If dragging a rectangle/ellipse selection, update selection.
     // If Shift is held, constrain to a square so ellipse-select becomes a circle.
-    // NOTE: lasso-select does NOT add points on pointermove; vertices are added on click.
+    // For lasso-select: allow free drawing by adding points while dragging
     if (this.selectionDragging) {
       if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
         const tool = this.tools.currentTool();
-        if (tool !== 'lasso-select') {
+        if (tool === 'lasso-select') {
+          // Add point to lasso while dragging
+          this.document.addLassoPoint(logicalX, logicalY);
+        } else {
           let endX = logicalX;
           let endY = logicalY;
           if (ev.shiftKey && this.selectionStart) {
@@ -420,31 +442,11 @@ export class EditorCanvas {
           tool === 'lasso-select') &&
         insideCanvas
       ) {
-        // Lasso behaves as click-to-add-vertex: each click adds a vertex.
+        // Lasso: start free-draw on mouse down, finish on mouse up
         if (tool === 'lasso-select') {
-          const poly = this.document.selectionPolygon();
-          // If no polygon yet, start one
-          if (!poly || poly.length === 0) {
-            this.selectionStart = { x: logicalX, y: logicalY };
-            this.selectionDragging = true;
-            this.document.beginSelection(logicalX, logicalY, 'lasso' as any);
-            this.document.addLassoPoint(logicalX, logicalY);
-            return;
-          }
-          // If clicking near the first vertex, close the polygon and finish selection
-          const first = poly[0];
-          const dx = logicalX - first.x;
-          const dy = logicalY - first.y;
-          const distSq = dx * dx + dy * dy;
-          const closeThreshold = 4 * 4; // 4px radius
-          if (poly.length >= 3 && distSq <= closeThreshold) {
-            // finalize selection
-            this.selectionDragging = false;
-            this.selectionStart = null;
-            this.document.endSelection();
-            return;
-          }
-          // otherwise add a new vertex
+          this.selectionStart = { x: logicalX, y: logicalY };
+          this.selectionDragging = true;
+          this.document.beginSelection(logicalX, logicalY, 'lasso' as any);
           this.document.addLassoPoint(logicalX, logicalY);
           return;
         }
@@ -522,7 +524,55 @@ export class EditorCanvas {
       return;
     }
     const actions: ContextMenuAction[] = [];
-    if (this.document.selectionRect()) {
+    const hasSelection = !!this.document.selectionRect();
+    const hasNonEmptySelection = this.hasNonEmptySelection();
+    if (hasSelection) {
+      actions.push({
+        id: 'invertSelection',
+        labelKey: 'editor.canvas.menu.invertSelection',
+        icon: 'heroIconsBarsArrowUpMini',
+        disabled: false,
+      });
+      actions.push({
+        id: 'growSelection',
+        labelKey: 'editor.canvas.menu.growSelection',
+        icon: 'heroIconsArrowsPointingOutMini',
+        disabled: false,
+        submenu: [
+          {
+            id: 'growBy1px',
+            labelKey: 'editor.canvas.menu.growBy1px',
+            icon: 'heroIconsPlusSmallMini',
+          },
+          {
+            id: 'growBy2px',
+            labelKey: 'editor.canvas.menu.growBy2px',
+            icon: 'heroIconsPlusSmallMini',
+          },
+          {
+            id: 'growBy5px',
+            labelKey: 'editor.canvas.menu.growBy5px',
+            icon: 'heroIconsPlusSmallMini',
+          },
+          {
+            id: 'growCustom',
+            labelKey: 'editor.canvas.menu.growCustom',
+            icon: 'heroIconsEllipsisHorizontalMini',
+          },
+        ],
+      });
+      actions.push({
+        id: 'makeCopyLayer',
+        labelKey: 'editor.canvas.menu.makeCopyLayer',
+        icon: 'heroIconsDocumentDuplicateMini',
+        disabled: !hasNonEmptySelection,
+      });
+      actions.push({
+        id: 'mergeVisibleToNewLayer',
+        labelKey: 'editor.canvas.menu.mergeVisibleToNewLayer',
+        icon: 'heroIconsRectangleStackMini',
+        disabled: false,
+      });
       actions.push({
         id: 'deselect',
         labelKey: 'editor.canvas.menu.deselect',
@@ -537,7 +587,7 @@ export class EditorCanvas {
       this.canvasContainer.nativeElement.getBoundingClientRect();
     const offsetX = ev.clientX - containerRect.left;
     const offsetY = ev.clientY - containerRect.top;
-    const estimatedWidth = 160;
+    const estimatedWidth = 200;
     const estimatedHeight = Math.max(40, actions.length * 36);
     const maxX = Math.max(0, containerRect.width - estimatedWidth);
     const maxY = Math.max(0, containerRect.height - estimatedHeight);
@@ -548,16 +598,106 @@ export class EditorCanvas {
     this.contextMenuVisible.set(true);
   }
 
+  private hasNonEmptySelection(): boolean {
+    const sel = this.document.selectionRect();
+    if (!sel) return false;
+    const shape = this.document.selectionShape();
+    const poly = this.document.selectionPolygon();
+    const layerId = this.document.selectedLayerId();
+    const buf = this.document.getLayerBuffer(layerId);
+    if (!buf) return false;
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
+    for (let y = sel.y; y < sel.y + sel.height && y < h; y++) {
+      for (let x = sel.x; x < sel.x + sel.width && x < w; x++) {
+        if (
+          this.isPointInSelection(x, y) &&
+          buf[y * w + x] &&
+          buf[y * w + x].length > 0
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   closeContextMenu() {
     this.contextMenuVisible.set(false);
     this.contextMenuActions.set([]);
+    this.submenuVisible.set(false);
+    this.submenuActions.set([]);
   }
 
-  onContextMenuAction(actionId: ContextMenuActionId) {
+  onSubmenuTrigger(
+    action: ContextMenuAction,
+    event: MouseEvent,
+    buttonElement: HTMLElement,
+  ) {
+    if (!action.submenu || action.submenu.length === 0) return;
+    event.stopPropagation();
+    const rect = buttonElement.getBoundingClientRect();
+    const containerRect =
+      this.canvasContainer.nativeElement.getBoundingClientRect();
+    const submenuX = rect.right - containerRect.left + 4;
+    const submenuY = rect.top - containerRect.top;
+    this.submenuPosition.set({ x: submenuX, y: submenuY });
+    this.submenuActions.set(action.submenu);
+    this.submenuVisible.set(true);
+  }
+
+  onContextMenuAction(actionId: ContextMenuActionId, event?: MouseEvent) {
     if (actionId === 'deselect') {
       this.document.clearSelection();
+    } else if (actionId === 'invertSelection') {
+      this.document.invertSelection();
+    } else if (actionId === 'growBy1px') {
+      this.document.growSelection(1);
+    } else if (actionId === 'growBy2px') {
+      this.document.growSelection(2);
+    } else if (actionId === 'growBy5px') {
+      this.document.growSelection(5);
+    } else if (actionId === 'growCustom') {
+      if (event) {
+        const containerRect =
+          this.canvasContainer.nativeElement.getBoundingClientRect();
+        const offsetX = event.clientX - containerRect.left;
+        const offsetY = event.clientY - containerRect.top;
+        this.inputDialogPosition.set({ x: offsetX + 10, y: offsetY });
+        this.inputDialogTitle.set('Enter growth amount (pixels):');
+        this.inputDialogValue.set('10');
+        this.inputDialogCallback.set((value: string) => {
+          const parsed = parseInt(value, 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            this.document.growSelection(parsed);
+          }
+          this.closeInputDialog();
+        });
+        this.inputDialogVisible.set(true);
+        return;
+      }
+    } else if (actionId === 'makeCopyLayer') {
+      this.document.makeCopyLayer();
+    } else if (actionId === 'mergeVisibleToNewLayer') {
+      this.document.mergeVisibleToNewLayer();
     }
     this.closeContextMenu();
+  }
+
+  closeInputDialog() {
+    this.inputDialogVisible.set(false);
+    this.inputDialogCallback.set(null);
+  }
+
+  onInputDialogSubmit() {
+    const callback = this.inputDialogCallback();
+    if (callback) {
+      callback(this.inputDialogValue());
+    }
+  }
+
+  onInputDialogCancel() {
+    this.closeInputDialog();
   }
 
   onPointerUp(ev: PointerEvent) {
@@ -962,63 +1102,103 @@ export class EditorCanvas {
     const selShape = this.document.selectionShape();
     if (sel && sel.width > 0 && sel.height > 0) {
       ctx.save();
-      // translucent fill
-      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
-      if (selShape === 'ellipse') {
-        const cx = sel.x + sel.width / 2 - 0.5;
-        const cy = sel.y + sel.height / 2 - 0.5;
-        const rx = Math.max(0.5, sel.width / 2);
-        const ry = Math.max(0.5, sel.height / 2);
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // dashed stroke
-        ctx.setLineDash([4 / scale, 3 / scale]);
-        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
-        ctx.lineWidth = pxLineWidth;
-        ctx.stroke();
-      } else if (selShape === 'lasso') {
-        const poly = this.document.selectionPolygon();
-        if (poly && poly.length > 0) {
-          ctx.beginPath();
-          ctx.moveTo(poly[0].x + 0.5, poly[0].y + 0.5);
-          for (let i = 1; i < poly.length; i++) {
-            ctx.lineTo(poly[i].x + 0.5, poly[i].y + 0.5);
-          }
-          // Optionally close the path for visual completeness
-          ctx.closePath();
-          ctx.fill();
-          ctx.setLineDash([4 / scale, 3 / scale]);
-          ctx.strokeStyle = isDark
-            ? 'rgba(255,255,255,0.8)'
-            : 'rgba(0,0,0,0.8)';
-          ctx.lineWidth = pxLineWidth;
-          ctx.stroke();
-          // Draw a small marker on the first vertex to help users close the polygon
-          const first = poly[0];
-          const markerR = 1; // px radius
-          ctx.beginPath();
-          ctx.arc(first.x + 0.5, first.y + 0.5, markerR, 0, Math.PI * 2);
-          ctx.fillStyle = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)';
-          ctx.fill();
-          ctx.lineWidth = pxLineWidth;
-          ctx.strokeStyle = isDark
-            ? 'rgba(255,255,255,0.9)'
-            : 'rgba(0,0,0,0.9)';
-          ctx.stroke();
+      
+      // Check if we have a mask-based selection
+      const mask = this.document.selectionMask();
+      
+      if (mask) {
+        // Draw mask-based selection by rendering individual pixels
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+        for (const key of mask) {
+          const [xStr, yStr] = key.split(',');
+          const x = parseInt(xStr, 10);
+          const y = parseInt(yStr, 10);
+          ctx.fillRect(x, y, 1, 1);
         }
-      } else {
-        // ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
-        // dashed stroke
+        
+        // Draw marching ants border by detecting edges
+        // An edge exists where a selected pixel borders an unselected pixel
         ctx.setLineDash([4 / scale, 3 / scale]);
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
         ctx.lineWidth = pxLineWidth;
-        ctx.strokeRect(
-          sel.x,
-          sel.y,
-          Math.max(0, sel.width),
-          Math.max(0, sel.height),
-        );
+        ctx.beginPath();
+        
+        for (const key of mask) {
+          const [xStr, yStr] = key.split(',');
+          const x = parseInt(xStr, 10);
+          const y = parseInt(yStr, 10);
+          
+          // Check all 4 neighbors to see if we need to draw an edge
+          // Top edge
+          if (!mask.has(`${x},${y - 1}`)) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 1, y);
+          }
+          // Right edge
+          if (!mask.has(`${x + 1},${y}`)) {
+            ctx.moveTo(x + 1, y);
+            ctx.lineTo(x + 1, y + 1);
+          }
+          // Bottom edge
+          if (!mask.has(`${x},${y + 1}`)) {
+            ctx.moveTo(x, y + 1);
+            ctx.lineTo(x + 1, y + 1);
+          }
+          // Left edge
+          if (!mask.has(`${x - 1},${y}`)) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + 1);
+          }
+        }
+        
+        ctx.stroke();
+      } else {
+        // translucent fill
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+        if (selShape === 'ellipse') {
+          const cx = sel.x + sel.width / 2 - 0.5;
+          const cy = sel.y + sel.height / 2 - 0.5;
+          const rx = Math.max(0.5, sel.width / 2);
+          const ry = Math.max(0.5, sel.height / 2);
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // dashed stroke
+          ctx.setLineDash([4 / scale, 3 / scale]);
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+          ctx.lineWidth = pxLineWidth;
+          ctx.stroke();
+        } else if (selShape === 'lasso') {
+          const poly = this.document.selectionPolygon();
+          if (poly && poly.length > 0) {
+            ctx.beginPath();
+            ctx.moveTo(poly[0].x + 0.5, poly[0].y + 0.5);
+            for (let i = 1; i < poly.length; i++) {
+              ctx.lineTo(poly[i].x + 0.5, poly[i].y + 0.5);
+            }
+            // Optionally close the path for visual completeness
+            ctx.closePath();
+            ctx.fill();
+            ctx.setLineDash([4 / scale, 3 / scale]);
+            ctx.strokeStyle = isDark
+              ? 'rgba(255,255,255,0.8)'
+              : 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = pxLineWidth;
+            ctx.stroke();
+          }
+        } else {
+          // ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
+          // dashed stroke
+          ctx.setLineDash([4 / scale, 3 / scale]);
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+          ctx.lineWidth = pxLineWidth;
+          ctx.strokeRect(
+            sel.x,
+            sel.y,
+            Math.max(0, sel.width),
+            Math.max(0, sel.height),
+          );
+        }
       }
       ctx.restore();
     }
