@@ -1,5 +1,5 @@
 ---
-name: pixart-repo-agent
+name: pixart-gpt5-mini-agent
 model: gpt-5-mini
 language: vi
 description: |

@@ -1,5 +1,5 @@
 ---
-name: pixart-repo-agent
+name: pixart-gpt5-codex-agent
 model: gpt5-codex
 language: vi
 description: |
