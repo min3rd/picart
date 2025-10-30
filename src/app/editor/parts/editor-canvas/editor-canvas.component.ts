@@ -90,11 +90,12 @@ export class EditorCanvas {
   private readonly shapeConstrainUniform = signal(false);
 
   private panning = false;
-  // painting state
   private painting = false;
   private lastPaintPos: { x: number; y: number } | null = null;
   private selectionStart: { x: number; y: number } | null = null;
   private selectionDragging = false;
+  private selectionMoving = false;
+  private selectionMoveStart: { x: number; y: number } | null = null;
   private lastPointer = { x: 0, y: 0 };
   private shaping = false;
   private stopRenderEffect: EffectRef | null = null;
@@ -216,7 +217,6 @@ export class EditorCanvas {
           }
           const tool = this.tools.currentTool();
           if (tool === 'lasso-select') {
-            // cancel any in-progress lasso without recording history
             this.document.selectionPolygon.set(null as any);
             this.document.selectionRect.set(null as any);
             this.document.selectionShape.set('rect');
@@ -229,6 +229,36 @@ export class EditorCanvas {
         if (ev.ctrlKey && ev.shiftKey && key === 'd') {
           ev.preventDefault();
           this.document.clearSelection();
+          return;
+        }
+        if (ev.ctrlKey && key === 'd') {
+          ev.preventDefault();
+          this.document.duplicateLayer();
+          return;
+        }
+        if (ev.key === 'Delete') {
+          ev.preventDefault();
+          const selectedIds = Array.from(this.document.selectedLayerIds());
+          for (const id of selectedIds) {
+            this.document.removeLayer(id);
+          }
+          return;
+        }
+        if (ev.ctrlKey && ev.shiftKey && key === 'g') {
+          ev.preventDefault();
+          const selectedIds = Array.from(this.document.selectedLayerIds());
+          if (selectedIds.length >= 2) {
+            this.document.ungroupLayers(selectedIds[0]);
+          }
+          return;
+        }
+        if (ev.ctrlKey && key === 'g') {
+          ev.preventDefault();
+          const selectedIds = Array.from(this.document.selectedLayerIds());
+          if (selectedIds.length >= 2) {
+            this.document.groupLayers(selectedIds);
+          }
+          return;
         }
       };
       window.addEventListener('keydown', this.keyListener as EventListener);
@@ -286,6 +316,18 @@ export class EditorCanvas {
       this.panY.set(this.panY() + dy);
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
+    }
+
+    if (this.selectionMoving && this.selectionMoveStart) {
+      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
+      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
+      const dx = clampedX - this.selectionMoveStart.x;
+      const dy = clampedY - this.selectionMoveStart.y;
+      if (dx !== 0 || dy !== 0) {
+        this.document.moveSelection(dx, dy);
+        this.selectionMoveStart = { x: clampedX, y: clampedY };
+      }
+      return;
     }
 
     if (this.selectionDragging) {
@@ -432,6 +474,15 @@ export class EditorCanvas {
     }
 
     if (ev.button === 0) {
+      const hasExistingSelection = !!this.document.selectionRect();
+      const clickedInSelection =
+        hasExistingSelection && this.isPointInSelection(logicalX, logicalY);
+      if (clickedInSelection && insideCanvas && !ev.shiftKey && !ev.ctrlKey) {
+        this.capturePointer(ev);
+        this.selectionMoving = true;
+        this.selectionMoveStart = { x: logicalX, y: logicalY };
+        return;
+      }
       if (
         (tool === 'rect-select' ||
           tool === 'ellipse-select' ||
@@ -704,6 +755,12 @@ export class EditorCanvas {
       this.painting = false;
       this.lastPaintPos = null;
       this.document.endAction();
+    }
+
+    if (this.selectionMoving) {
+      this.selectionMoving = false;
+      this.selectionMoveStart = null;
+      return;
     }
 
     if (this.selectionDragging) {

@@ -110,7 +110,12 @@
       "hide": "Hide",
       "show": "Show",
       "delete": "Delete layer",
-      "add": "Add layer"
+      "add": "Add layer",
+      "selectPixel": "Select Pixel",
+      "duplicate": "Duplicate",
+      "merge": "Merge Layers",
+      "group": "Group",
+      "ungroup": "Ungroup"
     },
     "canvas": {
       "menu": {
