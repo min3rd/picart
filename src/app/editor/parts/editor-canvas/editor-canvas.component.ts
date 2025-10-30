@@ -99,6 +99,9 @@ export class EditorCanvas {
   private selectionDragging = false;
   private selectionMoving = false;
   private selectionMoveStart: { x: number; y: number } | null = null;
+  private vKeyPressed = false;
+  private selectionContentMoving = false;
+  private selectionContentMoveStart: { x: number; y: number } | null = null;
   private lastPointer = { x: 0, y: 0 };
   private shaping = false;
   private stopRenderEffect: EffectRef | null = null;
@@ -229,6 +232,10 @@ export class EditorCanvas {
           return;
         }
         const key = ev.key?.toLowerCase?.() ?? ev.key;
+        if (key === 'v' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+          this.vKeyPressed = true;
+          return;
+        }
         if (ev.ctrlKey && ev.shiftKey && key === 'd') {
           ev.preventDefault();
           this.document.clearSelection();
@@ -265,6 +272,12 @@ export class EditorCanvas {
         }
       };
       window.addEventListener('keydown', this.keyListener as EventListener);
+      window.addEventListener('keyup', (ev: KeyboardEvent) => {
+        const key = ev.key?.toLowerCase?.() ?? ev.key;
+        if (key === 'v') {
+          this.vKeyPressed = false;
+        }
+      });
     }
 
     this.viewReady.set(true);
@@ -329,6 +342,18 @@ export class EditorCanvas {
       if (dx !== 0 || dy !== 0) {
         this.document.moveSelection(dx, dy);
         this.selectionMoveStart = { x: clampedX, y: clampedY };
+      }
+      return;
+    }
+
+    if (this.selectionContentMoving && this.selectionContentMoveStart) {
+      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
+      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
+      const dx = clampedX - this.selectionContentMoveStart.x;
+      const dy = clampedY - this.selectionContentMoveStart.y;
+      if (dx !== 0 || dy !== 0) {
+        this.moveSelectionContent(dx, dy);
+        this.selectionContentMoveStart = { x: clampedX, y: clampedY };
       }
       return;
     }
@@ -480,18 +505,35 @@ export class EditorCanvas {
       const hasExistingSelection = !!this.document.selectionRect();
       const clickedInSelection =
         hasExistingSelection && this.isPointInSelection(logicalX, logicalY);
-      if (clickedInSelection && insideCanvas && !ev.shiftKey && !ev.ctrlKey) {
+      const isSelectTool =
+        tool === 'rect-select' ||
+        tool === 'ellipse-select' ||
+        tool === 'lasso-select';
+      if (
+        clickedInSelection &&
+        insideCanvas &&
+        !ev.shiftKey &&
+        !ev.ctrlKey &&
+        this.vKeyPressed
+      ) {
+        this.capturePointer(ev);
+        this.selectionContentMoving = true;
+        this.selectionContentMoveStart = { x: logicalX, y: logicalY };
+        return;
+      }
+      if (
+        clickedInSelection &&
+        insideCanvas &&
+        !ev.shiftKey &&
+        !ev.ctrlKey &&
+        isSelectTool
+      ) {
         this.capturePointer(ev);
         this.selectionMoving = true;
         this.selectionMoveStart = { x: logicalX, y: logicalY };
         return;
       }
-      if (
-        (tool === 'rect-select' ||
-          tool === 'ellipse-select' ||
-          tool === 'lasso-select') &&
-        insideCanvas
-      ) {
+      if (isSelectTool && insideCanvas) {
         this.capturePointer(ev);
         if (tool === 'lasso-select') {
           this.selectionStart = { x: logicalX, y: logicalY };
@@ -766,6 +808,12 @@ export class EditorCanvas {
       return;
     }
 
+    if (this.selectionContentMoving) {
+      this.selectionContentMoving = false;
+      this.selectionContentMoveStart = null;
+      return;
+    }
+
     if (this.selectionDragging) {
       this.selectionDragging = false;
       this.selectionStart = null;
@@ -774,6 +822,50 @@ export class EditorCanvas {
   }
 
   infoVisible = signal(true);
+
+  moveSelectionContent(dx: number, dy: number) {
+    const sel = this.document.selectionRect();
+    if (!sel) return;
+    const layerId = this.document.selectedLayerId();
+    const buf = this.document.getLayerBuffer(layerId);
+    if (!buf) return;
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
+    const shape = this.document.selectionShape();
+    const poly = this.document.selectionPolygon();
+    const tempBuf = new Array<string>(w * h).fill('');
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (this.isPointInSelection(x, y)) {
+          const idx = y * w + x;
+          tempBuf[idx] = buf[idx] || '';
+        }
+      }
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (this.isPointInSelection(x, y)) {
+          const idx = y * w + x;
+          buf[idx] = '';
+        }
+      }
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const newX = x + dx;
+        const newY = y + dy;
+        if (newX >= 0 && newX < w && newY >= 0 && newY < h) {
+          const oldIdx = y * w + x;
+          const newIdx = newY * w + newX;
+          if (tempBuf[oldIdx]) {
+            buf[newIdx] = tempBuf[oldIdx];
+          }
+        }
+      }
+    }
+    this.document.moveSelection(dx, dy);
+    this.document.layerPixelsVersion.update((v) => v + 1);
+  }
 
   setCanvasWidth(event: Event) {
     const target = event.target as HTMLInputElement;

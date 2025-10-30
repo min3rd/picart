@@ -882,7 +882,7 @@ export class EditorDocumentService {
     return this.flattenLayers(this.layers());
   }
 
-  private findItemById(
+  findItemById(
     items: LayerTreeItem[],
     id: string,
   ): LayerTreeItem | null {
