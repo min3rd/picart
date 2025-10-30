@@ -1116,17 +1116,42 @@ export class EditorCanvas {
           ctx.fillRect(x, y, 1, 1);
         }
         
-        // Draw marching ants border around the selection
-        // For performance, we'll just draw a rect around the bounding box
+        // Draw marching ants border by detecting edges
+        // An edge exists where a selected pixel borders an unselected pixel
         ctx.setLineDash([4 / scale, 3 / scale]);
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
         ctx.lineWidth = pxLineWidth;
-        ctx.strokeRect(
-          sel.x,
-          sel.y,
-          Math.max(0, sel.width),
-          Math.max(0, sel.height),
-        );
+        ctx.beginPath();
+        
+        for (const key of mask) {
+          const [xStr, yStr] = key.split(',');
+          const x = parseInt(xStr, 10);
+          const y = parseInt(yStr, 10);
+          
+          // Check all 4 neighbors to see if we need to draw an edge
+          // Top edge
+          if (!mask.has(`${x},${y - 1}`)) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 1, y);
+          }
+          // Right edge
+          if (!mask.has(`${x + 1},${y}`)) {
+            ctx.moveTo(x + 1, y);
+            ctx.lineTo(x + 1, y + 1);
+          }
+          // Bottom edge
+          if (!mask.has(`${x},${y + 1}`)) {
+            ctx.moveTo(x, y + 1);
+            ctx.lineTo(x + 1, y + 1);
+          }
+          // Left edge
+          if (!mask.has(`${x - 1},${y}`)) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + 1);
+          }
+        }
+        
+        ctx.stroke();
       } else {
         // translucent fill
         ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';

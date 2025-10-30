@@ -900,29 +900,8 @@ export class EditorDocumentService {
           ? this.computeEraserValue(oldVal, eraserStrength)
           : brushColor;
         // If a selection exists, skip pixels outside the selection
-        if (sel) {
-          if (selShape === 'ellipse') {
-            const cx = sel.x + sel.width / 2 - 0.5;
-            const cy = sel.y + sel.height / 2 - 0.5;
-            const rx = Math.max(0.5, sel.width / 2);
-            const ry = Math.max(0.5, sel.height / 2);
-            const dx = (xx - cx) / rx;
-            const dy = (yy - cy) / ry;
-            if (dx * dx + dy * dy > 1) continue;
-          } else if (selShape === 'lasso' && selPoly && selPoly.length > 2) {
-            // point-in-polygon test using pixel center
-            const px = xx + 0.5;
-            const py = yy + 0.5;
-            if (!this._pointInPolygon(px, py, selPoly)) continue;
-          } else {
-            if (
-              xx < sel.x ||
-              xx >= sel.x + sel.width ||
-              yy < sel.y ||
-              yy >= sel.y + sel.height
-            )
-              continue;
-          }
+        if (sel && !this.isPixelWithinSelection(xx, yy, sel, selShape, selPoly)) {
+          continue;
         }
 
         if (oldVal !== newVal) {
@@ -994,63 +973,18 @@ export class EditorDocumentService {
       const y0 = Math.floor(idx / w);
       const x0 = idx - y0 * w;
       // neighbors: left, right, up, down
-      if (sel) {
-        if (shape === 'ellipse') {
-          // push neighbor only if inside ellipse bounds
-          const cx = sel.x + sel.width / 2 - 0.5;
-          const cy = sel.y + sel.height / 2 - 0.5;
-          const rx = Math.max(0.5, sel.width / 2);
-          const ry = Math.max(0.5, sel.height / 2);
-          const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
-            const dx = (nx - cx) / rx;
-            const dy = (ny - cy) / ry;
-            if (dx * dx + dy * dy <= 1 && buf[idxToPush] === target)
-              stack.push(idxToPush);
-          };
-          if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
-          if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
-          if (y0 > sel.y) pushIfInside(x0, y0 - 1, idx - w);
-          if (y0 < sel.y + sel.height - 1) pushIfInside(x0, y0 + 1, idx + w);
-        } else if (shape === 'lasso' && selPoly && selPoly.length > 2) {
-          // push neighbor only if inside polygon bounds
-          const pushIfInside = (nx: number, ny: number, idxToPush: number) => {
-            const px = nx + 0.5;
-            const py = ny + 0.5;
-            if (
-              this._pointInPolygon(px, py, selPoly) &&
-              buf[idxToPush] === target
-            )
-              stack.push(idxToPush);
-          };
-          if (x0 > sel.x) pushIfInside(x0 - 1, y0, idx - 1);
-          if (x0 < sel.x + sel.width - 1) pushIfInside(x0 + 1, y0, idx + 1);
-          if (y0 > sel.y) pushIfInside(x0, y0 - 1, idx - w);
-          if (y0 < sel.y + sel.height - 1) pushIfInside(x0, y0 + 1, idx + w);
-        } else {
-          // rect selection
-          if (x0 > sel.x && buf[idx - 1] === target && x0 - 1 >= sel.x)
-            stack.push(idx - 1);
-          if (
-            x0 < sel.x + sel.width - 1 &&
-            buf[idx + 1] === target &&
-            x0 + 1 < sel.x + sel.width
-          )
-            stack.push(idx + 1);
-          if (y0 > sel.y && buf[idx - w] === target && y0 - 1 >= sel.y)
-            stack.push(idx - w);
-          if (
-            y0 < sel.y + sel.height - 1 &&
-            buf[idx + w] === target &&
-            y0 + 1 < sel.y + sel.height
-          )
-            stack.push(idx + w);
-        }
-      } else {
-        if (x0 > 0) stack.push(idx - 1);
-        if (x0 < w - 1) stack.push(idx + 1);
-        if (y0 > 0) stack.push(idx - w);
-        if (y0 < h - 1) stack.push(idx + w);
-      }
+      const pushIfValid = (nx: number, ny: number) => {
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
+        const nidx = ny * w + nx;
+        if (buf[nidx] !== target) return;
+        if (sel && !this.isPixelWithinSelection(nx, ny, sel, shape, selPoly)) return;
+        stack.push(nidx);
+      };
+      
+      pushIfValid(x0 - 1, y0); // left
+      pushIfValid(x0 + 1, y0); // right
+      pushIfValid(x0, y0 - 1); // up
+      pushIfValid(x0, y0 + 1); // down
     }
 
     if (changed > 0) {
@@ -1481,6 +1415,7 @@ export class EditorDocumentService {
   ) {
     // start a temporary selection; caller should call updateSelection/endSelection
     this.selectionShape.set(shape);
+    this.selectionMask.set(null); // Clear any existing mask
     if (shape === 'lasso') {
       this.selectionPolygon.set([{ x, y }]);
       this.selectionRect.set({ x, y, width: 1, height: 1 });
@@ -1674,18 +1609,19 @@ export class EditorDocumentService {
     if (!rect) return;
     // record selection into history as a meta change so undo/redo restores it
     const shape = this.selectionShape();
+    const mask = this.selectionMask();
     if (shape === 'lasso') {
       const poly = this.selectionPolygon();
       this.commitMetaChange({
         key: 'selectionSnapshot',
         previous: null,
-        next: { rect, shape, polygon: poly },
+        next: { rect, shape, polygon: poly, mask },
       });
     } else {
       this.commitMetaChange({
         key: 'selectionSnapshot',
         previous: null,
-        next: { rect, shape },
+        next: { rect, shape, mask },
       });
     }
   }
@@ -1695,10 +1631,11 @@ export class EditorDocumentService {
     if (!prev) return;
     const prevShape = this.selectionShape();
     const prevPoly = this.selectionPolygon();
+    const prevMask = this.selectionMask();
     this.clearSelectionState();
     this.commitMetaChange({
       key: 'selectionSnapshot',
-      previous: { rect: prev, shape: prevShape, polygon: prevPoly },
+      previous: { rect: prev, shape: prevShape, polygon: prevPoly, mask: prevMask },
       next: null,
     });
   }
