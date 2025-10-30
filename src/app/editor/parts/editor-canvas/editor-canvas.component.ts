@@ -272,11 +272,14 @@ export class EditorCanvas {
 
     // If dragging a rectangle/ellipse selection, update selection.
     // If Shift is held, constrain to a square so ellipse-select becomes a circle.
-    // NOTE: lasso-select does NOT add points on pointermove; vertices are added on click.
+    // For lasso-select: allow free drawing by adding points while dragging
     if (this.selectionDragging) {
       if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
         const tool = this.tools.currentTool();
-        if (tool !== 'lasso-select') {
+        if (tool === 'lasso-select') {
+          // Add point to lasso while dragging
+          this.document.addLassoPoint(logicalX, logicalY);
+        } else {
           let endX = logicalX;
           let endY = logicalY;
           if (ev.shiftKey && this.selectionStart) {
@@ -439,31 +442,11 @@ export class EditorCanvas {
           tool === 'lasso-select') &&
         insideCanvas
       ) {
-        // Lasso behaves as click-to-add-vertex: each click adds a vertex.
+        // Lasso: start free-draw on mouse down, finish on mouse up
         if (tool === 'lasso-select') {
-          const poly = this.document.selectionPolygon();
-          // If no polygon yet, start one
-          if (!poly || poly.length === 0) {
-            this.selectionStart = { x: logicalX, y: logicalY };
-            this.selectionDragging = true;
-            this.document.beginSelection(logicalX, logicalY, 'lasso' as any);
-            this.document.addLassoPoint(logicalX, logicalY);
-            return;
-          }
-          // If clicking near the first vertex, close the polygon and finish selection
-          const first = poly[0];
-          const dx = logicalX - first.x;
-          const dy = logicalY - first.y;
-          const distSq = dx * dx + dy * dy;
-          const closeThreshold = 4 * 4; // 4px radius
-          if (poly.length >= 3 && distSq <= closeThreshold) {
-            // finalize selection
-            this.selectionDragging = false;
-            this.selectionStart = null;
-            this.document.endSelection();
-            return;
-          }
-          // otherwise add a new vertex
+          this.selectionStart = { x: logicalX, y: logicalY };
+          this.selectionDragging = true;
+          this.document.beginSelection(logicalX, logicalY, 'lasso' as any);
           this.document.addLassoPoint(logicalX, logicalY);
           return;
         }
@@ -1150,18 +1133,6 @@ export class EditorCanvas {
             ? 'rgba(255,255,255,0.8)'
             : 'rgba(0,0,0,0.8)';
           ctx.lineWidth = pxLineWidth;
-          ctx.stroke();
-          // Draw a small marker on the first vertex to help users close the polygon
-          const first = poly[0];
-          const markerR = 1; // px radius
-          ctx.beginPath();
-          ctx.arc(first.x + 0.5, first.y + 0.5, markerR, 0, Math.PI * 2);
-          ctx.fillStyle = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)';
-          ctx.fill();
-          ctx.lineWidth = pxLineWidth;
-          ctx.strokeStyle = isDark
-            ? 'rgba(255,255,255,0.9)'
-            : 'rgba(0,0,0,0.9)';
           ctx.stroke();
         }
       } else {
