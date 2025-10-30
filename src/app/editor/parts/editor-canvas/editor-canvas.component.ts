@@ -102,6 +102,8 @@ export class EditorCanvas {
   private vKeyPressed = false;
   private selectionContentMoving = false;
   private selectionContentMoveStart: { x: number; y: number } | null = null;
+  private tempLayerId: string | null = null;
+  private originalLayerId: string | null = null;
   private lastPointer = { x: 0, y: 0 };
   private shaping = false;
   private stopRenderEffect: EffectRef | null = null;
@@ -521,6 +523,7 @@ export class EditorCanvas {
         this.capturePointer(ev);
         this.selectionContentMoving = true;
         this.selectionContentMoveStart = { x: logicalX, y: logicalY };
+        this.startSelectionContentMove();
         return;
       }
       if (
@@ -813,6 +816,7 @@ export class EditorCanvas {
     if (this.selectionContentMoving) {
       this.selectionContentMoving = false;
       this.selectionContentMoveStart = null;
+      this.endSelectionContentMove();
       return;
     }
 
@@ -825,37 +829,55 @@ export class EditorCanvas {
 
   infoVisible = signal(true);
 
-  moveSelectionContent(dx: number, dy: number) {
+  startSelectionContentMove() {
     const sel = this.document.selectionRect();
     if (!sel) return;
     const layerId = this.document.selectedLayerId();
-    const buf = this.document.getLayerBuffer(layerId);
-    if (!buf) return;
+    const sourceBuf = this.document.getLayerBuffer(layerId);
+    if (!sourceBuf) return;
     const w = this.document.canvasWidth();
     const h = this.document.canvasHeight();
-    const tempBuf = new Array<string>(w * h).fill('');
+    this.originalLayerId = layerId;
+    const tempLayer = this.document.addLayer(`Moving selection`);
+    if (!tempLayer) return;
+    this.tempLayerId = tempLayer.id;
+    const tempBuf = this.document.getLayerBuffer(this.tempLayerId);
+    if (!tempBuf) return;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         if (this.isPointInSelection(x, y)) {
           const idx = y * w + x;
-          tempBuf[idx] = buf[idx] || '';
+          tempBuf[idx] = sourceBuf[idx] || '';
+          sourceBuf[idx] = '';
         }
       }
     }
+    this.document.layerPixelsVersion.update((v) => v + 1);
+  }
+
+  moveSelectionContent(dx: number, dy: number) {
+    this.document.moveSelection(dx, dy);
+  }
+
+  endSelectionContentMove() {
+    if (!this.tempLayerId || !this.originalLayerId) return;
+    const tempBuf = this.document.getLayerBuffer(this.tempLayerId);
+    const originalBuf = this.document.getLayerBuffer(this.originalLayerId);
+    if (!tempBuf || !originalBuf) return;
+    const w = this.document.canvasWidth();
+    const h = this.document.canvasHeight();
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        const newX = x + dx;
-        const newY = y + dy;
-        if (newX >= 0 && newX < w && newY >= 0 && newY < h) {
-          const oldIdx = y * w + x;
-          const newIdx = newY * w + newX;
-          if (tempBuf[oldIdx]) {
-            buf[newIdx] = tempBuf[oldIdx];
-          }
+        const idx = y * w + x;
+        if (tempBuf[idx]) {
+          originalBuf[idx] = tempBuf[idx];
         }
       }
     }
-    this.document.moveSelection(dx, dy);
+    this.document.removeLayer(this.tempLayerId);
+    this.document.selectLayer(this.originalLayerId);
+    this.tempLayerId = null;
+    this.originalLayerId = null;
     this.document.layerPixelsVersion.update((v) => v + 1);
   }
 
