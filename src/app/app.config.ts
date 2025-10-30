@@ -12,6 +12,7 @@ import { provideTransloco } from '@jsverse/transloco';
 import { TranslocoHttpLoader } from './i18n/transloco-loader';
 import { provideIcons } from '@ng-icons/core';
 import * as heroIcons from '@ng-icons/heroicons/outline';
+import * as heroIconsMini from '@ng-icons/heroicons/mini';
 import * as featherIcons from '@ng-icons/feather-icons';
 import * as bootstrapIcons from '@ng-icons/bootstrap-icons';
 
@@ -21,7 +22,7 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(),
-    provideIcons({ ...heroIcons, ...featherIcons, ...bootstrapIcons }),
+    provideIcons({ ...heroIcons, ...heroIconsMini, ...featherIcons, ...bootstrapIcons }),
     provideTransloco({
       config: {
         availableLangs: ['en', 'vi'],
