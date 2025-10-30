@@ -102,7 +102,8 @@ export class EditorCanvas {
   private vKeyPressed = false;
   private selectionContentMoving = false;
   private selectionContentMoveStart: { x: number; y: number } | null = null;
-  private tempLayerId: string | null = null;
+  private movingContentBuffer: string[] | null = null;
+  private movingContentOriginalRect: { x: number; y: number; width: number; height: number } | null = null;
   private originalLayerId: string | null = null;
   private lastPointer = { x: 0, y: 0 };
   private shaping = false;
@@ -838,17 +839,21 @@ export class EditorCanvas {
     const w = this.document.canvasWidth();
     const h = this.document.canvasHeight();
     this.originalLayerId = layerId;
-    const tempLayer = this.document.addLayer(`Moving selection`);
-    if (!tempLayer) return;
-    this.tempLayerId = tempLayer.id;
-    const tempBuf = this.document.getLayerBuffer(this.tempLayerId);
-    if (!tempBuf) return;
+    this.movingContentOriginalRect = {
+      x: sel.x,
+      y: sel.y,
+      width: sel.width,
+      height: sel.height
+    };
+    this.movingContentBuffer = [];
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
         if (this.isPointInSelection(x, y)) {
-          const idx = y * w + x;
-          tempBuf[idx] = sourceBuf[idx] || '';
+          this.movingContentBuffer[idx] = sourceBuf[idx] || '';
           sourceBuf[idx] = '';
+        } else {
+          this.movingContentBuffer[idx] = '';
         }
       }
     }
@@ -860,23 +865,30 @@ export class EditorCanvas {
   }
 
   endSelectionContentMove() {
-    if (!this.tempLayerId || !this.originalLayerId) return;
-    const tempBuf = this.document.getLayerBuffer(this.tempLayerId);
+    if (!this.movingContentBuffer || !this.originalLayerId || !this.movingContentOriginalRect) return;
     const originalBuf = this.document.getLayerBuffer(this.originalLayerId);
-    if (!tempBuf || !originalBuf) return;
+    if (!originalBuf) return;
     const w = this.document.canvasWidth();
     const h = this.document.canvasHeight();
+    const sel = this.document.selectionRect();
+    if (!sel) return;
+    const dx = sel.x - this.movingContentOriginalRect.x;
+    const dy = sel.y - this.movingContentOriginalRect.y;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = y * w + x;
-        if (tempBuf[idx]) {
-          originalBuf[idx] = tempBuf[idx];
+        if (this.movingContentBuffer[idx]) {
+          const newX = x + dx;
+          const newY = y + dy;
+          if (newX >= 0 && newX < w && newY >= 0 && newY < h) {
+            const newIdx = newY * w + newX;
+            originalBuf[newIdx] = this.movingContentBuffer[idx];
+          }
         }
       }
     }
-    this.document.removeLayer(this.tempLayerId);
-    this.document.selectLayer(this.originalLayerId);
-    this.tempLayerId = null;
+    this.movingContentBuffer = null;
+    this.movingContentOriginalRect = null;
     this.originalLayerId = null;
     this.document.layerPixelsVersion.update((v) => v + 1);
   }
@@ -1154,6 +1166,30 @@ export class EditorCanvas {
         }
       }
       ctx.restore();
+    }
+
+    if (this.movingContentBuffer && this.movingContentOriginalRect) {
+      const sel = this.document.selectionRect();
+      if (sel) {
+        const dx = sel.x - this.movingContentOriginalRect.x;
+        const dy = sel.y - this.movingContentOriginalRect.y;
+        ctx.save();
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            const col = this.movingContentBuffer[idx];
+            if (col && col.length) {
+              const newX = x + dx;
+              const newY = y + dy;
+              if (newX >= 0 && newX < w && newY >= 0 && newY < h) {
+                ctx.fillStyle = col;
+                ctx.fillRect(newX, newY, 1, 1);
+              }
+            }
+          }
+        }
+        ctx.restore();
+      }
     }
 
     const activeShape = this.activeShapeTool();
