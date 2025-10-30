@@ -94,6 +94,7 @@ export class EditorDocumentService {
   } | null>(null);
   readonly selectionShape = signal<'rect' | 'ellipse' | 'lasso'>('rect');
   readonly selectionPolygon = signal<{ x: number; y: number }[] | null>(null);
+  readonly selectionMask = signal<Set<string> | null>(null);
 
   readonly layerPixelsVersion = signal(0);
   private layerPixels = new Map<string, string[]>();
@@ -1545,6 +1546,13 @@ export class EditorDocumentService {
     poly: { x: number; y: number }[] | null,
   ) {
     if (!rect) return true;
+    
+    // Check mask first if available
+    const mask = this.selectionMask();
+    if (mask) {
+      return mask.has(`${x},${y}`);
+    }
+    
     if (shape === 'ellipse') {
       const cx = rect.x + rect.width / 2 - 0.5;
       const cy = rect.y + rect.height / 2 - 0.5;
@@ -1699,6 +1707,7 @@ export class EditorDocumentService {
     this.selectionRect.set(null);
     this.selectionShape.set('rect');
     this.selectionPolygon.set(null);
+    this.selectionMask.set(null);
   }
 
   private setSelectionShape(shape: string) {
@@ -1716,87 +1725,60 @@ export class EditorDocumentService {
     if (!rect) return;
     const shape = this.selectionShape();
     const poly = this.selectionPolygon();
-    
-    // For rectangular selection, we can't truly "invert" to stay rectangular
-    // So we need to convert to lasso and select everything EXCEPT the rectangle
-    // But that would create a huge polygon. Instead, let's keep it simple:
-    // Just clear the selection for now as true inversion across entire canvas
-    // with a lasso of thousands of points is not performant.
-    
-    // Actually, the requirement says "đảo vùng chọn trong cùng bounds"
-    // So we should invert WITHIN the bounds, not the entire canvas
+    const oldMask = this.selectionMask();
     
     const w = this.canvasWidth();
     const h = this.canvasHeight();
     
-    // The proper way to invert is to keep the same bounding rectangle
-    // but flip what's selected within that rectangle
-    // However, this only makes sense for lasso/ellipse
-    // For rect, inverting within bounds would result in nothing selected
+    // Create a mask of all currently selected pixels
+    let currentlySelectedMask: Set<string>;
     
-    if (shape === 'rect') {
-      // For rectangle: invert means select everything OUTSIDE the rectangle
-      // This requires a lasso selection
-      const newPoly: { x: number; y: number }[] = [];
-      
-      // Create a polygon that represents the inverted selection
-      // This is the border of the canvas minus the rectangle
-      // Top edge: from (0,0) to (w-1, 0)
-      for (let x = 0; x < w; x++) {
-        newPoly.push({ x, y: 0 });
-      }
-      // Right edge: from (w-1, 0) to (w-1, h-1)
-      for (let y = 1; y < h; y++) {
-        newPoly.push({ x: w - 1, y });
-      }
-      // Bottom edge: from (w-1, h-1) to (0, h-1)
-      for (let x = w - 2; x >= 0; x--) {
-        newPoly.push({ x, y: h - 1 });
-      }
-      // Left edge: from (0, h-1) to (0, 1)
-      for (let y = h - 2; y > 0; y--) {
-        newPoly.push({ x: 0, y });
-      }
-      
-      // Now add the rectangle as a hole (counter-clockwise)
-      const rx1 = rect.x;
-      const ry1 = rect.y;
-      const rx2 = Math.min(w - 1, rect.x + rect.width - 1);
-      const ry2 = Math.min(h - 1, rect.y + rect.height - 1);
-      
-      // Top-left to top-right
-      for (let x = rx1; x <= rx2; x++) {
-        newPoly.push({ x, y: ry1 });
-      }
-      // Top-right to bottom-right
-      for (let y = ry1 + 1; y <= ry2; y++) {
-        newPoly.push({ x: rx2, y });
-      }
-      // Bottom-right to bottom-left
-      for (let x = rx2 - 1; x >= rx1; x--) {
-        newPoly.push({ x, y: ry2 });
-      }
-      // Bottom-left to top-left
-      for (let y = ry2 - 1; y > ry1; y--) {
-        newPoly.push({ x: rx1, y });
-      }
-      
-      this.selectionPolygon.set(newPoly);
-      this.setSelectionShape('lasso');
-      this.selectionRect.set({ x: 0, y: 0, width: w, height: h });
+    if (oldMask) {
+      // If we already have a mask, use it
+      currentlySelectedMask = new Set(oldMask);
     } else {
-      // For ellipse and lasso, we simply clear the selection
-      // True inversion within bounds for complex shapes is not practical
-      this.clearSelectionState();
+      // Build mask from current selection
+      currentlySelectedMask = new Set<string>();
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (this.isPixelWithinSelection(x, y, rect, shape, poly)) {
+            currentlySelectedMask.add(`${x},${y}`);
+          }
+        }
+      }
     }
+    
+    // Invert the mask: create a new mask with all pixels NOT in the current mask
+    const invertedMask = new Set<string>();
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const key = `${x},${y}`;
+        if (!currentlySelectedMask.has(key)) {
+          invertedMask.add(key);
+        }
+      }
+    }
+    
+    // Store the inverted mask
+    this.selectionMask.set(invertedMask);
+    
+    // Update selection shape to 'lasso' and set bounding box
+    this.setSelectionShape('lasso');
+    
+    // Set polygon to null since we're using mask
+    this.selectionPolygon.set(null);
+    
+    // Set rect to entire canvas
+    this.selectionRect.set({ x: 0, y: 0, width: w, height: h });
     
     this.commitMetaChange({
       key: 'selectionSnapshot',
-      previous: { rect, shape, polygon: poly },
+      previous: { rect, shape, polygon: poly, mask: oldMask },
       next: {
         rect: this.selectionRect(),
         shape: this.selectionShape(),
         polygon: this.selectionPolygon(),
+        mask: this.selectionMask(),
       },
     });
   }
@@ -2041,6 +2023,7 @@ export class EditorDocumentService {
           const rr = (val as any).rect;
           const shape = (val as any).shape || 'rect';
           const polygon = (val as any).polygon || null;
+          const mask = (val as any).mask || null;
           if (!rr) {
             this.clearSelectionState();
           } else {
@@ -2060,6 +2043,13 @@ export class EditorDocumentService {
               );
             } else {
               this.selectionPolygon.set(null);
+            }
+            if (mask && mask instanceof Set) {
+              this.selectionMask.set(mask);
+            } else if (mask && Array.isArray(mask)) {
+              this.selectionMask.set(new Set(mask));
+            } else {
+              this.selectionMask.set(null);
             }
           }
         }

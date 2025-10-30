@@ -1102,42 +1102,22 @@ export class EditorCanvas {
     const selShape = this.document.selectionShape();
     if (sel && sel.width > 0 && sel.height > 0) {
       ctx.save();
-      // translucent fill
-      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
-      if (selShape === 'ellipse') {
-        const cx = sel.x + sel.width / 2 - 0.5;
-        const cy = sel.y + sel.height / 2 - 0.5;
-        const rx = Math.max(0.5, sel.width / 2);
-        const ry = Math.max(0.5, sel.height / 2);
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // dashed stroke
-        ctx.setLineDash([4 / scale, 3 / scale]);
-        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
-        ctx.lineWidth = pxLineWidth;
-        ctx.stroke();
-      } else if (selShape === 'lasso') {
-        const poly = this.document.selectionPolygon();
-        if (poly && poly.length > 0) {
-          ctx.beginPath();
-          ctx.moveTo(poly[0].x + 0.5, poly[0].y + 0.5);
-          for (let i = 1; i < poly.length; i++) {
-            ctx.lineTo(poly[i].x + 0.5, poly[i].y + 0.5);
-          }
-          // Optionally close the path for visual completeness
-          ctx.closePath();
-          ctx.fill();
-          ctx.setLineDash([4 / scale, 3 / scale]);
-          ctx.strokeStyle = isDark
-            ? 'rgba(255,255,255,0.8)'
-            : 'rgba(0,0,0,0.8)';
-          ctx.lineWidth = pxLineWidth;
-          ctx.stroke();
+      
+      // Check if we have a mask-based selection
+      const mask = this.document.selectionMask();
+      
+      if (mask) {
+        // Draw mask-based selection by rendering individual pixels
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+        for (const key of mask) {
+          const [xStr, yStr] = key.split(',');
+          const x = parseInt(xStr, 10);
+          const y = parseInt(yStr, 10);
+          ctx.fillRect(x, y, 1, 1);
         }
-      } else {
-        // ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
-        // dashed stroke
+        
+        // Draw marching ants border around the selection
+        // For performance, we'll just draw a rect around the bounding box
         ctx.setLineDash([4 / scale, 3 / scale]);
         ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
         ctx.lineWidth = pxLineWidth;
@@ -1147,6 +1127,53 @@ export class EditorCanvas {
           Math.max(0, sel.width),
           Math.max(0, sel.height),
         );
+      } else {
+        // translucent fill
+        ctx.fillStyle = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+        if (selShape === 'ellipse') {
+          const cx = sel.x + sel.width / 2 - 0.5;
+          const cy = sel.y + sel.height / 2 - 0.5;
+          const rx = Math.max(0.5, sel.width / 2);
+          const ry = Math.max(0.5, sel.height / 2);
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // dashed stroke
+          ctx.setLineDash([4 / scale, 3 / scale]);
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+          ctx.lineWidth = pxLineWidth;
+          ctx.stroke();
+        } else if (selShape === 'lasso') {
+          const poly = this.document.selectionPolygon();
+          if (poly && poly.length > 0) {
+            ctx.beginPath();
+            ctx.moveTo(poly[0].x + 0.5, poly[0].y + 0.5);
+            for (let i = 1; i < poly.length; i++) {
+              ctx.lineTo(poly[i].x + 0.5, poly[i].y + 0.5);
+            }
+            // Optionally close the path for visual completeness
+            ctx.closePath();
+            ctx.fill();
+            ctx.setLineDash([4 / scale, 3 / scale]);
+            ctx.strokeStyle = isDark
+              ? 'rgba(255,255,255,0.8)'
+              : 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = pxLineWidth;
+            ctx.stroke();
+          }
+        } else {
+          // ctx.fillRect(sel.x, sel.y, sel.width, sel.height);
+          // dashed stroke
+          ctx.setLineDash([4 / scale, 3 / scale]);
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+          ctx.lineWidth = pxLineWidth;
+          ctx.strokeRect(
+            sel.x,
+            sel.y,
+            Math.max(0, sel.width),
+            Math.max(0, sel.height),
+          );
+        }
       }
       ctx.restore();
     }
