@@ -83,7 +83,7 @@
         >
           <ng-icon
             id="layers-list-item-lock-icon-{{ entry.item.id }}"
-            [name]="entry.item.locked ? 'heroIconsLockClosedMini' : 'heroIconsLockOpenMini'"
+            [name]="entry.item.locked ? 'heroLockClosedMini' : 'heroLockOpenMini'"
             class="w-4 h-4"
           ></ng-icon>
         </button>
@@ -214,7 +214,7 @@
         >
           <ng-icon
             id="layers-context-menu-lock-icon"
-            [name]="isContextMenuItemLocked ? 'heroIconsLockOpenMini' : 'heroIconsLockClosedMini'"
+            [name]="isContextMenuItemLocked ? 'heroLockOpenMini' : 'heroLockClosedMini'"
             class="w-4 h-4"
           ></ng-icon>
           <span id="layers-context-menu-lock-label">{{
