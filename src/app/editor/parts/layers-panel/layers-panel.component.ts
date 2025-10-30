@@ -66,6 +66,12 @@ export class LayersPanel {
   }
 
   onDragStart(ev: DragEvent, index: number) {
+    const layers = this.getFlattenedLayers();
+    const item = layers[index]?.item;
+    if (item?.locked) {
+      ev.preventDefault();
+      return;
+    }
     this.dragIndex = index;
     try {
       ev.dataTransfer?.setData('text/plain', String(index));
@@ -82,6 +88,13 @@ export class LayersPanel {
       this.dragIndex ??
       parseInt(ev.dataTransfer?.getData('text/plain') || '-1', 10);
     if (from >= 0 && from !== index) {
+      const layers = this.getFlattenedLayers();
+      const fromItem = layers[from]?.item;
+      const toItem = layers[index]?.item;
+      if (fromItem?.locked || toItem?.locked) {
+        this.dragIndex = null;
+        return;
+      }
       this.document.reorderLayers(from, index);
     }
     this.dragIndex = null;
@@ -127,6 +140,11 @@ export class LayersPanel {
   onDuplicate() {
     const layerId = this.contextMenuLayerId();
     if (layerId) {
+      const item = this.document.findItemById(this.document.layers(), layerId);
+      if (item?.locked) {
+        this.closeContextMenu();
+        return;
+      }
       this.document.duplicateLayer(layerId);
     }
     this.closeContextMenu();
@@ -135,6 +153,11 @@ export class LayersPanel {
   onDelete() {
     const layerId = this.contextMenuLayerId();
     if (layerId) {
+      const item = this.document.findItemById(this.document.layers(), layerId);
+      if (item?.locked) {
+        this.closeContextMenu();
+        return;
+      }
       this.document.removeLayer(layerId);
     }
     this.closeContextMenu();
@@ -143,6 +166,14 @@ export class LayersPanel {
   onMerge() {
     const selectedIds = Array.from(this.document.selectedLayerIds());
     if (selectedIds.length >= 2) {
+      const hasLockedLayer = selectedIds.some(id => {
+        const item = this.document.findItemById(this.document.layers(), id);
+        return item?.locked;
+      });
+      if (hasLockedLayer) {
+        this.closeContextMenu();
+        return;
+      }
       this.document.mergeLayers(selectedIds);
     }
     this.closeContextMenu();
@@ -151,6 +182,14 @@ export class LayersPanel {
   onGroup() {
     const selectedIds = Array.from(this.document.selectedLayerIds());
     if (selectedIds.length >= 2) {
+      const hasLockedLayer = selectedIds.some(id => {
+        const item = this.document.findItemById(this.document.layers(), id);
+        return item?.locked;
+      });
+      if (hasLockedLayer) {
+        this.closeContextMenu();
+        return;
+      }
       this.document.groupLayers(selectedIds);
     }
     this.closeContextMenu();
@@ -159,6 +198,11 @@ export class LayersPanel {
   onUngroup() {
     const layerId = this.contextMenuLayerId();
     if (layerId) {
+      const item = this.document.findItemById(this.document.layers(), layerId);
+      if (item?.locked) {
+        this.closeContextMenu();
+        return;
+      }
       this.document.ungroupLayers(layerId);
     }
     this.closeContextMenu();
@@ -175,12 +219,30 @@ export class LayersPanel {
     return item ? isGroup(item) : false;
   }
 
+  get isContextMenuItemLocked(): boolean {
+    const layerId = this.contextMenuLayerId();
+    if (!layerId) return false;
+    const item = this.document.findItemById(this.document.layers(), layerId);
+    return item ? item.locked : false;
+  }
+
+  onToggleLock() {
+    const layerId = this.contextMenuLayerId();
+    if (layerId) {
+      this.document.toggleLayerLock(layerId);
+    }
+    this.closeContextMenu();
+  }
+
   onToggleExpand(id: string, event: MouseEvent) {
     event.stopPropagation();
     this.document.toggleGroupExpanded(id);
   }
 
   onDoubleClick(item: LayerTreeItem) {
+    if (item.locked) {
+      return;
+    }
     this.editingLayerId.set(item.id);
     this.editingLayerName.set(item.name);
   }
