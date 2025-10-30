@@ -125,9 +125,14 @@ export class EditorProjectService {
         const exists = this.layerService
           .layers()
           .some((x) => x.id === parsed.selectedLayerId);
-        if (exists)
+        if (exists) {
           this.layerService.selectedLayerId.set(parsed.selectedLayerId);
+          this.layerService.selectedLayerIds.set(
+            new Set([parsed.selectedLayerId]),
+          );
+        }
       }
+      this.layerService.ensureValidSelection();
 
       const maxBrush = Math.max(
         1,

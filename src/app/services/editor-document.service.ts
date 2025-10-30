@@ -820,12 +820,7 @@ export class EditorDocumentService {
             newBuffers.set(k, (buffers[k] || []).slice());
           }
           this.canvasState.replaceAllBuffers(newBuffers);
-          const sel = this.layerService.selectedLayerId();
-          if (!this.layerService.layers().some((x) => x.id === sel)) {
-            this.layerService.selectedLayerId.set(
-              this.layerService.layers()[0]?.id ?? '',
-            );
-          }
+          this.layerService.ensureValidSelection();
           this.canvasState.incrementPixelsVersion();
         }
         break;

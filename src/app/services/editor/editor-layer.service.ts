@@ -197,11 +197,20 @@ export class EditorLayerService {
     if (!item) return false;
     const next = this.removeItemById(this.layers(), id);
     this.layers.set(next);
-    if (this.selectedLayerId() === id) {
-      const newAllIds = this.getAllLayerIds(next);
-      if (newAllIds.length > 0) {
-        this.selectedLayerId.set(newAllIds[0]);
+    const currentSelectedIds = this.selectedLayerIds();
+    if (currentSelectedIds.has(id)) {
+      const newSelectedIds = new Set(currentSelectedIds);
+      newSelectedIds.delete(id);
+      if (newSelectedIds.size === 0) {
+        const newAllIds = this.getAllLayerIds(next);
+        if (newAllIds.length > 0) {
+          newSelectedIds.add(newAllIds[0]);
+          this.selectedLayerId.set(newAllIds[0]);
+        }
+      } else {
+        this.selectedLayerId.set(Array.from(newSelectedIds)[0]);
       }
+      this.selectedLayerIds.set(newSelectedIds);
     }
     return true;
   }
@@ -273,5 +282,23 @@ export class EditorLayerService {
     this.layers.set([item]);
     this.selectedLayerId.set(item.id);
     this.selectedLayerIds.set(new Set([item.id]));
+  }
+
+  ensureValidSelection() {
+    const currentLayers = this.layers();
+    const allIds = this.getAllLayerIds(currentLayers);
+    if (allIds.length === 0) return;
+    const currentSelectedId = this.selectedLayerId();
+    const currentSelectedIds = this.selectedLayerIds();
+    const validSelectedIds = new Set(
+      Array.from(currentSelectedIds).filter((id) => allIds.includes(id)),
+    );
+    if (validSelectedIds.size === 0) {
+      validSelectedIds.add(allIds[0]);
+      this.selectedLayerId.set(allIds[0]);
+      this.selectedLayerIds.set(validSelectedIds);
+    } else if (!validSelectedIds.has(currentSelectedId)) {
+      this.selectedLayerId.set(Array.from(validSelectedIds)[0]);
+    }
   }
 }
