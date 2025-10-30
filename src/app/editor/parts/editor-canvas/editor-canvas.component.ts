@@ -335,25 +335,27 @@ export class EditorCanvas {
     }
 
     if (this.selectionMoving && this.selectionMoveStart) {
-      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
-      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
-      const dx = clampedX - this.selectionMoveStart.x;
-      const dy = clampedY - this.selectionMoveStart.y;
+      if (logicalX < 0 || logicalX >= w || logicalY < 0 || logicalY >= h) {
+        return;
+      }
+      const dx = logicalX - this.selectionMoveStart.x;
+      const dy = logicalY - this.selectionMoveStart.y;
       if (dx !== 0 || dy !== 0) {
         this.document.moveSelection(dx, dy);
-        this.selectionMoveStart = { x: clampedX, y: clampedY };
+        this.selectionMoveStart = { x: logicalX, y: logicalY };
       }
       return;
     }
 
     if (this.selectionContentMoving && this.selectionContentMoveStart) {
-      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
-      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
-      const dx = clampedX - this.selectionContentMoveStart.x;
-      const dy = clampedY - this.selectionContentMoveStart.y;
+      if (logicalX < 0 || logicalX >= w || logicalY < 0 || logicalY >= h) {
+        return;
+      }
+      const dx = logicalX - this.selectionContentMoveStart.x;
+      const dy = logicalY - this.selectionContentMoveStart.y;
       if (dx !== 0 || dy !== 0) {
         this.moveSelectionContent(dx, dy);
-        this.selectionContentMoveStart = { x: clampedX, y: clampedY };
+        this.selectionContentMoveStart = { x: logicalX, y: logicalY };
       }
       return;
     }
@@ -831,22 +833,12 @@ export class EditorCanvas {
     if (!buf) return;
     const w = this.document.canvasWidth();
     const h = this.document.canvasHeight();
-    const shape = this.document.selectionShape();
-    const poly = this.document.selectionPolygon();
     const tempBuf = new Array<string>(w * h).fill('');
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         if (this.isPointInSelection(x, y)) {
           const idx = y * w + x;
           tempBuf[idx] = buf[idx] || '';
-        }
-      }
-    }
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        if (this.isPointInSelection(x, y)) {
-          const idx = y * w + x;
-          buf[idx] = '';
         }
       }
     }
