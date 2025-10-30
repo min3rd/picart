@@ -253,6 +253,9 @@ export class EditorCanvas {
     const logicalX = Math.floor(visX * ratioX);
     const logicalY = Math.floor(visY * ratioY);
 
+    const clampedX = Math.max(0, Math.min(w - 1, logicalX));
+    const clampedY = Math.max(0, Math.min(h - 1, logicalY));
+
     if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
       this.hoverX.set(logicalX);
       this.hoverY.set(logicalY);
@@ -270,42 +273,32 @@ export class EditorCanvas {
       this.lastPointer.y = ev.clientY;
     }
 
-    // If dragging a rectangle/ellipse selection, update selection.
-    // If Shift is held, constrain to a square so ellipse-select becomes a circle.
-    // For lasso-select: allow free drawing by adding points while dragging
     if (this.selectionDragging) {
-      if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
-        const tool = this.tools.currentTool();
-        if (tool === 'lasso-select') {
-          // Add point to lasso while dragging
-          this.document.addLassoPoint(logicalX, logicalY);
-        } else {
-          let endX = logicalX;
-          let endY = logicalY;
-          if (ev.shiftKey && this.selectionStart) {
-            // Constrain to a square anchored at the selection start.
-            const dx = logicalX - this.selectionStart.x;
-            const dy = logicalY - this.selectionStart.y;
-            const absDx = Math.abs(dx);
-            const absDy = Math.abs(dy);
-            const max = Math.max(absDx, absDy);
-            const sx = dx >= 0 ? 1 : -1;
-            const sy = dy >= 0 ? 1 : -1;
-            endX = this.selectionStart.x + sx * max;
-            endY = this.selectionStart.y + sy * max;
-            // clamp to canvas bounds
-            endX = Math.max(0, Math.min(endX, w - 1));
-            endY = Math.max(0, Math.min(endY, h - 1));
-          }
-          this.document.updateSelection(endX, endY);
+      const tool = this.tools.currentTool();
+      if (tool === 'lasso-select') {
+        this.document.addLassoPoint(clampedX, clampedY);
+      } else {
+        let endX = clampedX;
+        let endY = clampedY;
+        if (ev.shiftKey && this.selectionStart) {
+          const dx = clampedX - this.selectionStart.x;
+          const dy = clampedY - this.selectionStart.y;
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+          const max = Math.max(absDx, absDy);
+          const sx = dx >= 0 ? 1 : -1;
+          const sy = dy >= 0 ? 1 : -1;
+          endX = this.selectionStart.x + sx * max;
+          endY = this.selectionStart.y + sy * max;
+          endX = Math.max(0, Math.min(endX, w - 1));
+          endY = Math.max(0, Math.min(endY, h - 1));
         }
+        this.document.updateSelection(endX, endY);
       }
       return;
     }
 
     if (this.shaping) {
-      const clampedX = this.clampCoord(logicalX, w);
-      const clampedY = this.clampCoord(logicalY, h);
       const active = this.activeShapeTool();
       if (active === 'square' || active === 'circle') {
         this.shapeConstrainUniform.set(ev.shiftKey);
@@ -315,55 +308,41 @@ export class EditorCanvas {
       this.shapeCurrent.set({ x: clampedX, y: clampedY });
     }
 
-    // rotation disabled: no-op
-
-    // Painting: if left button pressed and current tool is brush/eraser, apply
     if (this.painting) {
-      if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
-        const layerId = this.document.selectedLayerId();
-        const tool = this.tools.currentTool();
-        const color = tool === 'eraser' ? null : this.tools.brushColor();
-        const size =
-          tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
-        if (this.lastPaintPos) {
-          this.drawLinePaint(
-            layerId,
-            this.lastPaintPos.x,
-            this.lastPaintPos.y,
-            logicalX,
-            logicalY,
-            size,
-            color,
-          );
-        } else {
-          this.document.applyBrushToLayer(
-            layerId,
-            logicalX,
-            logicalY,
-            size,
-            color,
-            tool === 'eraser'
-              ? { eraserStrength: this.tools.eraserStrength() }
-              : undefined,
-          );
-        }
-        this.lastPaintPos = { x: logicalX, y: logicalY };
+      const layerId = this.document.selectedLayerId();
+      const tool = this.tools.currentTool();
+      const color = tool === 'eraser' ? null : this.tools.brushColor();
+      const size =
+        tool === 'eraser' ? this.tools.eraserSize() : this.tools.brushSize();
+      if (this.lastPaintPos) {
+        this.drawLinePaint(
+          layerId,
+          this.lastPaintPos.x,
+          this.lastPaintPos.y,
+          clampedX,
+          clampedY,
+          size,
+          color,
+        );
+      } else {
+        this.document.applyBrushToLayer(
+          layerId,
+          clampedX,
+          clampedY,
+          size,
+          color,
+          tool === 'eraser'
+            ? { eraserStrength: this.tools.eraserStrength() }
+            : undefined,
+        );
       }
+      this.lastPaintPos = { x: clampedX, y: clampedY };
     }
   }
 
   onPointerLeave() {
     this.hoverX.set(null);
     this.hoverY.set(null);
-    if (this.painting) {
-      // finalize current paint action if pointer leaves
-      this.painting = false;
-      this.lastPaintPos = null;
-      this.document.endAction();
-    }
-    if (this.shaping) {
-      this.cancelShape();
-    }
   }
 
   onWheel(ev: WheelEvent) {
@@ -407,14 +386,15 @@ export class EditorCanvas {
     if (this.contextMenuVisible()) {
       this.closeContextMenu();
     }
-    // Middle-click (button 1) or Ctrl for panning. Shift no longer starts panning
-    // so Shift can be used for other modifiers like constraining selection to a circle.
     if (ev.button === 1 || ev.ctrlKey) {
       this.panning = true;
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
+      const target = ev.currentTarget as HTMLElement;
+      if (target?.setPointerCapture) {
+        target.setPointerCapture(ev.pointerId);
+      }
     }
-    // right-click rotation disabled
 
     const rect = this.canvasEl.nativeElement.getBoundingClientRect();
     const visX = ev.clientX - rect.left;
@@ -433,16 +413,17 @@ export class EditorCanvas {
       return;
     }
 
-    // Left-button painting start (draw into selected layer)
     if (ev.button === 0) {
-      // Rectangle / Ellipse / Lasso selection handling
       if (
         (tool === 'rect-select' ||
           tool === 'ellipse-select' ||
           tool === 'lasso-select') &&
         insideCanvas
       ) {
-        // Lasso: start free-draw on mouse down, finish on mouse up
+        const target = ev.currentTarget as HTMLElement;
+        if (target?.setPointerCapture) {
+          target.setPointerCapture(ev.pointerId);
+        }
         if (tool === 'lasso-select') {
           this.selectionStart = { x: logicalX, y: logicalY };
           this.selectionDragging = true;
@@ -451,7 +432,6 @@ export class EditorCanvas {
           return;
         }
 
-        // rect/ellipse start drag behavior
         this.selectionStart = { x: logicalX, y: logicalY };
         this.selectionDragging = true;
         const shape = tool === 'ellipse-select' ? 'ellipse' : 'rect';
@@ -462,6 +442,10 @@ export class EditorCanvas {
         (tool === 'line' || tool === 'circle' || tool === 'square') &&
         insideCanvas
       ) {
+        const target = ev.currentTarget as HTMLElement;
+        if (target?.setPointerCapture) {
+          target.setPointerCapture(ev.pointerId);
+        }
         if (tool === 'square' || tool === 'circle') {
           this.shapeConstrainUniform.set(ev.shiftKey);
         } else {
@@ -471,7 +455,6 @@ export class EditorCanvas {
         return;
       }
       if (tool === 'fill' && insideCanvas) {
-        // One-shot fill action
         const selectionActive = this.document.selectionRect();
         if (selectionActive && !this.isPointInSelection(logicalX, logicalY)) {
           return;
@@ -483,8 +466,10 @@ export class EditorCanvas {
         this.document.applyFillToLayer(layerId, logicalX, logicalY, fillColor);
         this.document.endAction();
       } else if ((tool === 'brush' || tool === 'eraser') && insideCanvas) {
-        // Begin a grouped user action so the whole stroke is a single undoable
-        // section. The action will be collected until pointer up/leave.
+        const target = ev.currentTarget as HTMLElement;
+        if (target?.setPointerCapture) {
+          target.setPointerCapture(ev.pointerId);
+        }
         this.document.beginAction('paint');
         this.painting = true;
         this.lastPaintPos = { x: logicalX, y: logicalY };
@@ -701,12 +686,14 @@ export class EditorCanvas {
   }
 
   onPointerUp(ev: PointerEvent) {
+    const target = ev.currentTarget as HTMLElement;
+    if (target?.releasePointerCapture && target.hasPointerCapture(ev.pointerId)) {
+      target.releasePointerCapture(ev.pointerId);
+    }
     this.panning = false;
     if (this.shaping) {
       this.finishShape(ev.shiftKey);
     }
-    // rotation disabled
-    // stop painting on any pointer up
     if (this.painting) {
       this.painting = false;
       this.lastPaintPos = null;
