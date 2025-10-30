@@ -127,6 +127,24 @@ export class EditorCanvas {
   ];
   private readonly gradientSteps = 8;
 
+  private capturePointer(ev: PointerEvent): void {
+    const target = ev.currentTarget as HTMLElement;
+    if (target?.setPointerCapture) {
+      target.setPointerCapture(ev.pointerId);
+    }
+  }
+
+  private releasePointer(ev: PointerEvent): void {
+    const target = ev.currentTarget as HTMLElement;
+    if (target?.releasePointerCapture) {
+      try {
+        if (target.hasPointerCapture(ev.pointerId)) {
+          target.releasePointerCapture(ev.pointerId);
+        }
+      } catch {}
+    }
+  }
+
   constructor() {
     this.stopRenderEffect = effect(() => {
       this.drawCanvas();
@@ -253,9 +271,6 @@ export class EditorCanvas {
     const logicalX = Math.floor(visX * ratioX);
     const logicalY = Math.floor(visY * ratioY);
 
-    const clampedX = Math.max(0, Math.min(w - 1, logicalX));
-    const clampedY = Math.max(0, Math.min(h - 1, logicalY));
-
     if (logicalX >= 0 && logicalX < w && logicalY >= 0 && logicalY < h) {
       this.hoverX.set(logicalX);
       this.hoverY.set(logicalY);
@@ -274,6 +289,8 @@ export class EditorCanvas {
     }
 
     if (this.selectionDragging) {
+      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
+      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
       const tool = this.tools.currentTool();
       if (tool === 'lasso-select') {
         this.document.addLassoPoint(clampedX, clampedY);
@@ -299,6 +316,8 @@ export class EditorCanvas {
     }
 
     if (this.shaping) {
+      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
+      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
       const active = this.activeShapeTool();
       if (active === 'square' || active === 'circle') {
         this.shapeConstrainUniform.set(ev.shiftKey);
@@ -309,6 +328,8 @@ export class EditorCanvas {
     }
 
     if (this.painting) {
+      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
+      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
       const layerId = this.document.selectedLayerId();
       const tool = this.tools.currentTool();
       const color = tool === 'eraser' ? null : this.tools.brushColor();
@@ -390,10 +411,7 @@ export class EditorCanvas {
       this.panning = true;
       this.lastPointer.x = ev.clientX;
       this.lastPointer.y = ev.clientY;
-      const target = ev.currentTarget as HTMLElement;
-      if (target?.setPointerCapture) {
-        target.setPointerCapture(ev.pointerId);
-      }
+      this.capturePointer(ev);
     }
 
     const rect = this.canvasEl.nativeElement.getBoundingClientRect();
@@ -420,10 +438,7 @@ export class EditorCanvas {
           tool === 'lasso-select') &&
         insideCanvas
       ) {
-        const target = ev.currentTarget as HTMLElement;
-        if (target?.setPointerCapture) {
-          target.setPointerCapture(ev.pointerId);
-        }
+        this.capturePointer(ev);
         if (tool === 'lasso-select') {
           this.selectionStart = { x: logicalX, y: logicalY };
           this.selectionDragging = true;
@@ -442,10 +457,7 @@ export class EditorCanvas {
         (tool === 'line' || tool === 'circle' || tool === 'square') &&
         insideCanvas
       ) {
-        const target = ev.currentTarget as HTMLElement;
-        if (target?.setPointerCapture) {
-          target.setPointerCapture(ev.pointerId);
-        }
+        this.capturePointer(ev);
         if (tool === 'square' || tool === 'circle') {
           this.shapeConstrainUniform.set(ev.shiftKey);
         } else {
@@ -466,10 +478,7 @@ export class EditorCanvas {
         this.document.applyFillToLayer(layerId, logicalX, logicalY, fillColor);
         this.document.endAction();
       } else if ((tool === 'brush' || tool === 'eraser') && insideCanvas) {
-        const target = ev.currentTarget as HTMLElement;
-        if (target?.setPointerCapture) {
-          target.setPointerCapture(ev.pointerId);
-        }
+        this.capturePointer(ev);
         this.document.beginAction('paint');
         this.painting = true;
         this.lastPaintPos = { x: logicalX, y: logicalY };
@@ -686,10 +695,7 @@ export class EditorCanvas {
   }
 
   onPointerUp(ev: PointerEvent) {
-    const target = ev.currentTarget as HTMLElement;
-    if (target?.releasePointerCapture && target.hasPointerCapture(ev.pointerId)) {
-      target.releasePointerCapture(ev.pointerId);
-    }
+    this.releasePointer(ev);
     this.panning = false;
     if (this.shaping) {
       this.finishShape(ev.shiftKey);
