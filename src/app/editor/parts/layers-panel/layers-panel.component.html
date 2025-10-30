@@ -11,7 +11,7 @@
       <div
         id="layers-list-item-{{ entry.item.id }}"
         class="py-1 rounded-sm border border-neutral-300 dark:border-neutral-700 flex items-center"
-        draggable="true"
+        [attr.draggable]="!entry.item.locked"
         (dragstart)="onDragStart($event, layerIndex)"
         (dragover)="onDragOver($event, layerIndex)"
         (drop)="onDrop($event, layerIndex)"
@@ -70,6 +70,23 @@
             class="w-4 h-4"
           ></ng-icon>
         </button>
+        <button
+          type="button"
+          id="layers-list-item-lock-{{ entry.item.id }}"
+          class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center ml-1"
+          (click)="document.toggleLayerLock(entry.item.id)"
+          [title]="
+            entry.item.locked
+              ? ('editor.layers.unlock' | transloco)
+              : ('editor.layers.lock' | transloco)
+          "
+        >
+          <ng-icon
+            id="layers-list-item-lock-icon-{{ entry.item.id }}"
+            [name]="entry.item.locked ? 'heroIconsLockClosedMini' : 'heroIconsLockOpenMini'"
+            class="w-4 h-4"
+          ></ng-icon>
+        </button>
         @if (editingLayerId() === entry.item.id) {
           <input
             type="text"
@@ -99,9 +116,10 @@
           <button
             type="button"
             id="layers-list-item-ungroup-{{ entry.item.id }}"
-            class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center ml-2"
+            class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
             (click)="document.ungroupLayers(entry.item.id)"
             [title]="'editor.layers.ungroup' | transloco"
+            [disabled]="entry.item.locked"
           >
             <ng-icon
               id="layers-list-item-ungroup-icon-{{ entry.item.id }}"
@@ -116,6 +134,7 @@
             class="w-6 h-6 rounded-sm border border-neutral-300 dark:border-neutral-700 grid place-items-center disabled:opacity-50 ml-2"
             (click)="document.removeLayer(entry.item.id)"
             [title]="'editor.layers.delete' | transloco"
+            [disabled]="entry.item.locked"
           >
             <ng-icon
               id="layers-list-item-delete-icon-{{ entry.item.id }}"
@@ -185,6 +204,26 @@
             id="layers-context-menu-duplicate-shortcut"
             class="ml-auto text-xs opacity-60"
             >Ctrl+D</span
+          >
+        </button>
+        <button
+          type="button"
+          id="layers-context-menu-lock"
+          class="w-full px-3 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+          (click)="onToggleLock()"
+        >
+          <ng-icon
+            id="layers-context-menu-lock-icon"
+            [name]="isContextMenuItemLocked ? 'heroIconsLockOpenMini' : 'heroIconsLockClosedMini'"
+            class="w-4 h-4"
+          ></ng-icon>
+          <span id="layers-context-menu-lock-label">{{
+            (isContextMenuItemLocked ? "editor.layers.unlock" : "editor.layers.lock") | transloco
+          }}</span>
+          <span
+            id="layers-context-menu-lock-shortcut"
+            class="ml-auto text-xs opacity-60"
+            >Ctrl+L</span
           >
         </button>
         @if (selectedCount >= 2) {

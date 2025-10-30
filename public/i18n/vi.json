@@ -109,6 +109,8 @@
       "title": "Danh sách layer",
       "hide": "Ẩn",
       "show": "Hiện",
+      "lock": "Khóa layer",
+      "unlock": "Mở khóa layer",
       "delete": "Xóa layer",
       "add": "Thêm layer",
       "selectPixel": "Chọn pixel",

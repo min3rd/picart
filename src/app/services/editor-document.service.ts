@@ -180,6 +180,13 @@ export class EditorDocumentService {
     this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
   }
 
+  toggleLayerLock(id: string) {
+    const prev = this.snapshotLayersAndBuffers();
+    this.layerService.toggleLayerLock(id);
+    const next = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
+  }
+
   removeLayer(id: string): boolean {
     const prevSnapshot = this.snapshotLayersAndBuffers();
     const item = this.layerService.findItemById(

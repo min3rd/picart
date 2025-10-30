@@ -172,6 +172,21 @@ export class EditorLayerService {
     this.layers.set(toggleVis(this.layers()));
   }
 
+  toggleLayerLock(id: string) {
+    const toggleLock = (items: LayerTreeItem[]): LayerTreeItem[] => {
+      return items.map((item) => {
+        if (item.id === id) {
+          return { ...item, locked: !item.locked };
+        }
+        if (isGroup(item)) {
+          return { ...item, children: toggleLock(item.children) };
+        }
+        return item;
+      });
+    };
+    this.layers.set(toggleLock(this.layers()));
+  }
+
   addLayer(name?: string): LayerItem {
     const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const flatLayers = this.flattenLayers(this.layers());

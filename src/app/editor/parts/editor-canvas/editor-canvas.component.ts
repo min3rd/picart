@@ -249,6 +249,14 @@ export class EditorCanvas {
           this.document.duplicateLayer();
           return;
         }
+        if (ev.ctrlKey && key === 'l') {
+          ev.preventDefault();
+          const selectedId = this.document.selectedLayerId();
+          if (selectedId) {
+            this.document.toggleLayerLock(selectedId);
+          }
+          return;
+        }
         if (ev.key === 'Delete') {
           ev.preventDefault();
           const selectedIds = Array.from(this.document.selectedLayerIds());

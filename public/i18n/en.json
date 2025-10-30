@@ -109,6 +109,8 @@
       "title": "Layers",
       "hide": "Hide",
       "show": "Show",
+      "lock": "Lock layer",
+      "unlock": "Unlock layer",
       "delete": "Delete layer",
       "add": "Add layer",
       "selectPixel": "Select Pixel",
