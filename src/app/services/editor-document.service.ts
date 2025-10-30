@@ -14,6 +14,27 @@ export interface LayerItem {
   name: string;
   visible: boolean;
   locked: boolean;
+  type: 'layer';
+}
+
+export interface GroupItem {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  type: 'group';
+  expanded: boolean;
+  children: LayerTreeItem[];
+}
+
+export type LayerTreeItem = LayerItem | GroupItem;
+
+export function isGroup(item: LayerTreeItem): item is GroupItem {
+  return item.type === 'group';
+}
+
+export function isLayer(item: LayerTreeItem): item is LayerItem {
+  return item.type === 'layer';
 }
 
 export interface FrameItem {
@@ -70,11 +91,12 @@ export class EditorDocumentService {
   private readonly tools = inject(EditorToolsService);
   private readonly PROJECT_STORAGE_KEY = 'pixart.project.local.v1';
 
-  readonly layers = signal<LayerItem[]>([
-    { id: 'l1', name: 'Layer 1', visible: true, locked: false },
+  readonly layers = signal<LayerTreeItem[]>([
+    { id: 'l1', name: 'Layer 1', visible: true, locked: false, type: 'layer' },
   ]);
   readonly selectedLayerId = signal<string>('l1');
   readonly selectedLayerIds = signal<Set<string>>(new Set(['l1']));
+  private groupCounter = 0;
 
   readonly frames = signal<FrameItem[]>([
     { id: 'f1', name: 'Frame 1', duration: 100 },
@@ -150,7 +172,11 @@ export class EditorDocumentService {
           name: l.name,
           visible: !!l.visible,
           locked: !!l.locked,
-        }));
+          type: l.type || 'layer',
+          ...(l.type === 'group'
+            ? { expanded: !!l.expanded, children: l.children || [] }
+            : {}),
+        })) as LayerTreeItem[];
         this.layers.set(layers);
       }
 
@@ -472,7 +498,11 @@ export class EditorDocumentService {
           name: l.name,
           visible: !!l.visible,
           locked: !!l.locked,
-        }));
+          type: l.type || 'layer',
+          ...(l.type === 'group'
+            ? { expanded: !!l.expanded, children: l.children || [] }
+            : {}),
+        })) as LayerTreeItem[];
         this.layers.set(layers);
       }
 
@@ -699,9 +729,11 @@ export class EditorDocumentService {
       name: 'Layer 1',
       visible: true,
       locked: false,
+      type: 'layer',
     };
     this.layers.set([item]);
     this.selectedLayerId.set(item.id);
+    this.selectedLayerIds.set(new Set([item.id]));
     this.layerPixels = new Map<string, string[]>();
     this.ensureLayerBuffer(item.id, this.canvasWidth(), this.canvasHeight());
     this.selectionRect.set(null);
@@ -730,8 +762,8 @@ export class EditorDocumentService {
   }
 
   // Derived
-  readonly selectedLayer: Signal<LayerItem | undefined> = computed(() =>
-    this.layers().find((l) => l.id === this.selectedLayerId()),
+  readonly selectedLayer: Signal<LayerTreeItem | null> = computed(() =>
+    this.findItemById(this.layers(), this.selectedLayerId()),
   );
 
   selectLayer(id: string) {
@@ -832,6 +864,112 @@ export class EditorDocumentService {
   // not replace the array) or an empty array if none.
   getLayerBuffer(layerId: string): string[] {
     return this.layerPixels.get(layerId) || [];
+  }
+
+  private flattenLayers(items: LayerTreeItem[]): LayerItem[] {
+    const result: LayerItem[] = [];
+    for (const item of items) {
+      if (isGroup(item)) {
+        result.push(...this.flattenLayers(item.children));
+      } else {
+        result.push(item);
+      }
+    }
+    return result;
+  }
+
+  getFlattenedLayers(): LayerItem[] {
+    return this.flattenLayers(this.layers());
+  }
+
+  private findItemById(
+    items: LayerTreeItem[],
+    id: string,
+  ): LayerTreeItem | null {
+    for (const item of items) {
+      if (item.id === id) return item;
+      if (isGroup(item)) {
+        const found = this.findItemById(item.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  private findParentGroup(
+    items: LayerTreeItem[],
+    childId: string,
+    parent: GroupItem | null = null,
+  ): GroupItem | null {
+    for (const item of items) {
+      if (item.id === childId) return parent;
+      if (isGroup(item)) {
+        const found = this.findParentGroup(item.children, childId, item);
+        if (found !== null) return found;
+      }
+    }
+    return null;
+  }
+
+  private removeItemById(items: LayerTreeItem[], id: string): LayerTreeItem[] {
+    const result: LayerTreeItem[] = [];
+    for (const item of items) {
+      if (item.id === id) continue;
+      if (isGroup(item)) {
+        result.push({
+          ...item,
+          children: this.removeItemById(item.children, id),
+        });
+      } else {
+        result.push(item);
+      }
+    }
+    return result;
+  }
+
+  private getAllLayerIds(items: LayerTreeItem[]): string[] {
+    const result: string[] = [];
+    for (const item of items) {
+      result.push(item.id);
+      if (isGroup(item)) {
+        result.push(...this.getAllLayerIds(item.children));
+      }
+    }
+    return result;
+  }
+
+  renameLayer(id: string, newName: string) {
+    const prev = this.snapshotLayersAndBuffers();
+    const updateName = (items: LayerTreeItem[]): LayerTreeItem[] => {
+      return items.map((item) => {
+        if (item.id === id) {
+          return { ...item, name: newName };
+        }
+        if (isGroup(item)) {
+          return { ...item, children: updateName(item.children) };
+        }
+        return item;
+      });
+    };
+    this.layers.set(updateName(this.layers()));
+    this.layerPixelsVersion.update((v) => v + 1);
+    const next = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
+  }
+
+  toggleGroupExpanded(id: string) {
+    const toggleExpanded = (items: LayerTreeItem[]): LayerTreeItem[] => {
+      return items.map((item) => {
+        if (item.id === id && isGroup(item)) {
+          return { ...item, expanded: !item.expanded };
+        }
+        if (isGroup(item)) {
+          return { ...item, children: toggleExpanded(item.children) };
+        }
+        return item;
+      });
+    };
+    this.layers.set(toggleExpanded(this.layers()));
   }
 
   private clampByte(value: number) {
@@ -1890,14 +2028,15 @@ export class EditorDocumentService {
     const w = this.canvasWidth();
     const h = this.canvasHeight();
     const prevSnapshot = this.snapshotLayersAndBuffers();
-    const sourceLayer = this.layers().find((l) => l.id === sourceLayerId);
-    const newName = sourceLayer ? `${sourceLayer.name}-copy` : 'Layer copy';
+    const sourceItem = this.findItemById(this.layers(), sourceLayerId);
+    const newName = sourceItem ? `${sourceItem.name}-copy` : 'Layer copy';
     const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const newLayer: LayerItem = {
       id: newLayerId,
       name: newName,
       visible: true,
       locked: false,
+      type: 'layer',
     };
     const newBuf = new Array<string>(w * h).fill('');
     for (let y = 0; y < h; y++) {
@@ -1968,6 +2107,7 @@ export class EditorDocumentService {
       name: 'Merged layer',
       visible: true,
       locked: false,
+      type: 'layer',
     };
     this.layers.update((arr) => [newLayer, ...arr]);
     this.layerPixels.set(newLayerId, mergedBuf);
@@ -1984,7 +2124,7 @@ export class EditorDocumentService {
 
   // Snapshot current buffers and layers for structural operations
   private snapshotLayersAndBuffers(): {
-    layers: LayerItem[];
+    layers: LayerTreeItem[];
     buffers: Record<string, string[]>;
   } {
     const layersCopy = this.layers().map((l) => ({ ...l }));
@@ -2173,31 +2313,50 @@ export class EditorDocumentService {
 
   toggleLayerVisibility(id: string) {
     const prev = this.snapshotLayersAndBuffers();
-    this.layers.update((arr) =>
-      arr.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)),
-    );
-    // trigger redraw
+    const toggleVis = (items: LayerTreeItem[]): LayerTreeItem[] => {
+      return items.map((item) => {
+        if (item.id === id) {
+          return { ...item, visible: !item.visible };
+        }
+        if (isGroup(item)) {
+          return { ...item, children: toggleVis(item.children) };
+        }
+        return item;
+      });
+    };
+    this.layers.set(toggleVis(this.layers()));
     this.layerPixelsVersion.update((v) => v + 1);
     const next = this.snapshotLayersAndBuffers();
     this.commitMetaChange({ key: 'layersSnapshot', previous: prev, next });
   }
 
   removeLayer(id: string): boolean {
-    const arr = this.layers();
-    if (arr.length <= 1) {
-      return false; // prevent removing last layer
+    const allIds = this.getAllLayerIds(this.layers());
+    const flatLayers = this.flattenLayers(this.layers());
+    if (flatLayers.length <= 1) {
+      return false;
     }
-    const idx = arr.findIndex((l) => l.id === id);
-    if (idx === -1) return false;
+    const item = this.findItemById(this.layers(), id);
+    if (!item) return false;
     const prevSnapshot = this.snapshotLayersAndBuffers();
-    const next = arr.filter((l) => l.id !== id);
+    const next = this.removeItemById(this.layers(), id);
     this.layers.set(next);
-    // remove pixel buffer for this layer
-    this.layerPixels.delete(id);
+    if (isLayer(item)) {
+      this.layerPixels.delete(id);
+    } else if (isGroup(item)) {
+      const groupLayerIds = this.getAllLayerIds([item]);
+      for (const lid of groupLayerIds) {
+        if (lid !== id) {
+          this.layerPixels.delete(lid);
+        }
+      }
+    }
     this.layerPixelsVersion.update((v) => v + 1);
     if (this.selectedLayerId() === id) {
-      const newIdx = Math.max(0, idx - 1);
-      this.selectedLayerId.set(next[newIdx]?.id ?? next[0].id);
+      const newAllIds = this.getAllLayerIds(next);
+      if (newAllIds.length > 0) {
+        this.selectedLayerId.set(newAllIds[0]);
+      }
     }
     const nextSnapshot = this.snapshotLayersAndBuffers();
     this.commitMetaChange({
@@ -2211,16 +2370,17 @@ export class EditorDocumentService {
   addLayer(name?: string) {
     const prevSnapshot = this.snapshotLayersAndBuffers();
     const id = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const flatLayers = this.flattenLayers(this.layers());
     const item: LayerItem = {
       id,
-      name: name || `Layer ${this.layers().length + 1}`,
+      name: name || `Layer ${flatLayers.length + 1}`,
       visible: true,
       locked: false,
+      type: 'layer',
     };
-    // Add to top (insert at index 0 so the new layer becomes the topmost in the UI)
     this.layers.update((arr) => [item, ...arr]);
     this.selectedLayerId.set(item.id);
-    // create pixel buffer for new layer matching current canvas size
+    this.selectedLayerIds.set(new Set([item.id]));
     this.ensureLayerBuffer(item.id, this.canvasWidth(), this.canvasHeight());
     const nextSnapshot = this.snapshotLayersAndBuffers();
     this.commitMetaChange({
@@ -2247,15 +2407,16 @@ export class EditorDocumentService {
 
   duplicateLayer(layerId?: string): LayerItem | null {
     const id = layerId || this.selectedLayerId();
-    const layer = this.layers().find((l) => l.id === id);
-    if (!layer) return null;
+    const item = this.findItemById(this.layers(), id);
+    if (!item || !isLayer(item)) return null;
     const prevSnapshot = this.snapshotLayersAndBuffers();
     const newLayerId = `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const newLayer: LayerItem = {
       id: newLayerId,
-      name: `${layer.name} copy`,
-      visible: layer.visible,
-      locked: layer.locked,
+      name: `${item.name} copy`,
+      visible: item.visible,
+      locked: item.locked,
+      type: 'layer',
     };
     const sourceBuf = this.layerPixels.get(id);
     if (sourceBuf) {
@@ -2267,17 +2428,7 @@ export class EditorDocumentService {
         this.canvasHeight(),
       );
     }
-    const currentLayers = this.layers();
-    const sourceIndex = currentLayers.findIndex((l) => l.id === id);
-    if (sourceIndex >= 0) {
-      this.layers.update((arr) => [
-        ...arr.slice(0, sourceIndex),
-        newLayer,
-        ...arr.slice(sourceIndex),
-      ]);
-    } else {
-      this.layers.update((arr) => [newLayer, ...arr]);
-    }
+    this.layers.update((arr) => [newLayer, ...arr]);
     this.selectedLayerId.set(newLayerId);
     this.selectedLayerIds.set(new Set([newLayerId]));
     this.layerPixelsVersion.update((v) => v + 1);
@@ -2349,9 +2500,9 @@ export class EditorDocumentService {
     const w = this.canvasWidth();
     const h = this.canvasHeight();
     const mergedBuf = new Array<string>(w * h).fill('');
-    const layers = this.layers();
+    const flatLayers = this.flattenLayers(this.layers());
     const layerSet = new Set(layerIds);
-    const selectedLayers = layers.filter((l) => layerSet.has(l.id));
+    const selectedLayers = flatLayers.filter((l) => layerSet.has(l.id));
     for (let li = selectedLayers.length - 1; li >= 0; li--) {
       const layer = selectedLayers[li];
       const buf = this.layerPixels.get(layer.id);
@@ -2369,19 +2520,15 @@ export class EditorDocumentService {
       name: 'Merged layer',
       visible: true,
       locked: false,
+      type: 'layer',
     };
-    const firstSelectedIndex = layers.findIndex((l) => layerSet.has(l.id));
-    const remainingLayers = layers.filter((l) => !layerSet.has(l.id));
-    if (firstSelectedIndex >= 0) {
-      const beforeLayers = remainingLayers.slice(0, firstSelectedIndex);
-      const afterLayers = remainingLayers.slice(firstSelectedIndex);
-      this.layers.set([...beforeLayers, newLayer, ...afterLayers]);
-    } else {
-      this.layers.set([newLayer, ...remainingLayers]);
-    }
+    let updatedLayers = this.layers();
     for (const lid of layerIds) {
+      updatedLayers = this.removeItemById(updatedLayers, lid);
       this.layerPixels.delete(lid);
     }
+    updatedLayers = [newLayer, ...updatedLayers];
+    this.layers.set(updatedLayers);
     this.layerPixels.set(newLayerId, mergedBuf);
     this.selectedLayerId.set(newLayerId);
     this.selectedLayerIds.set(new Set([newLayerId]));
@@ -2396,13 +2543,66 @@ export class EditorDocumentService {
     return newLayer;
   }
 
-  groupLayers(layerIds: string[]): boolean {
-    if (layerIds.length < 2) return false;
-    return false;
+  groupLayers(layerIds: string[]): GroupItem | null {
+    if (layerIds.length < 2) return null;
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    this.groupCounter++;
+    const groupId = `group_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newGroup: GroupItem = {
+      id: groupId,
+      name: `Group ${this.groupCounter}`,
+      visible: true,
+      locked: false,
+      type: 'group',
+      expanded: true,
+      children: [],
+    };
+    let updatedLayers = this.layers();
+    const itemsToGroup: LayerTreeItem[] = [];
+    for (const lid of layerIds) {
+      const item = this.findItemById(updatedLayers, lid);
+      if (item) {
+        itemsToGroup.push(item);
+        updatedLayers = this.removeItemById(updatedLayers, lid);
+      }
+    }
+    newGroup.children = itemsToGroup;
+    updatedLayers = [newGroup, ...updatedLayers];
+    this.layers.set(updatedLayers);
+    this.selectedLayerId.set(groupId);
+    this.selectedLayerIds.set(new Set([groupId]));
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    this.setCanvasSaved(false);
+    return newGroup;
   }
 
   ungroupLayers(groupId: string): boolean {
-    return false;
+    const group = this.findItemById(this.layers(), groupId);
+    if (!group || !isGroup(group)) return false;
+    const prevSnapshot = this.snapshotLayersAndBuffers();
+    let updatedLayers = this.removeItemById(this.layers(), groupId);
+    updatedLayers = [...group.children, ...updatedLayers];
+    this.layers.set(updatedLayers);
+    const firstChildId = group.children[0]?.id;
+    if (firstChildId) {
+      this.selectedLayerId.set(firstChildId);
+      this.selectedLayerIds.set(new Set([firstChildId]));
+    }
+    this.layerPixelsVersion.update((v) => v + 1);
+    const nextSnapshot = this.snapshotLayersAndBuffers();
+    this.commitMetaChange({
+      key: 'layersSnapshot',
+      previous: prevSnapshot,
+      next: nextSnapshot,
+    });
+    this.setCanvasSaved(false);
+    return true;
   }
 
   async insertImageAsLayer(
