@@ -299,6 +299,7 @@ export class EditorLayerService {
       this.selectedLayerIds.set(validSelectedIds);
     } else if (!validSelectedIds.has(currentSelectedId)) {
       this.selectedLayerId.set(Array.from(validSelectedIds)[0]);
+      this.selectedLayerIds.set(validSelectedIds);
     }
   }
 }
