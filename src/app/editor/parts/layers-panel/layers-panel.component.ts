@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+  HostListener,
+} from '@angular/core';
 import {
   EditorDocumentService,
   isGroup,
@@ -83,6 +89,7 @@ export class LayersPanel {
 
   onContextMenu(event: MouseEvent, layerId: string) {
     event.preventDefault();
+    event.stopPropagation();
     const target = event.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     this.contextMenuPosition.set({
@@ -91,6 +98,17 @@ export class LayersPanel {
     });
     this.contextMenuLayerId.set(layerId);
     this.contextMenuVisible.set(true);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (this.contextMenuVisible()) {
+      const target = event.target as HTMLElement;
+      const contextMenu = document.getElementById('layers-context-menu');
+      if (contextMenu && !contextMenu.contains(target)) {
+        this.closeContextMenu();
+      }
+    }
   }
 
   closeContextMenu() {
@@ -148,6 +166,13 @@ export class LayersPanel {
 
   get selectedCount(): number {
     return this.document.selectedLayerIds().size;
+  }
+
+  get isContextMenuItemGroup(): boolean {
+    const layerId = this.contextMenuLayerId();
+    if (!layerId) return false;
+    const item = this.document.findItemById(this.document.layers(), layerId);
+    return item ? isGroup(item) : false;
   }
 
   onToggleExpand(id: string, event: MouseEvent) {
