@@ -22,7 +22,8 @@
     "line": "Vẽ đường",
     "circle": "Hình tròn",
     "square": "Hình vuông",
-    "brush": "Cọ vẽ"
+    "brush": "Cọ vẽ",
+    "bone": "Xương"
   },
   "layers": {
     "title": "Danh sách layer",
@@ -43,7 +44,15 @@
     "detachBone": "Gỡ Bone",
     "invalidName": "Tên animation chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, gạch ngang và gạch dưới.",
     "frameCount": "khung hình",
-    "confirmRemove": "Bạn có chắc chắn muốn xóa animation này?"
+    "confirmRemove": "Bạn có chắc chắn muốn xóa animation này?",
+    "addFrame": "Thêm khung hình",
+    "deleteFrame": "Xóa khung hình",
+    "duplicateFrame": "Nhân bản khung hình",
+    "play": "Phát",
+    "stop": "Dừng",
+    "fps": "FPS",
+    "duration": "Thời lượng",
+    "frameOptions": "Tùy chọn khung hình"
   },
   "bones": {
     "title": "Khung xương",
@@ -123,6 +132,11 @@
         "title": "Tẩy",
         "size": "Kích cỡ",
         "strength": "Độ đậm"
+      },
+      "bone": {
+        "title": "Xương",
+        "thickness": "Độ dày",
+        "color": "Màu sắc"
       }
     },
     "layers": {

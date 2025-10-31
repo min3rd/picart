@@ -1,115 +1,144 @@
-<div class="h-full flex flex-col" id="timeline-panel-container">
+<div id="timeline-container" class="h-full flex flex-col">
   <div
-    class="shrink-0 border-b border-neutral-200 dark:border-neutral-800 p-2 text-sm flex items-center justify-between"
-    id="timeline-header"
+    id="timeline-toolbar"
+    class="shrink-0 border-b border-neutral-200 dark:border-neutral-800 p-1 flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800/60"
   >
-    <span id="timeline-title">{{ "timeline.title" | transloco }}</span>
     <button
+      id="timeline-play-btn"
       type="button"
-      (click)="addAnimation()"
-      class="px-2 py-1 text-xs rounded-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
-      id="add-animation-button"
+      (click)="playAnimation()"
+      class="px-2 py-1 text-xs rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center gap-1"
+      [title]="
+        (document.isAnimationPlaying()
+          ? 'timeline.stop'
+          : 'timeline.play'
+        ) | transloco
+      "
     >
-      <ng-icon name="heroPlus" size="14"></ng-icon>
-      {{ "timeline.addAnimation" | transloco }}
+      <ng-icon
+        [name]="document.isAnimationPlaying() ? 'heroStop' : 'heroPlay'"
+        size="14"
+      />
+      <span>{{
+        (document.isAnimationPlaying() ? "timeline.stop" : "timeline.play")
+          | transloco
+      }}</span>
     </button>
-  </div>
-  <div class="flex-1 overflow-auto p-2 space-y-2" id="animations-list">
-    @for (anim of document.animations(); let i = $index; track anim.id) {
-      <div
-        class="border border-neutral-300 dark:border-neutral-700 rounded-sm p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
-        [class.bg-neutral-200]="document.currentAnimationIndex() === i"
-        [class.dark\:bg-neutral-700]="document.currentAnimationIndex() === i"
-        (click)="setAnimation(i)"
-        [id]="'animation-item-' + i"
+
+    <div id="timeline-fps-control" class="flex items-center gap-1 ml-2">
+      <label for="fps-input" class="text-xs">{{ "timeline.fps" | transloco }}:</label>
+      <input
+        id="fps-input"
+        type="number"
+        [value]="document.animationFps()"
+        (input)="setFps(+$any($event.target).value)"
+        min="1"
+        max="60"
+        class="w-12 px-1 py-0.5 text-xs rounded-sm border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
+      />
+    </div>
+
+    <div id="timeline-add-frame-btn" class="ml-auto">
+      <button
+        id="add-frame-btn"
+        type="button"
+        (click)="addFrame()"
+        class="px-2 py-1 text-xs rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center gap-1"
+        [title]="'timeline.addFrame' | transloco"
       >
-        <div class="flex items-center justify-between gap-2">
-          @if (editingAnimationId() === anim.id) {
-            <input
-              type="text"
-              [(ngModel)]="newAnimationName"
-              (keydown.enter)="saveRename(anim.id)"
-              (keydown.escape)="cancelRename()"
-              (click)="$event.stopPropagation()"
-              class="flex-1 px-2 py-1 text-sm border border-neutral-300 dark:border-neutral-600 rounded-sm bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
-              [id]="'animation-name-input-' + i"
-            />
-            <button
-              type="button"
-              (click)="saveRename(anim.id); $event.stopPropagation()"
-              class="px-2 py-1 text-xs rounded-sm bg-green-600 text-white hover:bg-green-700"
-              [id]="'save-rename-button-' + i"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              (click)="cancelRename(); $event.stopPropagation()"
-              class="px-2 py-1 text-xs rounded-sm bg-neutral-600 text-white hover:bg-neutral-700"
-              [id]="'cancel-rename-button-' + i"
-            >
-              Cancel
-            </button>
-          } @else {
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-sm truncate" [id]="'animation-name-' + i">
-                {{ anim.name }}
-              </div>
-              <div class="text-xs text-neutral-500 dark:text-neutral-400" [id]="'animation-info-' + i">
-                {{ anim.frames.length }} {{ "timeline.frameCount" | transloco }}
-                @if (anim.boneIds.length > 0) {
-                  <span>• {{ anim.boneIds.length }} bones</span>
-                }
-              </div>
-            </div>
-            <div class="flex items-center gap-1">
-              <button
-                type="button"
-                (click)="moveUp(i, $event)"
-                [disabled]="i === 0"
-                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                [id]="'move-up-button-' + i"
-              >
-                <ng-icon name="heroChevronUp" size="16"></ng-icon>
-              </button>
-              <button
-                type="button"
-                (click)="moveDown(i, $event)"
-                [disabled]="i === document.animations().length - 1"
-                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                [id]="'move-down-button-' + i"
-              >
-                <ng-icon name="heroChevronDown" size="16"></ng-icon>
-              </button>
-              <button
-                type="button"
-                (click)="startRename(anim.id, anim.name, $event)"
-                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
-                [id]="'rename-button-' + i"
-              >
-                <ng-icon name="heroPencil" size="16"></ng-icon>
-              </button>
-              <button
-                type="button"
-                (click)="exportSpriteSheet(anim, $event)"
-                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
-                [id]="'export-sprite-button-' + i"
-              >
-                <ng-icon name="heroArrowDownTray" size="16"></ng-icon>
-              </button>
-              <button
-                type="button"
-                (click)="removeAnimation(anim.id, $event)"
-                [disabled]="document.animations().length <= 1"
-                class="p-1 rounded-sm hover:bg-red-200 dark:hover:bg-red-900 text-red-600 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                [id]="'remove-button-' + i"
-              >
-                <ng-icon name="heroTrash" size="16"></ng-icon>
-              </button>
-            </div>
-          }
-        </div>
-      </div>
-    }
+        <ng-icon name="heroPlus" size="14" />
+        <span>{{ "timeline.addFrame" | transloco }}</span>
+      </button>
+    </div>
   </div>
+
+  <div id="timeline-frames-container" class="flex-1 flex items-stretch overflow-hidden">
+    <div
+      id="timeline-sidebar"
+      class="w-32 shrink-0 border-r border-neutral-200 dark:border-neutral-800 p-2 text-xs bg-neutral-50 dark:bg-neutral-900"
+    >
+      {{ "timeline.title" | transloco }}
+    </div>
+    <div id="timeline-frames-scroll" class="flex-1 overflow-auto">
+      <div id="timeline-frames-list" class="flex items-start gap-2 p-2 min-h-full">
+        @for (f of document.frames(); let i = $index; track f.id) {
+          <div
+            [id]="'frame-' + f.id"
+            class="flex flex-col gap-1 shrink-0"
+          >
+            <div
+              class="relative group"
+              (click)="setFrame(i)"
+              (contextmenu)="showContextMenu($event, f.id)"
+            >
+              <div
+                [id]="'frame-preview-' + f.id"
+                class="w-20 h-16 border-2 rounded-sm overflow-hidden cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-neutral-100 dark:bg-neutral-800"
+                [class.border-blue-500]="document.currentFrameIndex() === i"
+                [class.dark\:border-blue-400]="document.currentFrameIndex() === i"
+                [class.border-neutral-300]="document.currentFrameIndex() !== i"
+                [class.dark\:border-neutral-700]="document.currentFrameIndex() !== i"
+              >
+                <canvas
+                  #frameCanvas
+                  [id]="'frame-canvas-' + f.id"
+                  width="80"
+                  height="64"
+                  class="w-full h-full"
+                  [attr.data-frame-id]="f.id"
+                ></canvas>
+              </div>
+              
+              <button
+                [id]="'frame-menu-' + f.id"
+                type="button"
+                (click)="showContextMenu($event, f.id)"
+                class="absolute top-0.5 right-0.5 p-0.5 rounded-sm bg-neutral-200/80 dark:bg-neutral-700/80 hover:bg-neutral-300 dark:hover:bg-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                [title]="'timeline.frameOptions' | transloco"
+              >
+                <ng-icon name="heroEllipsisVertical" size="12" />
+              </button>
+            </div>
+
+            <div class="text-center">
+              <div class="text-[10px] font-medium truncate w-20 px-1">
+                {{ f.name }}
+              </div>
+              <div class="text-[9px] text-neutral-500 dark:text-neutral-400">
+                {{ i + 1 }}
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  @if (contextMenuVisible()) {
+    <div
+      #contextMenuEl
+      [id]="'frame-context-menu'"
+      class="fixed z-50 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-sm shadow-lg py-1 min-w-40"
+      [style.left.px]="contextMenuX()"
+      [style.top.px]="contextMenuY()"
+    >
+      <button
+        id="context-menu-duplicate"
+        type="button"
+        (click)="duplicateFrame(contextMenuFrameId()!)"
+        class="w-full px-3 py-1.5 text-xs text-left hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+      >
+        <span>{{ "timeline.duplicateFrame" | transloco }}</span>
+      </button>
+      <button
+        id="context-menu-delete"
+        type="button"
+        (click)="deleteFrame(contextMenuFrameId()!)"
+        [disabled]="document.frames().length <= 1"
+        class="w-full px-3 py-1.5 text-xs text-left hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-red-600 dark:text-red-400"
+      >
+        <span>{{ "timeline.deleteFrame" | transloco }}</span>
+      </button>
+    </div>
+  }
 </div>

@@ -22,7 +22,8 @@
     "line": "Line",
     "circle": "Circle",
     "square": "Square",
-    "brush": "Brush"
+    "brush": "Brush",
+    "bone": "Bone"
   },
   "layers": {
     "title": "Layers",
@@ -43,7 +44,15 @@
     "detachBone": "Detach Bone",
     "invalidName": "Animation name contains invalid characters. Only letters, numbers, spaces, hyphens and underscores are allowed.",
     "frameCount": "frames",
-    "confirmRemove": "Are you sure you want to remove this animation?"
+    "confirmRemove": "Are you sure you want to remove this animation?",
+    "addFrame": "Add frame",
+    "deleteFrame": "Delete frame",
+    "duplicateFrame": "Duplicate frame",
+    "play": "Play",
+    "stop": "Stop",
+    "fps": "FPS",
+    "duration": "Duration",
+    "frameOptions": "Frame options"
   },
   "bones": {
     "title": "Bones",
@@ -123,6 +132,11 @@
         "title": "Eraser",
         "size": "Size",
         "strength": "Strength"
+      },
+      "bone": {
+        "title": "Bone",
+        "thickness": "Thickness",
+        "color": "Color"
       }
     },
     "layers": {

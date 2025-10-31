@@ -21,6 +21,7 @@ import { LineToolService } from './tools/line-tool.service';
 import { RectSelectToolService } from './tools/rect-select-tool.service';
 import { SelectLayerToolService } from './tools/select-layer-tool.service';
 import { SquareToolService } from './tools/square-tool.service';
+import { BoneToolService } from './tools/bone-tool.service';
 
 @Injectable({ providedIn: 'root' })
 export class EditorToolsService {
@@ -38,6 +39,7 @@ export class EditorToolsService {
   private readonly lineTool = inject(LineToolService);
   private readonly circleTool = inject(CircleToolService);
   private readonly squareTool = inject(SquareToolService);
+  private readonly boneTool = inject(BoneToolService);
 
   private readonly toolRegistry = new Map<ToolId, ToolService>([
     ['select-layer', this.selectLayerTool],
@@ -51,6 +53,7 @@ export class EditorToolsService {
     ['line', this.lineTool],
     ['circle', this.circleTool],
     ['square', this.squareTool],
+    ['bone', this.boneTool],
   ]);
 
   readonly tools = signal<ToolDefinition[]>(
@@ -86,6 +89,8 @@ export class EditorToolsService {
     this.squareTool.gradientEndColor.asReadonly();
   readonly squareGradientType = this.squareTool.gradientType.asReadonly();
   readonly squareGradientAngle = this.squareTool.gradientAngle.asReadonly();
+  readonly boneThickness = this.boneTool.thickness.asReadonly();
+  readonly boneColor = this.boneTool.color.asReadonly();
 
   constructor() {
     this.loadFromStorage();
@@ -231,6 +236,16 @@ export class EditorToolsService {
     this.saveToStorage();
   }
 
+  setBoneThickness(value: number, max?: number) {
+    this.boneTool.setThickness(value, max);
+    this.saveToStorage();
+  }
+
+  setBoneColor(color: string) {
+    this.boneTool.setColor(color);
+    this.saveToStorage();
+  }
+
   applySnapshot(snapshot: Partial<ToolSnapshot>, context?: ToolRestoreContext) {
     if (!snapshot) return;
     if (snapshot.currentTool && this.hasTool(snapshot.currentTool)) {
@@ -242,6 +257,7 @@ export class EditorToolsService {
     this.lineTool.restore(snapshot.line, context);
     this.circleTool.restore(snapshot.circle);
     this.squareTool.restore(snapshot.square);
+    this.boneTool.restore(snapshot.bone, context);
     this.saveToStorage();
   }
 
@@ -260,7 +276,8 @@ export class EditorToolsService {
       (this.eraserTool.applyMeta?.(key, value) ?? false) ||
       (this.lineTool.applyMeta?.(key, value) ?? false) ||
       (this.circleTool.applyMeta?.(key, value) ?? false) ||
-      (this.squareTool.applyMeta?.(key, value) ?? false);
+      (this.squareTool.applyMeta?.(key, value) ?? false) ||
+      (this.boneTool.applyMeta?.(key, value) ?? false);
 
     if (handled) {
       this.saveToStorage();
@@ -276,6 +293,7 @@ export class EditorToolsService {
       line: this.lineTool.snapshot(),
       circle: this.circleTool.snapshot(),
       square: this.squareTool.snapshot(),
+      bone: this.boneTool.snapshot(),
     };
   }
 
@@ -308,6 +326,8 @@ export class EditorToolsService {
         squareGradientEndColor: this.squareTool.gradientEndColor(),
         squareGradientType: this.squareTool.gradientType(),
         squareGradientAngle: this.squareTool.gradientAngle(),
+        boneThickness: this.boneTool.thickness(),
+        boneColor: this.boneTool.color(),
       } as const;
       window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch {}
@@ -346,6 +366,8 @@ export class EditorToolsService {
         squareGradientAngle: number;
         circleColor: string;
         squareColor: string;
+        boneThickness: number;
+        boneColor: string;
       }> | null;
       if (!parsed) return;
       if (parsed.currentTool && this.hasTool(parsed.currentTool)) {
@@ -485,12 +507,20 @@ export class EditorToolsService {
       ) {
         squareSnapshot.fillColor = parsed.squareColor;
       }
+      const boneSnapshot: Partial<ToolSnapshot['bone']> = {};
+      if (typeof parsed.boneThickness === 'number') {
+        boneSnapshot.thickness = parsed.boneThickness;
+      }
+      if (typeof parsed.boneColor === 'string' && parsed.boneColor.length) {
+        boneSnapshot.color = parsed.boneColor;
+      }
       this.fillTool.restore(fillSnapshot);
       this.brushTool.restore(brushSnapshot);
       this.eraserTool.restore(eraserSnapshot);
       this.lineTool.restore(lineSnapshot);
       this.circleTool.restore(circleSnapshot);
       this.squareTool.restore(squareSnapshot);
+      this.boneTool.restore(boneSnapshot);
     } catch {}
   }
 }
