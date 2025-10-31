@@ -96,6 +96,7 @@ export class EditorDocumentService {
   }
 
   exportProjectSnapshot() {
+    this.saveCurrentFrameState();
     return this.projectService.exportProjectSnapshot();
   }
 
