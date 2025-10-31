@@ -30,6 +30,8 @@ export interface FrameItem {
   id: string;
   name: string;
   duration: number;
+  layers?: LayerTreeItem[];
+  buffers?: Record<string, string[]>;
 }
 
 export interface ParsedColor {

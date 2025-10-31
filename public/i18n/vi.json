@@ -33,7 +33,15 @@
     "add": "Thêm layer"
   },
   "timeline": {
-    "title": "Timeline"
+    "title": "Timeline",
+    "addFrame": "Thêm khung hình",
+    "deleteFrame": "Xóa khung hình",
+    "duplicateFrame": "Nhân bản khung hình",
+    "play": "Phát",
+    "stop": "Dừng",
+    "fps": "FPS",
+    "duration": "Thời lượng",
+    "frameOptions": "Tùy chọn khung hình"
   },
   "theme": {
     "toggle": "Chuyển chủ đề"
