@@ -2,6 +2,7 @@ import { Injectable, Signal, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { EditorToolsService } from './editor-tools.service';
 import {
+  EditorAnimationService,
   EditorCanvasStateService,
   EditorColorService,
   EditorDrawingService,
@@ -39,6 +40,7 @@ export class EditorDocumentService {
   private readonly canvasState = inject(EditorCanvasStateService);
   private readonly layerService = inject(EditorLayerService);
   private readonly frameService = inject(EditorFrameService);
+  private readonly animationService = inject(EditorAnimationService);
   private readonly historyService = inject(EditorHistoryService);
   private readonly selectionService = inject(EditorSelectionService);
   private readonly drawingService = inject(EditorDrawingService);
@@ -53,6 +55,9 @@ export class EditorDocumentService {
 
   readonly frames = this.frameService.frames;
   readonly currentFrameIndex = this.frameService.currentFrameIndex;
+
+  readonly isAnimationPlaying = this.animationService.isPlaying;
+  readonly animationFps = this.animationService.fps;
 
   readonly canvasWidth = this.canvasState.canvasWidth;
   readonly canvasHeight = this.canvasState.canvasHeight;
@@ -915,6 +920,71 @@ export class EditorDocumentService {
 
   clearHistory() {
     this.historyService.clearHistory();
+  }
+
+  addFrame(): FrameItem {
+    const layers = this.layerService.layers();
+    const buffers: Record<string, string[]> = {};
+    for (const [id, buf] of this.canvasState.getAllBuffers().entries()) {
+      buffers[id] = buf.slice();
+    }
+    return this.frameService.addFrame(undefined, layers, buffers);
+  }
+
+  removeFrame(id: string): boolean {
+    return this.frameService.removeFrame(id);
+  }
+
+  duplicateFrame(id: string): FrameItem | null {
+    return this.frameService.duplicateFrame(id);
+  }
+
+  updateFrameDuration(id: string, duration: number): boolean {
+    return this.frameService.updateFrameDuration(id, duration);
+  }
+
+  saveCurrentFrameState() {
+    const currentFrame = this.frames()[this.currentFrameIndex()];
+    if (!currentFrame) return;
+    
+    const layers = this.layerService.layers();
+    const buffers: Record<string, string[]> = {};
+    for (const [id, buf] of this.canvasState.getAllBuffers().entries()) {
+      buffers[id] = buf.slice();
+    }
+    
+    this.frameService.saveFrameState(currentFrame.id, layers, buffers);
+  }
+
+  loadFrameState(frameIndex: number) {
+    const frame = this.frames()[frameIndex];
+    if (!frame) return;
+
+    if (frame.layers && frame.buffers) {
+      this.layerService.layers.set(JSON.parse(JSON.stringify(frame.layers)));
+      
+      const newBuffers = new Map<string, string[]>();
+      for (const [key, value] of Object.entries(frame.buffers)) {
+        newBuffers.set(key, [...value]);
+      }
+      this.canvasState.replaceAllBuffers(newBuffers);
+      this.layerService.ensureValidSelection();
+      this.canvasState.incrementPixelsVersion();
+    }
+
+    this.frameService.setCurrentFrame(frameIndex);
+  }
+
+  playAnimation() {
+    this.animationService.play();
+  }
+
+  stopAnimation() {
+    this.animationService.stop();
+  }
+
+  setAnimationFps(fps: number) {
+    this.animationService.setFps(fps);
   }
 
   setCanvasSaved(saved: boolean) {
