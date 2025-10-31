@@ -1,16 +1,12 @@
 import { Injectable, signal } from '@angular/core';
 import {
+  BoneToolSnapshot,
   ToolDefinition,
   ToolHistoryAdapter,
   ToolMetaKey,
   ToolRestoreContext,
   ToolService,
 } from './tool.types';
-
-export interface BoneToolSnapshot {
-  color: string;
-  thickness: number;
-}
 
 @Injectable({ providedIn: 'root' })
 export class BoneToolService implements ToolService<BoneToolSnapshot> {
