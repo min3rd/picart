@@ -18,7 +18,7 @@ export class BoneToolService implements ToolService<BoneToolSnapshot> {
     id: 'bone',
     name: 'Bone',
     labelKey: 'tools.bone',
-    icon: 'heroiconsCog6Tooth',
+    icon: 'heroLink',
   };
 
   readonly color = signal<string>('#ff6600');
