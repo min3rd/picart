@@ -4,6 +4,7 @@ export * from './editor-canvas-state.service';
 export * from './editor-color.service';
 export * from './editor-drawing.service';
 export * from './editor-frame.service';
+export * from './editor-animation.service';
 export * from './editor-history.service';
 export * from './editor-layer.service';
 export * from './editor-project.service';

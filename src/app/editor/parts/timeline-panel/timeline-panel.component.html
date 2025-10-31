@@ -1,22 +1,115 @@
-<div class="h-full flex items-stretch">
+<div id="timeline-container" class="h-full flex flex-col">
   <div
-    class="w-48 shrink-0 border-r border-neutral-200 dark:border-neutral-800 p-2 text-sm"
+    id="timeline-toolbar"
+    class="shrink-0 border-b border-neutral-200 dark:border-neutral-800 p-1 flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800/60"
   >
-    {{ "timeline.title" | transloco }}
+    <button
+      id="timeline-play-btn"
+      type="button"
+      (click)="playAnimation()"
+      class="px-2 py-1 text-xs rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center gap-1"
+      [title]="
+        (document.isAnimationPlaying()
+          ? 'timeline.stop'
+          : 'timeline.play'
+        ) | transloco
+      "
+    >
+      <ng-icon
+        [name]="document.isAnimationPlaying() ? 'heroStop' : 'heroPlay'"
+        size="14"
+      />
+      <span>{{
+        (document.isAnimationPlaying() ? "timeline.stop" : "timeline.play")
+          | transloco
+      }}</span>
+    </button>
+
+    <div id="timeline-fps-control" class="flex items-center gap-1 ml-2">
+      <label for="fps-input" class="text-xs">{{ "timeline.fps" | transloco }}:</label>
+      <input
+        id="fps-input"
+        type="number"
+        [value]="document.animationFps()"
+        (input)="setFps(+$any($event.target).value)"
+        min="1"
+        max="60"
+        class="w-12 px-1 py-0.5 text-xs rounded-sm border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900"
+      />
+    </div>
+
+    <div id="timeline-add-frame-btn" class="ml-auto">
+      <button
+        id="add-frame-btn"
+        type="button"
+        (click)="addFrame()"
+        class="px-2 py-1 text-xs rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center gap-1"
+        [title]="'timeline.addFrame' | transloco"
+      >
+        <ng-icon name="heroPlus" size="14" />
+        <span>{{ "timeline.addFrame" | transloco }}</span>
+      </button>
+    </div>
   </div>
-  <div class="flex-1 overflow-auto">
-    <div class="flex items-center gap-2 p-2">
-      @for (f of document.frames(); let i = $index; track f.id) {
-        <button
-          type="button"
-          (click)="setFrame(i)"
-          class="w-28 h-16 border border-neutral-300 dark:border-neutral-700 rounded-sm flex items-center justify-center hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60"
-          [class.bg-neutral-200]="document.currentFrameIndex() === i"
-          [class.dark\:bg-neutral-700]="document.currentFrameIndex() === i"
-        >
-          <span class="text-xs truncate">{{ f.name }}</span>
-        </button>
-      }
+
+  <div id="timeline-frames-container" class="flex-1 flex items-stretch overflow-hidden">
+    <div
+      id="timeline-sidebar"
+      class="w-32 shrink-0 border-r border-neutral-200 dark:border-neutral-800 p-2 text-xs bg-neutral-50 dark:bg-neutral-900"
+    >
+      {{ "timeline.title" | transloco }}
+    </div>
+    <div id="timeline-frames-scroll" class="flex-1 overflow-auto">
+      <div id="timeline-frames-list" class="flex items-start gap-1 p-2 min-h-full">
+        @for (f of document.frames(); let i = $index; track f.id) {
+          <div
+            [id]="'frame-' + f.id"
+            class="flex flex-col gap-1 shrink-0"
+          >
+            <button
+              [id]="'frame-btn-' + f.id"
+              type="button"
+              (click)="setFrame(i)"
+              class="w-24 h-20 border-2 rounded-sm flex flex-col items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
+              [class.border-blue-500]="document.currentFrameIndex() === i"
+              [class.dark\:border-blue-400]="document.currentFrameIndex() === i"
+              [class.bg-neutral-50]="document.currentFrameIndex() === i"
+              [class.dark\:bg-neutral-800]="document.currentFrameIndex() === i"
+              [class.border-neutral-300]="document.currentFrameIndex() !== i"
+              [class.dark\:border-neutral-700]="document.currentFrameIndex() !== i"
+            >
+              <span class="text-xs font-medium truncate w-full px-1 text-center">{{
+                f.name
+              }}</span>
+              <span class="text-[10px] text-neutral-500 dark:text-neutral-400">{{
+                i + 1
+              }}</span>
+            </button>
+
+            <div [id]="'frame-actions-' + f.id" class="flex gap-0.5">
+              <button
+                [id]="'duplicate-frame-' + f.id"
+                type="button"
+                (click)="duplicateFrame(f.id)"
+                class="flex-1 px-1 py-0.5 text-[10px] rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center justify-center"
+                [title]="'timeline.duplicateFrame' | transloco"
+              >
+                <ng-icon name="heroDocumentDuplicate" size="12" />
+              </button>
+              <button
+                [id]="'delete-frame-' + f.id"
+                type="button"
+                (click)="deleteFrame(f.id)"
+                [disabled]="document.frames().length <= 1"
+                class="flex-1 px-1 py-0.5 text-[10px] rounded-sm bg-red-200 dark:bg-red-900/60 hover:bg-red-300 dark:hover:bg-red-800/60 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                [title]="'timeline.deleteFrame' | transloco"
+              >
+                <ng-icon name="heroTrash" size="12" />
+              </button>
+            </div>
+          </div>
+        }
+      </div>
     </div>
   </div>
 </div>
