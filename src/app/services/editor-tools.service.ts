@@ -320,7 +320,7 @@ export class EditorToolsService {
         circleGradientAngle: this.circleTool.gradientAngle(),
         squareStrokeThickness: this.squareTool.strokeThickness(),
         squareStrokeColor: this.squareTool.strokeColor(),
-        squareFillMode: this.squareFillMode(),
+        squareFillMode: this.squareTool.fillMode(),
         squareFillColor: this.squareTool.fillColor(),
         squareGradientStartColor: this.squareTool.gradientStartColor(),
         squareGradientEndColor: this.squareTool.gradientEndColor(),
