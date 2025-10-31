@@ -20,7 +20,7 @@ import {
 import { TranslocoPipe } from '@jsverse/transloco';
 import { NgIcon } from '@ng-icons/core';
 import { CommonModule } from '@angular/common';
-
+import { EditorBoneService, Bone, BonePoint } from '../../../services/editor/editor-bone.service';
 interface ShapeDrawOptions {
   strokeThickness: number;
   strokeColor: string;
@@ -71,6 +71,7 @@ export class EditorCanvas {
   readonly document = inject(EditorDocumentService);
   readonly documentSvc: EditorDocumentService = this.document;
   readonly tools = inject(EditorToolsService);
+  readonly boneService = inject(EditorBoneService);
 
   readonly mouseX = signal<number | null>(null);
   readonly mouseY = signal<number | null>(null);
@@ -108,6 +109,9 @@ export class EditorCanvas {
   private lastPointer = { x: 0, y: 0 };
   private shaping = false;
   private stopRenderEffect: EffectRef | null = null;
+  private currentBoneId: string | null = null;
+  private draggingPointId: string | null = null;
+  private draggingPointBoneId: string | null = null;
   readonly tileSize = signal(1);
   readonly contextMenuVisible = signal(false);
   readonly contextMenuPosition = signal<{ x: number; y: number }>({
@@ -410,6 +414,20 @@ export class EditorCanvas {
       this.shapeCurrent.set({ x: clampedX, y: clampedY });
     }
 
+    if (this.draggingPointId && this.draggingPointBoneId) {
+      const clampedX = Math.max(0, Math.min(w - 1, logicalX));
+      const clampedY = Math.max(0, Math.min(h - 1, logicalY));
+      const frameId = this.document.currentFrameId();
+      this.boneService.updatePoint(
+        frameId,
+        this.draggingPointBoneId,
+        this.draggingPointId,
+        clampedX,
+        clampedY,
+      );
+      return;
+    }
+
     if (this.painting) {
       const selectedLayer = this.document.selectedLayer();
       if (selectedLayer?.locked) {
@@ -603,6 +621,41 @@ export class EditorCanvas {
         const fillColor = fillMode === 'erase' ? null : this.tools.fillColor();
         this.document.applyFillToLayer(layerId, logicalX, logicalY, fillColor);
         this.document.endAction();
+      } else if (tool === 'bone' && insideCanvas) {
+        this.capturePointer(ev);
+        const frameId = this.document.currentFrameId();
+        const clickedPoint = this.findBonePointAt(frameId, logicalX, logicalY);
+        
+        if (clickedPoint) {
+          this.draggingPointId = clickedPoint.pointId;
+          this.draggingPointBoneId = clickedPoint.boneId;
+        } else {
+          if (!this.currentBoneId) {
+            const newBone: Bone = {
+              id: `bone-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+              points: [],
+              color: this.tools.boneColor(),
+              thickness: this.tools.boneThickness(),
+            };
+            this.currentBoneId = newBone.id;
+            this.boneService.addBone(frameId, newBone);
+          }
+          
+          const newPoint: BonePoint = {
+            id: `point-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+            x: logicalX,
+            y: logicalY,
+            parentId: undefined,
+          };
+          
+          const bones = this.boneService.getBones(frameId);
+          const currentBone = bones.find(b => b.id === this.currentBoneId);
+          if (currentBone && currentBone.points.length > 0) {
+            newPoint.parentId = currentBone.points[currentBone.points.length - 1].id;
+          }
+          
+          this.boneService.addPointToBone(frameId, this.currentBoneId, newPoint);
+        }
       } else if ((tool === 'brush' || tool === 'eraser') && insideCanvas) {
         const selectedLayer = this.document.selectedLayer();
         if (selectedLayer?.locked) {
@@ -834,6 +887,12 @@ export class EditorCanvas {
       this.painting = false;
       this.lastPaintPos = null;
       this.document.endAction();
+    }
+
+    if (this.draggingPointId) {
+      this.draggingPointId = null;
+      this.draggingPointBoneId = null;
+      return;
     }
 
     if (this.selectionMoving) {
