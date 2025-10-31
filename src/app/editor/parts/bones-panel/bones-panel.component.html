@@ -1,0 +1,107 @@
+<div class="h-full flex flex-col" id="bones-panel-container">
+  <div
+    class="shrink-0 border-b border-neutral-200 dark:border-neutral-800 p-2 text-sm flex items-center justify-between"
+    id="bones-header"
+  >
+    <span id="bones-title">{{ "bones.title" | transloco }}</span>
+    <button
+      type="button"
+      (click)="addBone()"
+      class="px-2 py-1 text-xs rounded-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
+      id="add-bone-button"
+    >
+      <ng-icon name="heroPlus" size="14"></ng-icon>
+      {{ "bones.addBone" | transloco }}
+    </button>
+  </div>
+  <div class="flex-1 overflow-auto p-2 space-y-2" id="bones-list">
+    @if (document.bones().length === 0) {
+      <div class="text-center text-neutral-500 dark:text-neutral-400 text-sm py-8" id="no-bones-message">
+        No bones yet. Click "Add Bone" to create one.
+      </div>
+    }
+    @for (bone of document.bones(); let i = $index; track bone.id) {
+      <div
+        class="border border-neutral-300 dark:border-neutral-700 rounded-sm p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+        [class.bg-neutral-200]="document.selectedBoneId() === bone.id"
+        [class.dark\:bg-neutral-700]="document.selectedBoneId() === bone.id"
+        (click)="selectBone(bone.id)"
+        [id]="'bone-item-' + i"
+      >
+        <div class="flex items-center justify-between gap-2">
+          @if (editingBoneId() === bone.id) {
+            <input
+              type="text"
+              [(ngModel)]="newBoneName"
+              (keydown.enter)="saveRename(bone.id)"
+              (keydown.escape)="cancelRename()"
+              (click)="$event.stopPropagation()"
+              class="flex-1 px-2 py-1 text-sm border border-neutral-300 dark:border-neutral-600 rounded-sm bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
+              [id]="'bone-name-input-' + i"
+            />
+            <button
+              type="button"
+              (click)="saveRename(bone.id); $event.stopPropagation()"
+              class="px-2 py-1 text-xs rounded-sm bg-green-600 text-white hover:bg-green-700"
+              [id]="'save-rename-button-' + i"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              (click)="cancelRename(); $event.stopPropagation()"
+              class="px-2 py-1 text-xs rounded-sm bg-neutral-600 text-white hover:bg-neutral-700"
+              [id]="'cancel-rename-button-' + i"
+            >
+              Cancel
+            </button>
+          } @else {
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm truncate" [id]="'bone-name-' + i">
+                {{ bone.name }}
+              </div>
+              <div class="text-xs text-neutral-500 dark:text-neutral-400" [id]="'bone-info-' + i">
+                @if (bone.parentId) {
+                  <span>Parent: {{ bone.parentId }}</span>
+                } @else {
+                  <span>Root bone</span>
+                }
+                @if (isBoneAttachedToCurrentAnimation(bone.id)) {
+                  <span class="ml-2 text-green-600 dark:text-green-400">• Attached</span>
+                }
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                (click)="attachToCurrentAnimation(bone.id, $event)"
+                [disabled]="isBoneAttachedToCurrentAnimation(bone.id)"
+                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                [id]="'attach-button-' + i"
+                title="{{ 'bones.attachToAnimation' | transloco }}"
+              >
+                <ng-icon name="heroLink" size="16"></ng-icon>
+              </button>
+              <button
+                type="button"
+                (click)="startRename(bone.id, bone.name, $event)"
+                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                [id]="'rename-button-' + i"
+              >
+                <ng-icon name="heroPencil" size="16"></ng-icon>
+              </button>
+              <button
+                type="button"
+                (click)="removeBone(bone.id, $event)"
+                class="p-1 rounded-sm hover:bg-red-200 dark:hover:bg-red-900 text-red-600 dark:text-red-400"
+                [id]="'remove-button-' + i"
+              >
+                <ng-icon name="heroTrash" size="16"></ng-icon>
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
