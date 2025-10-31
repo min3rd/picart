@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TranslocoPipe } from '@jsverse/transloco';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { NgIconComponent, provideIcons } from '@ng-icons/core';
 import {
   heroPlus,
@@ -36,6 +36,7 @@ import type { AnimationItem } from '../../../services/editor-document.service';
 })
 export class TimelinePanel {
   readonly document = inject(EditorDocumentService);
+  readonly translocoService = inject(TranslocoService);
   readonly editingAnimationId = signal<string>('');
   readonly newAnimationName = signal<string>('');
 
@@ -47,7 +48,8 @@ export class TimelinePanel {
     const name = this.newAnimationName().trim();
     if (name) {
       if (!this.document.validateAnimationName(name)) {
-        alert(this.getInvalidNameMessage());
+        const msg = this.translocoService.translate('timeline.invalidName');
+        alert(msg);
         return;
       }
       this.document.addAnimation(name);
@@ -59,7 +61,8 @@ export class TimelinePanel {
 
   removeAnimation(id: string, event: Event) {
     event.stopPropagation();
-    if (confirm(this.getRemoveConfirmMessage())) {
+    const msg = this.translocoService.translate('timeline.confirmRemove');
+    if (confirm(msg)) {
       this.document.removeAnimation(id);
     }
   }
@@ -74,7 +77,8 @@ export class TimelinePanel {
     const name = this.newAnimationName().trim();
     if (name) {
       if (!this.document.validateAnimationName(name)) {
-        alert(this.getInvalidNameMessage());
+        const msg = this.translocoService.translate('timeline.invalidName');
+        alert(msg);
         return;
       }
       this.document.renameAnimation(id, name);
@@ -135,13 +139,5 @@ export class TimelinePanel {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-  }
-
-  private getInvalidNameMessage(): string {
-    return 'Animation name contains invalid characters. Only letters, numbers, spaces, hyphens and underscores are allowed.';
-  }
-
-  private getRemoveConfirmMessage(): string {
-    return 'Are you sure you want to remove this animation?';
   }
 }

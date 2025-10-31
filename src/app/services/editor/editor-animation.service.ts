@@ -50,8 +50,9 @@ export class EditorAnimationService {
     const index = this.animations().findIndex((a) => a.id === id);
     if (index === -1) return false;
     this.animations.update((arr) => arr.filter((a) => a.id !== id));
-    if (this.currentAnimationIndex() >= this.animations().length) {
-      this.currentAnimationIndex.set(Math.max(0, this.animations().length - 1));
+    const newLength = this.animations().length;
+    if (this.currentAnimationIndex() >= newLength) {
+      this.currentAnimationIndex.set(Math.max(0, newLength - 1));
     }
     return true;
   }

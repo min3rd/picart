@@ -48,7 +48,7 @@ export class EditorExportService {
       const x = col * (width + padding);
       const y = row * (height + padding);
 
-      const frameCanvas = this.renderFrameToCanvas(width, height);
+      const frameCanvas = this.renderCurrentStateToCanvas(width, height);
       if (frameCanvas) {
         ctx.drawImage(frameCanvas, x, y);
       }
@@ -67,8 +67,7 @@ export class EditorExportService {
     const files = new Map<string, Blob>();
 
     for (let i = 0; i < animation.frames.length; i++) {
-      const frame = animation.frames[i];
-      const frameCanvas = this.renderFrameToCanvas(width, height);
+      const frameCanvas = this.renderCurrentStateToCanvas(width, height);
       if (frameCanvas) {
         const blob = await new Promise<Blob | null>((resolve) => {
           frameCanvas.toBlob((b) => resolve(b), 'image/png');
@@ -101,7 +100,10 @@ export class EditorExportService {
     return { files, metadata };
   }
 
-  private renderFrameToCanvas(width: number, height: number): HTMLCanvasElement {
+  private renderCurrentStateToCanvas(
+    width: number,
+    height: number,
+  ): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;

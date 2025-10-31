@@ -41,15 +41,18 @@
     "exportPackage": "Xuất Package",
     "attachBone": "Gắn Bone",
     "detachBone": "Gỡ Bone",
-    "invalidName": "Tên animation chứa ký tự không hợp lệ",
-    "frameCount": "khung hình"
+    "invalidName": "Tên animation chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, gạch ngang và gạch dưới.",
+    "frameCount": "khung hình",
+    "confirmRemove": "Bạn có chắc chắn muốn xóa animation này?"
   },
   "bones": {
     "title": "Khung xương",
     "addBone": "Thêm Bone",
     "removeBone": "Xóa Bone",
     "renameBone": "Đổi tên Bone",
-    "attachToAnimation": "Gắn vào Animation"
+    "attachToAnimation": "Gắn vào Animation",
+    "confirmRemove": "Bạn có chắc chắn muốn xóa bone này?",
+    "emptyState": "Chưa có bone nào. Nhấn \"Thêm Bone\" để tạo mới."
   },
   "theme": {
     "toggle": "Chuyển chủ đề"

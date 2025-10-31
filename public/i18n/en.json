@@ -41,15 +41,18 @@
     "exportPackage": "Export as Package",
     "attachBone": "Attach Bone",
     "detachBone": "Detach Bone",
-    "invalidName": "Animation name contains invalid characters",
-    "frameCount": "frames"
+    "invalidName": "Animation name contains invalid characters. Only letters, numbers, spaces, hyphens and underscores are allowed.",
+    "frameCount": "frames",
+    "confirmRemove": "Are you sure you want to remove this animation?"
   },
   "bones": {
     "title": "Bones",
     "addBone": "Add Bone",
     "removeBone": "Remove Bone",
     "renameBone": "Rename Bone",
-    "attachToAnimation": "Attach to Animation"
+    "attachToAnimation": "Attach to Animation",
+    "confirmRemove": "Are you sure you want to remove this bone?",
+    "emptyState": "No bones yet. Click \"Add Bone\" to create one."
   },
   "theme": {
     "toggle": "Toggle theme"

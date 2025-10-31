@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TranslocoPipe } from '@jsverse/transloco';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { NgIconComponent, provideIcons } from '@ng-icons/core';
 import {
   heroPlus,
@@ -31,6 +31,7 @@ import { EditorDocumentService } from '../../../services/editor-document.service
 })
 export class BonesPanel {
   readonly document = inject(EditorDocumentService);
+  readonly translocoService = inject(TranslocoService);
   readonly editingBoneId = signal<string>('');
   readonly newBoneName = signal<string>('');
 
@@ -50,7 +51,8 @@ export class BonesPanel {
 
   removeBone(id: string, event: Event) {
     event.stopPropagation();
-    if (confirm(this.getRemoveConfirmMessage())) {
+    const msg = this.translocoService.translate('bones.confirmRemove');
+    if (confirm(msg)) {
       this.document.removeBone(id);
     }
   }
@@ -87,9 +89,5 @@ export class BonesPanel {
     const currentAnim = this.document.getCurrentAnimation();
     if (!currentAnim) return false;
     return currentAnim.boneIds.includes(boneId);
-  }
-
-  private getRemoveConfirmMessage(): string {
-    return 'Are you sure you want to remove this bone?';
   }
 }

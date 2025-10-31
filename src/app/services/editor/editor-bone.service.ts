@@ -29,9 +29,12 @@ export class EditorBoneService {
   removeBone(id: string): boolean {
     const index = this.bones().findIndex((b) => b.id === id);
     if (index === -1) return false;
+    const boneToRemove = this.bones()[index];
     this.bones.update((arr) => {
-      const filtered = arr.filter((b) => b.id !== id && b.parentId !== id);
-      return filtered;
+      const filtered = arr.filter((b) => b.id !== id);
+      return filtered.map((b) =>
+        b.parentId === id ? { ...b, parentId: boneToRemove.parentId } : b,
+      );
     });
     if (this.selectedBoneId() === id) {
       this.selectedBoneId.set('');
