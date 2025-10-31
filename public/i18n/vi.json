@@ -33,13 +33,13 @@
   },
   "timeline": {
     "title": "Timeline",
-    "addFrame": "Add frame",
-    "deleteFrame": "Delete frame",
-    "duplicateFrame": "Duplicate frame",
-    "play": "Play",
-    "stop": "Stop",
+    "addFrame": "Thêm khung hình",
+    "deleteFrame": "Xóa khung hình",
+    "duplicateFrame": "Nhân bản khung hình",
+    "play": "Phát",
+    "stop": "Dừng",
     "fps": "FPS",
-    "duration": "Duration"
+    "duration": "Thời lượng"
   },
   "theme": {
     "toggle": "Chuyển chủ đề"

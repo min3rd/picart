@@ -46,6 +46,8 @@ export class EditorAnimationService {
 
   private advanceFrame() {
     const frames = this.frameService.frames();
+    if (frames.length === 0) return;
+    
     const currentIndex = this.frameService.currentFrameIndex();
     const nextIndex = (currentIndex + 1) % frames.length;
     this.frameService.setCurrentFrame(nextIndex);

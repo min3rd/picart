@@ -961,7 +961,7 @@ export class EditorDocumentService {
     if (!frame) return;
 
     if (frame.layers && frame.buffers) {
-      this.layerService.layers.set(JSON.parse(JSON.stringify(frame.layers)));
+      this.layerService.layers.set(structuredClone(frame.layers));
       
       const newBuffers = new Map<string, string[]>();
       for (const [key, value] of Object.entries(frame.buffers)) {
