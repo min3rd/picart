@@ -7,7 +7,9 @@ import { EditorFrameService } from './editor-frame.service';
 import { EditorLayerService } from './editor-layer.service';
 import { EditorSelectionService } from './editor-selection.service';
 import { EditorAnimationService } from './editor-animation.service';
+import { EditorAnimationCollectionService } from './editor-animation-collection.service';
 import { EditorBoneService } from './editor-bone.service';
+import { EditorBoneHierarchyService } from './editor-bone-hierarchy.service';
 import { FrameItem, LayerTreeItem, AnimationItem, BoneItem } from './editor.types';
 
 @Injectable({ providedIn: 'root' })
@@ -19,7 +21,9 @@ export class EditorProjectService {
   private readonly selectionService = inject(EditorSelectionService);
   private readonly tools = inject(EditorToolsService);
   private readonly animationService = inject(EditorAnimationService);
+  private readonly animationCollectionService = inject(EditorAnimationCollectionService);
   private readonly boneService = inject(EditorBoneService);
+  private readonly boneHierarchyService = inject(EditorBoneHierarchyService);
 
   loadProjectFromLocalStorage(): Observable<boolean> {
     try {
@@ -67,8 +71,8 @@ export class EditorProjectService {
       selection: this.selectionService.selectionRect(),
       selectionPolygon: this.selectionService.selectionPolygon(),
       frames: this.frameService.frames(),
-      animations: this.animationService.animations(),
-      bones: this.boneService.bones(),
+      animationCollections: this.animationCollectionService.animations(),
+      boneHierarchy: this.boneHierarchyService.bones(),
     } as const;
   }
 
@@ -230,9 +234,9 @@ export class EditorProjectService {
           })) as FrameItem[],
         );
 
-      if (parsed.animations && Array.isArray(parsed.animations))
-        this.animationService.animations.set(
-          (parsed.animations as any[]).map((a) => ({
+      if (parsed.animationCollections && Array.isArray(parsed.animationCollections))
+        this.animationCollectionService.animations.set(
+          (parsed.animationCollections as any[]).map((a) => ({
             id: a.id,
             name: a.name,
             frames: Array.isArray(a.frames)
@@ -247,9 +251,9 @@ export class EditorProjectService {
           })) as AnimationItem[],
         );
 
-      if (parsed.bones && Array.isArray(parsed.bones))
-        this.boneService.bones.set(
-          (parsed.bones as any[]).map((b) => ({
+      if (parsed.boneHierarchy && Array.isArray(parsed.boneHierarchy))
+        this.boneHierarchyService.bones.set(
+          (parsed.boneHierarchy as any[]).map((b) => ({
             id: b.id,
             name: b.name,
             parentId: b.parentId || null,

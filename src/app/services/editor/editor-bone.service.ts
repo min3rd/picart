@@ -1,77 +1,133 @@
 import { Injectable, signal } from '@angular/core';
-import { BoneItem } from './editor.types';
+
+export interface BonePoint {
+  id: string;
+  x: number;
+  y: number;
+  parentId?: string;
+}
+
+export interface Bone {
+  id: string;
+  points: BonePoint[];
+  color: string;
+  thickness: number;
+}
+
+export interface FrameBones {
+  frameId: string;
+  bones: Bone[];
+}
 
 @Injectable({ providedIn: 'root' })
 export class EditorBoneService {
-  readonly bones = signal<BoneItem[]>([]);
-  readonly selectedBoneId = signal<string>('');
+  private readonly bones = signal<Map<string, Bone[]>>(new Map());
+  private readonly selectedBoneId = signal<string | null>(null);
+  private readonly selectedPointId = signal<string | null>(null);
 
-  addBone(
-    name?: string,
-    parentId: string | null = null,
-    x = 0,
-    y = 0,
-  ): BoneItem {
-    const id = `bone_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    const bone: BoneItem = {
-      id,
-      name: name || `Bone ${this.bones().length + 1}`,
-      parentId,
-      x,
-      y,
-      rotation: 0,
-      length: 50,
-    };
-    this.bones.update((arr) => [...arr, bone]);
-    return bone;
+  getBones(frameId: string): Bone[] {
+    return this.bones().get(frameId) || [];
   }
 
-  removeBone(id: string): boolean {
-    const index = this.bones().findIndex((b) => b.id === id);
-    if (index === -1) return false;
-    const boneToRemove = this.bones()[index];
-    this.bones.update((arr) => {
-      const filtered = arr.filter((b) => b.id !== id);
-      return filtered.map((b) =>
-        b.parentId === id ? { ...b, parentId: boneToRemove.parentId } : b,
-      );
+  addBone(frameId: string, bone: Bone): void {
+    const current = new Map(this.bones());
+    const frameBones = current.get(frameId) || [];
+    current.set(frameId, [...frameBones, bone]);
+    this.bones.set(current);
+  }
+
+  updateBone(frameId: string, boneId: string, updates: Partial<Bone>): void {
+    const current = new Map(this.bones());
+    const frameBones = current.get(frameId) || [];
+    const updated = frameBones.map((b) =>
+      b.id === boneId ? { ...b, ...updates } : b,
+    );
+    current.set(frameId, updated);
+    this.bones.set(current);
+  }
+
+  deleteBone(frameId: string, boneId: string): void {
+    const current = new Map(this.bones());
+    const frameBones = current.get(frameId) || [];
+    current.set(
+      frameId,
+      frameBones.filter((b) => b.id !== boneId),
+    );
+    this.bones.set(current);
+  }
+
+  addPointToBone(
+    frameId: string,
+    boneId: string,
+    point: BonePoint,
+  ): void {
+    const current = new Map(this.bones());
+    const frameBones = current.get(frameId) || [];
+    const updated = frameBones.map((b) => {
+      if (b.id === boneId) {
+        return { ...b, points: [...b.points, point] };
+      }
+      return b;
     });
-    if (this.selectedBoneId() === id) {
-      this.selectedBoneId.set('');
-    }
-    return true;
+    current.set(frameId, updated);
+    this.bones.set(current);
   }
 
-  renameBone(id: string, newName: string): boolean {
-    const bone = this.bones().find((b) => b.id === id);
-    if (!bone) return false;
-    this.bones.update((arr) =>
-      arr.map((b) => (b.id === id ? { ...b, name: newName } : b)),
-    );
-    return true;
+  updatePoint(
+    frameId: string,
+    boneId: string,
+    pointId: string,
+    x: number,
+    y: number,
+  ): void {
+    const current = new Map(this.bones());
+    const frameBones = current.get(frameId) || [];
+    const updated = frameBones.map((b) => {
+      if (b.id === boneId) {
+        return {
+          ...b,
+          points: b.points.map((p) =>
+            p.id === pointId ? { ...p, x, y } : p,
+          ),
+        };
+      }
+      return b;
+    });
+    current.set(frameId, updated);
+    this.bones.set(current);
   }
 
-  updateBone(
-    id: string,
-    updates: Partial<Omit<BoneItem, 'id'>>,
-  ): boolean {
-    const bone = this.bones().find((b) => b.id === id);
-    if (!bone) return false;
-    this.bones.update((arr) =>
-      arr.map((b) => (b.id === id ? { ...b, ...updates } : b)),
-    );
-    return true;
+  getSelectedBone(): string | null {
+    return this.selectedBoneId();
   }
 
-  selectBone(id: string) {
-    this.selectedBoneId.set(id);
+  getSelectedPoint(): string | null {
+    return this.selectedPointId();
   }
 
-  getBone(id: string): BoneItem | null {
-    return this.bones().find((b) => b.id === id) || null;
+  selectBone(boneId: string | null): void {
+    this.selectedBoneId.set(boneId);
   }
 
-  getChildBones(parentId: string): BoneItem[] {
-    return this.bones().filter((b) => b.parentId === parentId);
+  selectPoint(pointId: string | null): void {
+    this.selectedPointId.set(pointId);
+  }
+
+  clearSelection(): void {
+    this.selectedBoneId.set(null);
+    this.selectedPointId.set(null);
+  }
+
+  snapshot(): Map<string, Bone[]> {
+    return new Map(this.bones());
+  }
+
+  restore(data: Map<string, Bone[]>): void {
+    this.bones.set(new Map(data));
+  }
+
+  clear(): void {
+    this.bones.set(new Map());
+    this.clearSelection();
   }
 }

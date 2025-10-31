@@ -10,4 +10,6 @@ export * from './editor-layer.service';
 export * from './editor-project.service';
 export * from './editor-selection.service';
 export * from './editor-bone.service';
+export * from './editor-animation-collection.service';
+export * from './editor-bone-hierarchy.service';
 export * from './editor-export.service';

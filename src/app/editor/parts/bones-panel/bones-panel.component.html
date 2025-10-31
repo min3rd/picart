@@ -15,16 +15,16 @@
     </button>
   </div>
   <div class="flex-1 overflow-auto p-2 space-y-2" id="bones-list">
-    @if (document.bones().length === 0) {
+    @if (document.boneHierarchy().length === 0) {
       <div class="text-center text-neutral-500 dark:text-neutral-400 text-sm py-8" id="no-bones-message">
         {{ "bones.emptyState" | transloco }}
       </div>
     }
-    @for (bone of document.bones(); let i = $index; track bone.id) {
+    @for (bone of document.boneHierarchy(); let i = $index; track bone.id) {
       <div
         class="border border-neutral-300 dark:border-neutral-700 rounded-sm p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
-        [class.bg-neutral-200]="document.selectedBoneId() === bone.id"
-        [class.dark\:bg-neutral-700]="document.selectedBoneId() === bone.id"
+        [class.bg-neutral-200]="document.selectedBoneHierarchyId() === bone.id"
+        [class.dark\:bg-neutral-700]="document.selectedBoneHierarchyId() === bone.id"
         (click)="selectBone(bone.id)"
         [id]="'bone-item-' + i"
       >

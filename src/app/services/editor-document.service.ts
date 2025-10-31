@@ -1,8 +1,10 @@
-import { Injectable, Signal, inject } from '@angular/core';
+import { Injectable, Signal, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { EditorToolsService } from './editor-tools.service';
 import {
   EditorAnimationService,
+  EditorAnimationCollectionService,
+  EditorBoneHierarchyService,
   EditorCanvasStateService,
   EditorColorService,
   EditorDrawingService,
@@ -11,7 +13,6 @@ import {
   EditorLayerService,
   EditorProjectService,
   EditorSelectionService,
-  EditorAnimationService,
   EditorBoneService,
   EditorExportService,
   FrameItem,
@@ -46,13 +47,14 @@ export class EditorDocumentService {
   private readonly layerService = inject(EditorLayerService);
   private readonly frameService = inject(EditorFrameService);
   private readonly animationService = inject(EditorAnimationService);
+  private readonly animationCollectionService = inject(EditorAnimationCollectionService);
   private readonly historyService = inject(EditorHistoryService);
   private readonly selectionService = inject(EditorSelectionService);
   private readonly drawingService = inject(EditorDrawingService);
   private readonly colorService = inject(EditorColorService);
   private readonly projectService = inject(EditorProjectService);
-  private readonly animationService = inject(EditorAnimationService);
   private readonly boneService = inject(EditorBoneService);
+  private readonly boneHierarchyService = inject(EditorBoneHierarchyService);
   private readonly exportService = inject(EditorExportService);
 
   readonly layers = this.layerService.layers;
@@ -64,14 +66,14 @@ export class EditorDocumentService {
   readonly frames = this.frameService.frames;
   readonly currentFrameIndex = this.frameService.currentFrameIndex;
 
-  readonly animations = this.animationService.animations;
-  readonly currentAnimationIndex = this.animationService.currentAnimationIndex;
+  readonly animations = this.animationCollectionService.animations;
+  readonly currentAnimationIndex = this.animationCollectionService.currentAnimationIndex;
 
-  readonly bones = this.boneService.bones;
-  readonly selectedBoneId = this.boneService.selectedBoneId;
+  readonly boneHierarchy = this.boneHierarchyService.bones;
+  readonly selectedBoneHierarchyId = this.boneHierarchyService.selectedBoneId;
 
-  readonly isAnimationPlaying = signal<boolean>(false);
-  readonly animationFps = signal<number>(10);
+  readonly isAnimationPlaying = this.animationService.isPlaying;
+  readonly animationFps = this.animationService.fps;
 
   readonly canvasWidth = this.canvasState.canvasWidth;
   readonly canvasHeight = this.canvasState.canvasHeight;
@@ -1023,47 +1025,47 @@ export class EditorDocumentService {
   }
 
   getCurrentAnimation(): AnimationItem | null {
-    return this.animationService.getCurrentAnimation();
+    return this.animationCollectionService.getCurrentAnimation();
   }
 
   setCurrentAnimation(index: number) {
-    this.animationService.setCurrentAnimation(index);
+    this.animationCollectionService.setCurrentAnimation(index);
   }
 
   addAnimation(name?: string): AnimationItem {
-    return this.animationService.addAnimation(name);
+    return this.animationCollectionService.addAnimation(name);
   }
 
   removeAnimation(id: string): boolean {
-    return this.animationService.removeAnimation(id);
+    return this.animationCollectionService.removeAnimation(id);
   }
 
   renameAnimation(id: string, newName: string): boolean {
-    return this.animationService.renameAnimation(id, newName);
+    return this.animationCollectionService.renameAnimation(id, newName);
   }
 
   reorderAnimations(fromIndex: number, toIndex: number): boolean {
-    return this.animationService.reorderAnimations(fromIndex, toIndex);
+    return this.animationCollectionService.reorderAnimations(fromIndex, toIndex);
   }
 
   attachBoneToAnimation(animationId: string, boneId: string): boolean {
-    return this.animationService.attachBone(animationId, boneId);
+    return this.animationCollectionService.attachBone(animationId, boneId);
   }
 
   detachBoneFromAnimation(animationId: string, boneId: string): boolean {
-    return this.animationService.detachBone(animationId, boneId);
+    return this.animationCollectionService.detachBone(animationId, boneId);
   }
 
   addFrameToAnimation(animationId: string, name?: string): FrameItem | null {
-    return this.animationService.addFrameToAnimation(animationId, name);
+    return this.animationCollectionService.addFrameToAnimation(animationId, name);
   }
 
   removeFrameFromAnimation(animationId: string, frameId: string): boolean {
-    return this.animationService.removeFrameFromAnimation(animationId, frameId);
+    return this.animationCollectionService.removeFrameFromAnimation(animationId, frameId);
   }
 
   validateAnimationName(name: string): boolean {
-    return this.animationService.validateAnimationName(name);
+    return this.animationCollectionService.validateAnimationName(name);
   }
 
   addBone(
@@ -1072,31 +1074,31 @@ export class EditorDocumentService {
     x = 0,
     y = 0,
   ): BoneItem {
-    return this.boneService.addBone(name, parentId, x, y);
+    return this.boneHierarchyService.addBone(name, parentId, x, y);
   }
 
   removeBone(id: string): boolean {
-    return this.boneService.removeBone(id);
+    return this.boneHierarchyService.removeBone(id);
   }
 
   renameBone(id: string, newName: string): boolean {
-    return this.boneService.renameBone(id, newName);
+    return this.boneHierarchyService.renameBone(id, newName);
   }
 
   updateBone(id: string, updates: Partial<Omit<BoneItem, 'id'>>): boolean {
-    return this.boneService.updateBone(id, updates);
+    return this.boneHierarchyService.updateBone(id, updates);
   }
 
   selectBone(id: string) {
-    this.boneService.selectBone(id);
+    this.boneHierarchyService.selectBone(id);
   }
 
   getBone(id: string): BoneItem | null {
-    return this.boneService.getBone(id);
+    return this.boneHierarchyService.getBone(id);
   }
 
   getChildBones(parentId: string): BoneItem[] {
-    return this.boneService.getChildBones(parentId);
+    return this.boneHierarchyService.getChildBones(parentId);
   }
 
   async exportAnimationAsSpriteSheet(
