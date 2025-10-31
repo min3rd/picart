@@ -14,7 +14,7 @@ export class EditorFrameService {
   }
 
   addFrame(name?: string, layers?: LayerTreeItem[], buffers?: Record<string, string[]>): FrameItem {
-    const id = `f${Date.now()}`;
+    const id = `f${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const frame: FrameItem = {
       id,
       name: name || `Frame ${this.frames().length + 1}`,
@@ -31,7 +31,7 @@ export class EditorFrameService {
     if (index === -1) return null;
     
     const source = this.frames()[index];
-    const newId = `f${Date.now()}`;
+    const newId = `f${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const newFrame: FrameItem = {
       id: newId,
       name: `${source.name} copy`,
@@ -90,7 +90,7 @@ export class EditorFrameService {
   }
 
   private deepCopyLayers(layers: LayerTreeItem[]): LayerTreeItem[] {
-    return JSON.parse(JSON.stringify(layers));
+    return structuredClone(layers);
   }
 
   private deepCopyBuffers(buffers: Record<string, string[]>): Record<string, string[]> {
