@@ -411,6 +411,10 @@ export class EditorCanvas {
     }
 
     if (this.painting) {
+      const selectedLayer = this.document.selectedLayer();
+      if (selectedLayer?.locked) {
+        return;
+      }
       const clampedX = Math.max(0, Math.min(w - 1, logicalX));
       const clampedY = Math.max(0, Math.min(h - 1, logicalY));
       const layerId = this.document.selectedLayerId();
@@ -529,6 +533,10 @@ export class EditorCanvas {
         !ev.ctrlKey &&
         this.vKeyPressed
       ) {
+        const selectedLayer = this.document.selectedLayer();
+        if (selectedLayer?.locked) {
+          return;
+        }
         this.capturePointer(ev);
         this.selectionContentMoving = true;
         this.selectionContentMoveStart = { x: logicalX, y: logicalY };
@@ -567,6 +575,10 @@ export class EditorCanvas {
         (tool === 'line' || tool === 'circle' || tool === 'square') &&
         insideCanvas
       ) {
+        const selectedLayer = this.document.selectedLayer();
+        if (selectedLayer?.locked) {
+          return;
+        }
         this.capturePointer(ev);
         if (tool === 'square' || tool === 'circle') {
           this.shapeConstrainUniform.set(ev.shiftKey);
@@ -577,6 +589,10 @@ export class EditorCanvas {
         return;
       }
       if (tool === 'fill' && insideCanvas) {
+        const selectedLayer = this.document.selectedLayer();
+        if (selectedLayer?.locked) {
+          return;
+        }
         const selectionActive = this.document.selectionRect();
         if (selectionActive && !this.isPointInSelection(logicalX, logicalY)) {
           return;
@@ -588,6 +604,10 @@ export class EditorCanvas {
         this.document.applyFillToLayer(layerId, logicalX, logicalY, fillColor);
         this.document.endAction();
       } else if ((tool === 'brush' || tool === 'eraser') && insideCanvas) {
+        const selectedLayer = this.document.selectedLayer();
+        if (selectedLayer?.locked) {
+          return;
+        }
         this.capturePointer(ev);
         this.document.beginAction('paint');
         this.painting = true;
