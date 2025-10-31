@@ -60,56 +60,85 @@
       {{ "timeline.title" | transloco }}
     </div>
     <div id="timeline-frames-scroll" class="flex-1 overflow-auto">
-      <div id="timeline-frames-list" class="flex items-start gap-1 p-2 min-h-full">
+      <div id="timeline-frames-list" class="flex items-start gap-2 p-2 min-h-full">
         @for (f of document.frames(); let i = $index; track f.id) {
           <div
             [id]="'frame-' + f.id"
             class="flex flex-col gap-1 shrink-0"
           >
-            <button
-              [id]="'frame-btn-' + f.id"
-              type="button"
+            <div
+              class="relative group"
               (click)="setFrame(i)"
-              class="w-24 h-20 border-2 rounded-sm flex flex-col items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
-              [class.border-blue-500]="document.currentFrameIndex() === i"
-              [class.dark\:border-blue-400]="document.currentFrameIndex() === i"
-              [class.bg-neutral-50]="document.currentFrameIndex() === i"
-              [class.dark\:bg-neutral-800]="document.currentFrameIndex() === i"
-              [class.border-neutral-300]="document.currentFrameIndex() !== i"
-              [class.dark\:border-neutral-700]="document.currentFrameIndex() !== i"
+              (contextmenu)="showContextMenu($event, f.id)"
             >
-              <span class="text-xs font-medium truncate w-full px-1 text-center">{{
-                f.name
-              }}</span>
-              <span class="text-[10px] text-neutral-500 dark:text-neutral-400">{{
-                i + 1
-              }}</span>
-            </button>
+              <div
+                [id]="'frame-preview-' + f.id"
+                class="w-20 h-16 border-2 rounded-sm overflow-hidden cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-neutral-100 dark:bg-neutral-800"
+                [class.border-blue-500]="document.currentFrameIndex() === i"
+                [class.dark\:border-blue-400]="document.currentFrameIndex() === i"
+                [class.border-neutral-300]="document.currentFrameIndex() !== i"
+                [class.dark\:border-neutral-700]="document.currentFrameIndex() !== i"
+              >
+                <canvas
+                  #frameCanvas
+                  [id]="'frame-canvas-' + f.id"
+                  width="80"
+                  height="64"
+                  class="w-full h-full"
+                  [attr.data-frame-id]="f.id"
+                ></canvas>
+              </div>
+              
+              <button
+                [id]="'frame-menu-' + f.id"
+                type="button"
+                (click)="showContextMenu($event, f.id)"
+                class="absolute top-0.5 right-0.5 p-0.5 rounded-sm bg-neutral-200/80 dark:bg-neutral-700/80 hover:bg-neutral-300 dark:hover:bg-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                [title]="'timeline.frameOptions' | transloco"
+              >
+                <ng-icon name="heroEllipsisVertical" size="12" />
+              </button>
+            </div>
 
-            <div [id]="'frame-actions-' + f.id" class="flex gap-0.5">
-              <button
-                [id]="'duplicate-frame-' + f.id"
-                type="button"
-                (click)="duplicateFrame(f.id)"
-                class="flex-1 px-1 py-0.5 text-[10px] rounded-sm bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center justify-center"
-                [title]="'timeline.duplicateFrame' | transloco"
-              >
-                <ng-icon name="heroDocumentDuplicate" size="12" />
-              </button>
-              <button
-                [id]="'delete-frame-' + f.id"
-                type="button"
-                (click)="deleteFrame(f.id)"
-                [disabled]="document.frames().length <= 1"
-                class="flex-1 px-1 py-0.5 text-[10px] rounded-sm bg-red-200 dark:bg-red-900/60 hover:bg-red-300 dark:hover:bg-red-800/60 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
-                [title]="'timeline.deleteFrame' | transloco"
-              >
-                <ng-icon name="heroTrash" size="12" />
-              </button>
+            <div class="text-center">
+              <div class="text-[10px] font-medium truncate w-20 px-1">
+                {{ f.name }}
+              </div>
+              <div class="text-[9px] text-neutral-500 dark:text-neutral-400">
+                {{ i + 1 }}
+              </div>
             </div>
           </div>
         }
       </div>
     </div>
   </div>
+
+  @if (contextMenuVisible()) {
+    <div
+      #contextMenuEl
+      [id]="'frame-context-menu'"
+      class="fixed z-50 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-sm shadow-lg py-1 min-w-40"
+      [style.left.px]="contextMenuX()"
+      [style.top.px]="contextMenuY()"
+    >
+      <button
+        id="context-menu-duplicate"
+        type="button"
+        (click)="duplicateFrame(contextMenuFrameId()!)"
+        class="w-full px-3 py-1.5 text-xs text-left hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+      >
+        <span>{{ "timeline.duplicateFrame" | transloco }}</span>
+      </button>
+      <button
+        id="context-menu-delete"
+        type="button"
+        (click)="deleteFrame(contextMenuFrameId()!)"
+        [disabled]="document.frames().length <= 1"
+        class="w-full px-3 py-1.5 text-xs text-left hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-red-600 dark:text-red-400"
+      >
+        <span>{{ "timeline.deleteFrame" | transloco }}</span>
+      </button>
+    </div>
+  }
 </div>

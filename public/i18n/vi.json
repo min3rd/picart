@@ -39,7 +39,8 @@
     "play": "Phát",
     "stop": "Dừng",
     "fps": "FPS",
-    "duration": "Thời lượng"
+    "duration": "Thời lượng",
+    "frameOptions": "Tùy chọn khung hình"
   },
   "theme": {
     "toggle": "Chuyển chủ đề"
