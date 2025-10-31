@@ -219,6 +219,8 @@ export class EditorProjectService {
             id: f.id,
             name: f.name,
             duration: Number(f.duration) || 100,
+            layers: f.layers,
+            buffers: f.buffers,
           })) as FrameItem[],
         );
 
