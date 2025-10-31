@@ -61,7 +61,10 @@
     "renameBone": "Đổi tên Bone",
     "attachToAnimation": "Gắn vào Animation",
     "confirmRemove": "Bạn có chắc chắn muốn xóa bone này?",
-    "emptyState": "Chưa có bone nào. Nhấn \"Thêm Bone\" để tạo mới."
+    "emptyState": "Chưa có bone nào. Nhấn \"Thêm Bone\" để tạo mới.",
+    "addChildBone": "Thêm Bone con",
+    "currentAnimation": "Animation hiện tại",
+    "bonesAttached": "bone đã gắn"
   },
   "theme": {
     "toggle": "Chuyển chủ đề"

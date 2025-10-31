@@ -10,6 +10,12 @@ import {
   heroLink,
 } from '@ng-icons/heroicons/outline';
 import { EditorDocumentService } from '../../../services/editor-document.service';
+import type { BoneItem } from '../../../services/editor-document.service';
+
+interface BoneWithDepth {
+  item: BoneItem;
+  depth: number;
+}
 
 @Component({
   selector: 'pa-bones-panel',
@@ -39,14 +45,24 @@ export class BonesPanel {
     this.document.selectBone(id);
   }
 
-  addBone() {
+  addRootBone() {
     const name = this.newBoneName().trim();
     if (name) {
-      this.document.addBone(name);
+      this.document.addBone(name, null);
       this.newBoneName.set('');
     } else {
       this.document.addBone();
     }
+  }
+
+  addChildBone(parentId: string, event: Event) {
+    event.stopPropagation();
+    const parentBone = this.document.getBone(parentId);
+    if (!parentBone) return;
+    
+    const childCount = this.getChildBonesCount(parentId);
+    const name = `${parentBone.name} Child ${childCount + 1}`;
+    this.document.addBone(name, parentId);
   }
 
   removeBone(id: string, event: Event) {
@@ -77,10 +93,14 @@ export class BonesPanel {
     this.newBoneName.set('');
   }
 
-  attachToCurrentAnimation(boneId: string, event: Event) {
+  toggleBoneAttachment(boneId: string, event: Event) {
     event.stopPropagation();
     const currentAnim = this.document.getCurrentAnimation();
-    if (currentAnim) {
+    if (!currentAnim) return;
+    
+    if (this.isBoneAttachedToCurrentAnimation(boneId)) {
+      this.document.detachBoneFromAnimation(currentAnim.id, boneId);
+    } else {
       this.document.attachBoneToAnimation(currentAnim.id, boneId);
     }
   }
@@ -89,5 +109,43 @@ export class BonesPanel {
     const currentAnim = this.document.getCurrentAnimation();
     if (!currentAnim) return false;
     return currentAnim.boneIds.includes(boneId);
+  }
+
+  getRootBones(): BoneItem[] {
+    return this.document.boneHierarchy().filter(b => !b.parentId);
+  }
+
+  getChildBones(parentId: string): BoneItem[] {
+    return this.document.getChildBones(parentId);
+  }
+
+  getChildBonesCount(parentId: string): number {
+    return this.getChildBones(parentId).length;
+  }
+
+  getCurrentAnimationName(): string {
+    const anim = this.document.getCurrentAnimation();
+    return anim ? anim.name : 'None';
+  }
+
+  getAttachedBonesCount(): number {
+    const anim = this.document.getCurrentAnimation();
+    return anim ? anim.boneIds.length : 0;
+  }
+
+  getAllBonesWithDepth(): BoneWithDepth[] {
+    const result: BoneWithDepth[] = [];
+    const bones = this.document.boneHierarchy();
+    
+    const addBoneWithChildren = (bone: BoneItem, depth: number) => {
+      result.push({ item: bone, depth });
+      const children = this.getChildBones(bone.id);
+      children.forEach(child => addBoneWithChildren(child, depth + 1));
+    };
+    
+    const rootBones = bones.filter(b => !b.parentId);
+    rootBones.forEach(bone => addBoneWithChildren(bone, 0));
+    
+    return result;
   }
 }

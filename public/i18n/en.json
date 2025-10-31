@@ -61,7 +61,10 @@
     "renameBone": "Rename Bone",
     "attachToAnimation": "Attach to Animation",
     "confirmRemove": "Are you sure you want to remove this bone?",
-    "emptyState": "No bones yet. Click \"Add Bone\" to create one."
+    "emptyState": "No bones yet. Click \"Add Bone\" to create one.",
+    "addChildBone": "Add Child Bone",
+    "currentAnimation": "Current Animation",
+    "bonesAttached": "bones attached"
   },
   "theme": {
     "toggle": "Toggle theme"
