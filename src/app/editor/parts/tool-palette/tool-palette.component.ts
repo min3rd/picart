@@ -158,4 +158,16 @@ export class ToolPalette {
     const n = Number(v);
     if (!Number.isNaN(n)) this.tools.setEraserStrength(Math.floor(n));
   }
+
+  onBoneThicknessInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    const n = Number(v);
+    if (!Number.isNaN(n))
+      this.tools.setBoneThickness(Math.floor(n), this.maxCanvasDim);
+  }
+
+  onBoneColorInput(event: Event) {
+    const v = (event.target as HTMLInputElement).value;
+    this.tools.setBoneColor(v);
+  }
 }

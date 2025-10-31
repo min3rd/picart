@@ -22,7 +22,8 @@
     "line": "Vẽ đường",
     "circle": "Hình tròn",
     "square": "Hình vuông",
-    "brush": "Cọ vẽ"
+    "brush": "Cọ vẽ",
+    "bone": "Xương"
   },
   "layers": {
     "title": "Danh sách layer",
@@ -103,6 +104,11 @@
         "title": "Tẩy",
         "size": "Kích cỡ",
         "strength": "Độ đậm"
+      },
+      "bone": {
+        "title": "Xương",
+        "thickness": "Độ dày",
+        "color": "Màu sắc"
       }
     },
     "layers": {

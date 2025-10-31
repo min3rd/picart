@@ -22,7 +22,8 @@
     "line": "Line",
     "circle": "Circle",
     "square": "Square",
-    "brush": "Brush"
+    "brush": "Brush",
+    "bone": "Bone"
   },
   "layers": {
     "title": "Layers",
@@ -103,6 +104,11 @@
         "title": "Eraser",
         "size": "Size",
         "strength": "Strength"
+      },
+      "bone": {
+        "title": "Bone",
+        "thickness": "Thickness",
+        "color": "Color"
       }
     },
     "layers": {

@@ -120,6 +120,39 @@
     >
       {{ "menu.redo" | transloco }}
     </button>
+    <div
+      id="menu-tool-wrapper"
+      class="relative"
+      (mouseenter)="openToolMenuHover()"
+      (mouseleave)="closeToolMenuHover()"
+    >
+      <button
+        type="button"
+        id="menu-tool-button"
+        class="px-2 py-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
+        (click)="showToolMenu.set(!showToolMenu())"
+        [attr.aria-expanded]="showToolMenu()"
+      >
+        {{ "menu.tool" | transloco }}
+      </button>
+      @if (showToolMenu()) {
+        <div
+          id="menu-tool-dropdown"
+          class="absolute mt-1 left-0 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded shadow-md z-50 w-44"
+          tabindex="0"
+          (focusin)="onToolMenuFocusIn()"
+          (focusout)="onToolMenuFocusOut()"
+        >
+          <button
+            id="menu-tool-bone-action"
+            class="w-full text-left px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            (click)="onSelectBoneTool()"
+          >
+            {{ "tools.bone" | transloco }}
+          </button>
+        </div>
+      }
+    </div>
     <button
       type="button"
       id="menu-tool-button"
