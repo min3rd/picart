@@ -4,12 +4,17 @@ import { EditorFrameService } from './editor-frame.service';
 @Injectable({ providedIn: 'root' })
 export class EditorAnimationService {
   private readonly frameService = inject(EditorFrameService);
+  private loadFrameCallback: ((index: number) => void) | null = null;
 
   readonly isPlaying = signal<boolean>(false);
   readonly fps = signal<number>(10);
 
   private animationFrameId: number | null = null;
   private lastFrameTime = 0;
+
+  setLoadFrameCallback(callback: (index: number) => void) {
+    this.loadFrameCallback = callback;
+  }
 
   play() {
     if (this.isPlaying()) return;
@@ -50,6 +55,11 @@ export class EditorAnimationService {
     
     const currentIndex = this.frameService.currentFrameIndex();
     const nextIndex = (currentIndex + 1) % frames.length;
-    this.frameService.setCurrentFrame(nextIndex);
+    
+    if (this.loadFrameCallback) {
+      this.loadFrameCallback(nextIndex);
+    } else {
+      this.frameService.setCurrentFrame(nextIndex);
+    }
   }
 }
