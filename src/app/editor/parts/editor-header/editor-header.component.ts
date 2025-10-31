@@ -15,6 +15,7 @@ import {
   InsertImageDialog,
   InsertImageResult,
 } from '../../../shared/components/insert-image-dialog/insert-image-dialog.component';
+import { EditorToolsService } from '../../../services/editor-tools.service';
 
 @Component({
   selector: 'pa-editor-header',
@@ -32,13 +33,17 @@ export class EditorHeader {
   readonly document = inject(EditorDocumentService);
   readonly i18n = inject(TranslocoService);
   readonly settings = inject(UserSettingsService);
+  readonly tools = inject(EditorToolsService);
   readonly showFileMenu = signal(false);
   readonly showInsertMenu = signal(false);
+  readonly showToolMenu = signal(false);
   readonly insertImageDialog = viewChild(InsertImageDialog);
   private hoverOpenTimer?: number;
   private hoverCloseTimer?: number;
   private insertHoverOpenTimer?: number;
   private insertHoverCloseTimer?: number;
+  private toolHoverOpenTimer?: number;
+  private toolHoverCloseTimer?: number;
 
   async onNewProject() {
     // Reset to a minimal new project
@@ -251,6 +256,53 @@ export class EditorHeader {
     }, 150);
   }
 
+  openToolMenuHover() {
+    if (this.toolHoverCloseTimer) {
+      clearTimeout(this.toolHoverCloseTimer);
+      this.toolHoverCloseTimer = undefined;
+    }
+    if (!this.showToolMenu()) {
+      this.toolHoverOpenTimer = window.setTimeout(() => {
+        this.showToolMenu.set(true);
+        this.toolHoverOpenTimer = undefined;
+      }, 150);
+    }
+  }
+
+  closeToolMenuHover() {
+    if (this.toolHoverOpenTimer) {
+      clearTimeout(this.toolHoverOpenTimer);
+      this.toolHoverOpenTimer = undefined;
+    }
+    if (this.showToolMenu()) {
+      this.toolHoverCloseTimer = window.setTimeout(() => {
+        this.showToolMenu.set(false);
+        this.toolHoverCloseTimer = undefined;
+      }, 200);
+    }
+  }
+
+  onToolMenuFocusIn() {
+    if (this.toolHoverCloseTimer) {
+      clearTimeout(this.toolHoverCloseTimer);
+      this.toolHoverCloseTimer = undefined;
+    }
+    this.showToolMenu.set(true);
+  }
+
+  onToolMenuFocusOut() {
+    if (this.toolHoverCloseTimer) clearTimeout(this.toolHoverCloseTimer);
+    this.toolHoverCloseTimer = window.setTimeout(() => {
+      this.showToolMenu.set(false);
+      this.toolHoverCloseTimer = undefined;
+    }, 150);
+  }
+
+  onSelectBoneTool() {
+    this.tools.selectTool('bone');
+    this.showToolMenu.set(false);
+  }
+
   ngOnDestroy(): void {
     if (typeof window !== 'undefined') {
       window.removeEventListener(
@@ -273,6 +325,14 @@ export class EditorHeader {
     if (this.insertHoverCloseTimer) {
       clearTimeout(this.insertHoverCloseTimer);
       this.insertHoverCloseTimer = undefined;
+    }
+    if (this.toolHoverOpenTimer) {
+      clearTimeout(this.toolHoverOpenTimer);
+      this.toolHoverOpenTimer = undefined;
+    }
+    if (this.toolHoverCloseTimer) {
+      clearTimeout(this.toolHoverCloseTimer);
+      this.toolHoverCloseTimer = undefined;
     }
   }
 
