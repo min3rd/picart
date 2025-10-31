@@ -32,7 +32,24 @@
     "add": "Thêm layer"
   },
   "timeline": {
-    "title": "Timeline"
+    "title": "Timeline",
+    "animations": "Danh sách Animation",
+    "addAnimation": "Thêm Animation",
+    "removeAnimation": "Xóa Animation",
+    "renameAnimation": "Đổi tên Animation",
+    "exportSpriteSheet": "Xuất Sprite Sheet",
+    "exportPackage": "Xuất Package",
+    "attachBone": "Gắn Bone",
+    "detachBone": "Gỡ Bone",
+    "invalidName": "Tên animation chứa ký tự không hợp lệ",
+    "frameCount": "khung hình"
+  },
+  "bones": {
+    "title": "Khung xương",
+    "addBone": "Thêm Bone",
+    "removeBone": "Xóa Bone",
+    "renameBone": "Đổi tên Bone",
+    "attachToAnimation": "Gắn vào Animation"
   },
   "theme": {
     "toggle": "Chuyển chủ đề"

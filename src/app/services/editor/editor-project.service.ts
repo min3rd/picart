@@ -6,7 +6,9 @@ import { EditorCanvasStateService } from './editor-canvas-state.service';
 import { EditorFrameService } from './editor-frame.service';
 import { EditorLayerService } from './editor-layer.service';
 import { EditorSelectionService } from './editor-selection.service';
-import { FrameItem, LayerTreeItem } from './editor.types';
+import { EditorAnimationService } from './editor-animation.service';
+import { EditorBoneService } from './editor-bone.service';
+import { FrameItem, LayerTreeItem, AnimationItem, BoneItem } from './editor.types';
 
 @Injectable({ providedIn: 'root' })
 export class EditorProjectService {
@@ -16,6 +18,8 @@ export class EditorProjectService {
   private readonly frameService = inject(EditorFrameService);
   private readonly selectionService = inject(EditorSelectionService);
   private readonly tools = inject(EditorToolsService);
+  private readonly animationService = inject(EditorAnimationService);
+  private readonly boneService = inject(EditorBoneService);
 
   loadProjectFromLocalStorage(): Observable<boolean> {
     try {
@@ -63,6 +67,8 @@ export class EditorProjectService {
       selection: this.selectionService.selectionRect(),
       selectionPolygon: this.selectionService.selectionPolygon(),
       frames: this.frameService.frames(),
+      animations: this.animationService.animations(),
+      bones: this.boneService.bones(),
     } as const;
   }
 
@@ -220,6 +226,36 @@ export class EditorProjectService {
             name: f.name,
             duration: Number(f.duration) || 100,
           })) as FrameItem[],
+        );
+
+      if (parsed.animations && Array.isArray(parsed.animations))
+        this.animationService.animations.set(
+          (parsed.animations as any[]).map((a) => ({
+            id: a.id,
+            name: a.name,
+            frames: Array.isArray(a.frames)
+              ? a.frames.map((f: any) => ({
+                  id: f.id,
+                  name: f.name,
+                  duration: Number(f.duration) || 100,
+                }))
+              : [],
+            boneIds: Array.isArray(a.boneIds) ? a.boneIds : [],
+            duration: Number(a.duration) || 100,
+          })) as AnimationItem[],
+        );
+
+      if (parsed.bones && Array.isArray(parsed.bones))
+        this.boneService.bones.set(
+          (parsed.bones as any[]).map((b) => ({
+            id: b.id,
+            name: b.name,
+            parentId: b.parentId || null,
+            x: Number(b.x) || 0,
+            y: Number(b.y) || 0,
+            rotation: Number(b.rotation) || 0,
+            length: Number(b.length) || 50,
+          })) as BoneItem[],
         );
 
       this.canvasState.layerPixelsVersion.update((v) => v + 1);

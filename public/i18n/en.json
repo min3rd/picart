@@ -32,7 +32,24 @@
     "add": "Add Layer"
   },
   "timeline": {
-    "title": "Timeline"
+    "title": "Timeline",
+    "animations": "Animations",
+    "addAnimation": "Add Animation",
+    "removeAnimation": "Remove Animation",
+    "renameAnimation": "Rename Animation",
+    "exportSpriteSheet": "Export as Sprite Sheet",
+    "exportPackage": "Export as Package",
+    "attachBone": "Attach Bone",
+    "detachBone": "Detach Bone",
+    "invalidName": "Animation name contains invalid characters",
+    "frameCount": "frames"
+  },
+  "bones": {
+    "title": "Bones",
+    "addBone": "Add Bone",
+    "removeBone": "Remove Bone",
+    "renameBone": "Rename Bone",
+    "attachToAnimation": "Attach to Animation"
   },
   "theme": {
     "toggle": "Toggle theme"

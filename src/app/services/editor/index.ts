@@ -8,3 +8,6 @@ export * from './editor-history.service';
 export * from './editor-layer.service';
 export * from './editor-project.service';
 export * from './editor-selection.service';
+export * from './editor-animation.service';
+export * from './editor-bone.service';
+export * from './editor-export.service';

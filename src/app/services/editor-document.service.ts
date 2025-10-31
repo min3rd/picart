@@ -10,16 +10,21 @@ import {
   EditorLayerService,
   EditorProjectService,
   EditorSelectionService,
+  EditorAnimationService,
+  EditorBoneService,
+  EditorExportService,
   FrameItem,
   GroupItem,
   LayerItem,
   LayerTreeItem,
+  AnimationItem,
+  BoneItem,
   isGroup,
   isLayer,
 } from './editor/index';
 import { GradientType, ShapeFillMode, ToolMetaKey } from './tools/tool.types';
 
-export type { FrameItem, GroupItem, LayerItem, LayerTreeItem };
+export type { FrameItem, GroupItem, LayerItem, LayerTreeItem, AnimationItem, BoneItem };
 export { isGroup, isLayer };
 
 interface ShapeDrawOptions {
@@ -44,6 +49,9 @@ export class EditorDocumentService {
   private readonly drawingService = inject(EditorDrawingService);
   private readonly colorService = inject(EditorColorService);
   private readonly projectService = inject(EditorProjectService);
+  private readonly animationService = inject(EditorAnimationService);
+  private readonly boneService = inject(EditorBoneService);
+  private readonly exportService = inject(EditorExportService);
 
   readonly layers = this.layerService.layers;
   readonly selectedLayerId = this.layerService.selectedLayerId;
@@ -53,6 +61,12 @@ export class EditorDocumentService {
 
   readonly frames = this.frameService.frames;
   readonly currentFrameIndex = this.frameService.currentFrameIndex;
+
+  readonly animations = this.animationService.animations;
+  readonly currentAnimationIndex = this.animationService.currentAnimationIndex;
+
+  readonly bones = this.boneService.bones;
+  readonly selectedBoneId = this.boneService.selectedBoneId;
 
   readonly canvasWidth = this.canvasState.canvasWidth;
   readonly canvasHeight = this.canvasState.canvasHeight;
@@ -919,5 +933,95 @@ export class EditorDocumentService {
 
   setCanvasSaved(saved: boolean) {
     this.canvasState.setCanvasSaved(saved);
+  }
+
+  getCurrentAnimation(): AnimationItem | null {
+    return this.animationService.getCurrentAnimation();
+  }
+
+  setCurrentAnimation(index: number) {
+    this.animationService.setCurrentAnimation(index);
+  }
+
+  addAnimation(name?: string): AnimationItem {
+    return this.animationService.addAnimation(name);
+  }
+
+  removeAnimation(id: string): boolean {
+    return this.animationService.removeAnimation(id);
+  }
+
+  renameAnimation(id: string, newName: string): boolean {
+    return this.animationService.renameAnimation(id, newName);
+  }
+
+  reorderAnimations(fromIndex: number, toIndex: number): boolean {
+    return this.animationService.reorderAnimations(fromIndex, toIndex);
+  }
+
+  attachBoneToAnimation(animationId: string, boneId: string): boolean {
+    return this.animationService.attachBone(animationId, boneId);
+  }
+
+  detachBoneFromAnimation(animationId: string, boneId: string): boolean {
+    return this.animationService.detachBone(animationId, boneId);
+  }
+
+  addFrameToAnimation(animationId: string, name?: string): FrameItem | null {
+    return this.animationService.addFrameToAnimation(animationId, name);
+  }
+
+  removeFrameFromAnimation(animationId: string, frameId: string): boolean {
+    return this.animationService.removeFrameFromAnimation(animationId, frameId);
+  }
+
+  validateAnimationName(name: string): boolean {
+    return this.animationService.validateAnimationName(name);
+  }
+
+  addBone(
+    name?: string,
+    parentId: string | null = null,
+    x = 0,
+    y = 0,
+  ): BoneItem {
+    return this.boneService.addBone(name, parentId, x, y);
+  }
+
+  removeBone(id: string): boolean {
+    return this.boneService.removeBone(id);
+  }
+
+  renameBone(id: string, newName: string): boolean {
+    return this.boneService.renameBone(id, newName);
+  }
+
+  updateBone(id: string, updates: Partial<Omit<BoneItem, 'id'>>): boolean {
+    return this.boneService.updateBone(id, updates);
+  }
+
+  selectBone(id: string) {
+    this.boneService.selectBone(id);
+  }
+
+  getBone(id: string): BoneItem | null {
+    return this.boneService.getBone(id);
+  }
+
+  getChildBones(parentId: string): BoneItem[] {
+    return this.boneService.getChildBones(parentId);
+  }
+
+  async exportAnimationAsSpriteSheet(
+    animation: AnimationItem,
+    options?: { padding: number; columns: number; backgroundColor?: string },
+  ): Promise<Blob | null> {
+    return this.exportService.exportAnimationAsSpriteSheet(animation, options);
+  }
+
+  async exportAnimationAsPackage(
+    animation: AnimationItem,
+  ): Promise<{ files: Map<string, Blob>; metadata: string } | null> {
+    return this.exportService.exportAnimationAsPackage(animation);
   }
 }
