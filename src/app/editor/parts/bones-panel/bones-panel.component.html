@@ -4,15 +4,6 @@
     id="bones-header"
   >
     <span id="bones-title">{{ "bones.title" | transloco }}</span>
-    <button
-      type="button"
-      (click)="addRootBone()"
-      class="px-2 py-1 text-xs rounded-sm bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
-      id="add-bone-button"
-    >
-      <ng-icon name="heroPlus" size="14"></ng-icon>
-      {{ "bones.addBone" | transloco }}
-    </button>
   </div>
   
   <div class="shrink-0 border-b border-neutral-200 dark:border-neutral-800 px-2 py-1 text-xs text-neutral-600 dark:text-neutral-400" id="bones-info">
@@ -20,108 +11,63 @@
       <span>{{ "bones.currentAnimation" | transloco }}: {{ getCurrentAnimationName() }}</span>
       <span>{{ getAttachedBonesCount() }} {{ "bones.bonesAttached" | transloco }}</span>
     </div>
+    <div class="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
+      {{ "bones.drawInstruction" | transloco }}
+    </div>
   </div>
 
   <div class="flex-1 overflow-auto p-2" id="bones-list">
-    @if (document.boneHierarchy().length === 0) {
+    @if (currentFrameBones().length === 0) {
       <div class="text-center text-neutral-500 dark:text-neutral-400 text-sm py-8" id="no-bones-message">
         {{ "bones.emptyState" | transloco }}
       </div>
     }
     
-    @for (bone of getAllBonesWithDepth(); track bone.item.id) {
+    @for (bone of currentFrameBones(); track bone.id; let i = $index) {
       <div
-        class="mb-1"
-        [style.marginLeft.px]="bone.depth * 20"
-        [id]="'bone-hierarchy-' + bone.item.id"
+        class="mb-2"
+        [id]="'bone-item-' + i"
       >
         <div
           class="border border-neutral-300 dark:border-neutral-700 rounded-sm p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
-          [class.bg-neutral-200]="document.selectedBoneHierarchyId() === bone.item.id"
-          [class.dark\:bg-neutral-700]="document.selectedBoneHierarchyId() === bone.item.id"
-          (click)="selectBone(bone.item.id)"
+          [class.bg-neutral-200]="boneService.getSelectedBone() === bone.id"
+          [class.dark\:bg-neutral-700]="boneService.getSelectedBone() === bone.id"
+          (click)="selectBone(bone.id)"
         >
           <div class="flex items-center justify-between gap-2">
-            @if (editingBoneId() === bone.item.id) {
-              <input
-                type="text"
-                [(ngModel)]="newBoneName"
-                (keydown.enter)="saveRename(bone.item.id)"
-                (keydown.escape)="cancelRename()"
-                (click)="$event.stopPropagation()"
-                class="flex-1 px-2 py-1 text-sm border border-neutral-300 dark:border-neutral-600 rounded-sm bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
-              />
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm truncate flex items-center gap-1">
+                <span>Bone {{ i + 1 }}</span>
+                @if (isBoneAttachedToCurrentAnimation(bone.id)) {
+                  <span class="text-green-600 dark:text-green-400 text-xs">✓</span>
+                }
+              </div>
+              <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                <span>{{ getPointsCount(bone) }} {{ "bones.points" | transloco }}</span>
+                <span class="mx-1">•</span>
+                <span [style.color]="bone.color">{{ "bones.color" | transloco }}: {{ bone.color }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
               <button
                 type="button"
-                (click)="saveRename(bone.item.id); $event.stopPropagation()"
-                class="px-2 py-1 text-xs rounded-sm bg-green-600 text-white hover:bg-green-700"
+                (click)="toggleBoneAttachment(bone.id, $event)"
+                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                [class.text-green-600]="isBoneAttachedToCurrentAnimation(bone.id)"
+                [class.dark\:text-green-400]="isBoneAttachedToCurrentAnimation(bone.id)"
+                [title]="'bones.attachToAnimation' | transloco"
               >
-                Save
+                <ng-icon name="heroLink" size="16"></ng-icon>
               </button>
               <button
                 type="button"
-                (click)="cancelRename(); $event.stopPropagation()"
-                class="px-2 py-1 text-xs rounded-sm bg-neutral-600 text-white hover:bg-neutral-700"
+                (click)="removeBone(bone.id, $event)"
+                class="p-1 rounded-sm hover:bg-red-200 dark:hover:bg-red-900 text-red-600 dark:text-red-400"
+                [title]="'bones.removeBone' | transloco"
               >
-                Cancel
+                <ng-icon name="heroTrash" size="16"></ng-icon>
               </button>
-            } @else {
-              <div class="flex-1 min-w-0">
-                <div class="font-medium text-sm truncate flex items-center gap-1">
-                  @if (bone.depth > 0) {
-                    <span class="text-neutral-400">└─</span>
-                  }
-                  <span>{{ bone.item.name }}</span>
-                  @if (isBoneAttachedToCurrentAnimation(bone.item.id)) {
-                    <span class="text-green-600 dark:text-green-400 text-xs">✓</span>
-                  }
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  @if (bone.depth === 0) {
-                    <span>Root</span>
-                  } @else {
-                    <span>Child (depth: {{ bone.depth }})</span>
-                  }
-                  @if (getChildBonesCount(bone.item.id) > 0) {
-                    <span class="ml-2">{{ getChildBonesCount(bone.item.id) }} children</span>
-                  }
-                </div>
-              </div>
-              <div class="flex items-center gap-1">
-                <button
-                  type="button"
-                  (click)="addChildBone(bone.item.id, $event)"
-                  class="p-1 rounded-sm hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600 dark:text-blue-400"
-                  title="{{ 'bones.addChildBone' | transloco }}"
-                >
-                  <ng-icon name="heroPlus" size="14"></ng-icon>
-                </button>
-                <button
-                  type="button"
-                  (click)="toggleBoneAttachment(bone.item.id, $event)"
-                  class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
-                  [class.text-green-600]="isBoneAttachedToCurrentAnimation(bone.item.id)"
-                  [class.dark\:text-green-400]="isBoneAttachedToCurrentAnimation(bone.item.id)"
-                  title="{{ 'bones.attachToAnimation' | transloco }}"
-                >
-                  <ng-icon name="heroLink" size="16"></ng-icon>
-                </button>
-                <button
-                  type="button"
-                  (click)="startRename(bone.item.id, bone.item.name, $event)"
-                  class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
-                >
-                  <ng-icon name="heroPencil" size="16"></ng-icon>
-                </button>
-                <button
-                  type="button"
-                  (click)="removeBone(bone.item.id, $event)"
-                  class="p-1 rounded-sm hover:bg-red-200 dark:hover:bg-red-900 text-red-600 dark:text-red-400"
-                >
-                  <ng-icon name="heroTrash" size="16"></ng-icon>
-                </button>
-              </div>
-            }
+            </div>
           </div>
         </div>
       </div>

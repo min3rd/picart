@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { NgIconComponent, provideIcons } from '@ng-icons/core';
@@ -10,12 +10,7 @@ import {
   heroLink,
 } from '@ng-icons/heroicons/outline';
 import { EditorDocumentService } from '../../../services/editor-document.service';
-import type { BoneItem } from '../../../services/editor-document.service';
-
-interface BoneWithDepth {
-  item: BoneItem;
-  depth: number;
-}
+import { EditorBoneService, type Bone } from '../../../services/editor/editor-bone.service';
 
 @Component({
   selector: 'pa-bones-panel',
@@ -37,39 +32,29 @@ interface BoneWithDepth {
 })
 export class BonesPanel {
   readonly document = inject(EditorDocumentService);
+  readonly boneService = inject(EditorBoneService);
   readonly translocoService = inject(TranslocoService);
   readonly editingBoneId = signal<string>('');
   readonly newBoneName = signal<string>('');
 
+  readonly currentFrameBones = computed(() => {
+    const currentFrame = this.document.frames()[this.document.currentFrameIndex()];
+    if (!currentFrame) return [];
+    return this.boneService.getBones(currentFrame.id);
+  });
+
   selectBone(id: string) {
-    this.document.selectBone(id);
-  }
-
-  addRootBone() {
-    const name = this.newBoneName().trim();
-    if (name) {
-      this.document.addBone(name, null);
-      this.newBoneName.set('');
-    } else {
-      this.document.addBone();
-    }
-  }
-
-  addChildBone(parentId: string, event: Event) {
-    event.stopPropagation();
-    const parentBone = this.document.getBone(parentId);
-    if (!parentBone) return;
-    
-    const childCount = this.getChildBonesCount(parentId);
-    const name = `${parentBone.name} Child ${childCount + 1}`;
-    this.document.addBone(name, parentId);
+    this.boneService.selectBone(id);
   }
 
   removeBone(id: string, event: Event) {
     event.stopPropagation();
     const msg = this.translocoService.translate('bones.confirmRemove');
     if (confirm(msg)) {
-      this.document.removeBone(id);
+      const currentFrame = this.document.frames()[this.document.currentFrameIndex()];
+      if (currentFrame) {
+        this.boneService.deleteBone(currentFrame.id, id);
+      }
     }
   }
 
@@ -82,7 +67,13 @@ export class BonesPanel {
   saveRename(id: string) {
     const name = this.newBoneName().trim();
     if (name) {
-      this.document.renameBone(id, name);
+      const currentFrame = this.document.frames()[this.document.currentFrameIndex()];
+      if (currentFrame) {
+        const bone = this.currentFrameBones().find(b => b.id === id);
+        if (bone) {
+          this.boneService.updateBone(currentFrame.id, id, { ...bone, id: name });
+        }
+      }
     }
     this.editingBoneId.set('');
     this.newBoneName.set('');
@@ -111,18 +102,6 @@ export class BonesPanel {
     return currentAnim.boneIds.includes(boneId);
   }
 
-  getRootBones(): BoneItem[] {
-    return this.document.boneHierarchy().filter(b => !b.parentId);
-  }
-
-  getChildBones(parentId: string): BoneItem[] {
-    return this.document.getChildBones(parentId);
-  }
-
-  getChildBonesCount(parentId: string): number {
-    return this.getChildBones(parentId).length;
-  }
-
   getCurrentAnimationName(): string {
     const anim = this.document.getCurrentAnimation();
     return anim ? anim.name : 'None';
@@ -133,19 +112,7 @@ export class BonesPanel {
     return anim ? anim.boneIds.length : 0;
   }
 
-  getAllBonesWithDepth(): BoneWithDepth[] {
-    const result: BoneWithDepth[] = [];
-    const bones = this.document.boneHierarchy();
-    
-    const addBoneWithChildren = (bone: BoneItem, depth: number) => {
-      result.push({ item: bone, depth });
-      const children = this.getChildBones(bone.id);
-      children.forEach(child => addBoneWithChildren(child, depth + 1));
-    };
-    
-    const rootBones = bones.filter(b => !b.parentId);
-    rootBones.forEach(bone => addBoneWithChildren(bone, 0));
-    
-    return result;
+  getPointsCount(bone: Bone): number {
+    return bone.points.length;
   }
 }

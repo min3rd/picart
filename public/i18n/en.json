@@ -61,10 +61,13 @@
     "renameBone": "Rename Bone",
     "attachToAnimation": "Attach to Animation",
     "confirmRemove": "Are you sure you want to remove this bone?",
-    "emptyState": "No bones yet. Click \"Add Bone\" to create one.",
+    "emptyState": "No bones yet. Use the Bone tool to draw bones on canvas.",
     "addChildBone": "Add Child Bone",
     "currentAnimation": "Current Animation",
-    "bonesAttached": "bones attached"
+    "bonesAttached": "bones attached",
+    "drawInstruction": "Use the Bone tool from the toolbar to draw bone points on canvas.",
+    "points": "points",
+    "color": "Color"
   },
   "theme": {
     "toggle": "Toggle theme"
