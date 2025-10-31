@@ -1,0 +1,76 @@
+<div class="h-full flex flex-col" id="bones-panel-container">
+  <div
+    class="shrink-0 border-b border-neutral-200 dark:border-neutral-800 p-2 text-sm flex items-center justify-between"
+    id="bones-header"
+  >
+    <span id="bones-title">{{ "bones.title" | transloco }}</span>
+  </div>
+  
+  <div class="shrink-0 border-b border-neutral-200 dark:border-neutral-800 px-2 py-1 text-xs text-neutral-600 dark:text-neutral-400" id="bones-info">
+    <div class="flex items-center justify-between">
+      <span>{{ "bones.currentAnimation" | transloco }}: {{ getCurrentAnimationName() }}</span>
+      <span>{{ getAttachedBonesCount() }} {{ "bones.bonesAttached" | transloco }}</span>
+    </div>
+    <div class="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
+      {{ "bones.drawInstruction" | transloco }}
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-auto p-2" id="bones-list">
+    @if (currentFrameBones().length === 0) {
+      <div class="text-center text-neutral-500 dark:text-neutral-400 text-sm py-8" id="no-bones-message">
+        {{ "bones.emptyState" | transloco }}
+      </div>
+    }
+    
+    @for (bone of currentFrameBones(); track bone.id; let i = $index) {
+      <div
+        class="mb-2"
+        [id]="'bone-item-' + i"
+      >
+        <div
+          class="border border-neutral-300 dark:border-neutral-700 rounded-sm p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+          [class.bg-neutral-200]="boneService.getSelectedBone() === bone.id"
+          [class.dark\:bg-neutral-700]="boneService.getSelectedBone() === bone.id"
+          (click)="selectBone(bone.id)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm truncate flex items-center gap-1">
+                <span>Bone {{ i + 1 }}</span>
+                @if (isBoneAttachedToCurrentAnimation(bone.id)) {
+                  <span class="text-green-600 dark:text-green-400 text-xs">✓</span>
+                }
+              </div>
+              <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                <span>{{ getPointsCount(bone) }} {{ "bones.points" | transloco }}</span>
+                <span class="mx-1">•</span>
+                <span [style.color]="bone.color">{{ "bones.color" | transloco }}: {{ bone.color }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                (click)="toggleBoneAttachment(bone.id, $event)"
+                class="p-1 rounded-sm hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                [class.text-green-600]="isBoneAttachedToCurrentAnimation(bone.id)"
+                [class.dark\:text-green-400]="isBoneAttachedToCurrentAnimation(bone.id)"
+                [title]="'bones.attachToAnimation' | transloco"
+              >
+                <ng-icon name="heroLink" size="16"></ng-icon>
+              </button>
+              <button
+                type="button"
+                (click)="removeBone(bone.id, $event)"
+                class="p-1 rounded-sm hover:bg-red-200 dark:hover:bg-red-900 text-red-600 dark:text-red-400"
+                [title]="'bones.removeBone' | transloco"
+              >
+                <ng-icon name="heroTrash" size="16"></ng-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

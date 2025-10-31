@@ -34,6 +34,17 @@
   },
   "timeline": {
     "title": "Timeline",
+    "animations": "Danh sách Animation",
+    "addAnimation": "Thêm Animation",
+    "removeAnimation": "Xóa Animation",
+    "renameAnimation": "Đổi tên Animation",
+    "exportSpriteSheet": "Xuất Sprite Sheet",
+    "exportPackage": "Xuất Package",
+    "attachBone": "Gắn Bone",
+    "detachBone": "Gỡ Bone",
+    "invalidName": "Tên animation chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, gạch ngang và gạch dưới.",
+    "frameCount": "khung hình",
+    "confirmRemove": "Bạn có chắc chắn muốn xóa animation này?",
     "addFrame": "Thêm khung hình",
     "deleteFrame": "Xóa khung hình",
     "duplicateFrame": "Nhân bản khung hình",
@@ -42,6 +53,21 @@
     "fps": "FPS",
     "duration": "Thời lượng",
     "frameOptions": "Tùy chọn khung hình"
+  },
+  "bones": {
+    "title": "Khung xương",
+    "addBone": "Thêm Bone",
+    "removeBone": "Xóa Bone",
+    "renameBone": "Đổi tên Bone",
+    "attachToAnimation": "Gắn vào Animation",
+    "confirmRemove": "Bạn có chắc chắn muốn xóa bone này?",
+    "emptyState": "Chưa có bone nào. Sử dụng công cụ Bone để vẽ bone trên canvas.",
+    "addChildBone": "Thêm Bone con",
+    "currentAnimation": "Animation hiện tại",
+    "bonesAttached": "bone đã gắn",
+    "drawInstruction": "Sử dụng công cụ Bone từ thanh công cụ để vẽ điểm bone trên canvas.",
+    "points": "điểm",
+    "color": "Màu"
   },
   "theme": {
     "toggle": "Chuyển chủ đề"

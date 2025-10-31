@@ -34,6 +34,24 @@ export interface FrameItem {
   buffers?: Record<string, string[]>;
 }
 
+export interface BoneItem {
+  id: string;
+  name: string;
+  parentId: string | null;
+  x: number;
+  y: number;
+  rotation: number;
+  length: number;
+}
+
+export interface AnimationItem {
+  id: string;
+  name: string;
+  frames: FrameItem[];
+  boneIds: string[];
+  duration: number;
+}
+
 export interface ParsedColor {
   r: number;
   g: number;

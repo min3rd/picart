@@ -34,6 +34,17 @@
   },
   "timeline": {
     "title": "Timeline",
+    "animations": "Animations",
+    "addAnimation": "Add Animation",
+    "removeAnimation": "Remove Animation",
+    "renameAnimation": "Rename Animation",
+    "exportSpriteSheet": "Export as Sprite Sheet",
+    "exportPackage": "Export as Package",
+    "attachBone": "Attach Bone",
+    "detachBone": "Detach Bone",
+    "invalidName": "Animation name contains invalid characters. Only letters, numbers, spaces, hyphens and underscores are allowed.",
+    "frameCount": "frames",
+    "confirmRemove": "Are you sure you want to remove this animation?",
     "addFrame": "Add frame",
     "deleteFrame": "Delete frame",
     "duplicateFrame": "Duplicate frame",
@@ -42,6 +53,21 @@
     "fps": "FPS",
     "duration": "Duration",
     "frameOptions": "Frame options"
+  },
+  "bones": {
+    "title": "Bones",
+    "addBone": "Add Bone",
+    "removeBone": "Remove Bone",
+    "renameBone": "Rename Bone",
+    "attachToAnimation": "Attach to Animation",
+    "confirmRemove": "Are you sure you want to remove this bone?",
+    "emptyState": "No bones yet. Use the Bone tool to draw bones on canvas.",
+    "addChildBone": "Add Child Bone",
+    "currentAnimation": "Current Animation",
+    "bonesAttached": "bones attached",
+    "drawInstruction": "Use the Bone tool from the toolbar to draw bone points on canvas.",
+    "points": "points",
+    "color": "Color"
   },
   "theme": {
     "toggle": "Toggle theme"

@@ -1,8 +1,10 @@
-import { Injectable, Signal, inject } from '@angular/core';
+import { Injectable, Signal, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { EditorToolsService } from './editor-tools.service';
 import {
   EditorAnimationService,
+  EditorAnimationCollectionService,
+  EditorBoneHierarchyService,
   EditorCanvasStateService,
   EditorColorService,
   EditorDrawingService,
@@ -11,16 +13,20 @@ import {
   EditorLayerService,
   EditorProjectService,
   EditorSelectionService,
+  EditorBoneService,
+  EditorExportService,
   FrameItem,
   GroupItem,
   LayerItem,
   LayerTreeItem,
+  AnimationItem,
+  BoneItem,
   isGroup,
   isLayer,
 } from './editor/index';
 import { GradientType, ShapeFillMode, ToolMetaKey } from './tools/tool.types';
 
-export type { FrameItem, GroupItem, LayerItem, LayerTreeItem };
+export type { FrameItem, GroupItem, LayerItem, LayerTreeItem, AnimationItem, BoneItem };
 export { isGroup, isLayer };
 
 interface ShapeDrawOptions {
@@ -41,11 +47,15 @@ export class EditorDocumentService {
   private readonly layerService = inject(EditorLayerService);
   private readonly frameService = inject(EditorFrameService);
   private readonly animationService = inject(EditorAnimationService);
+  private readonly animationCollectionService = inject(EditorAnimationCollectionService);
   private readonly historyService = inject(EditorHistoryService);
   private readonly selectionService = inject(EditorSelectionService);
   private readonly drawingService = inject(EditorDrawingService);
   private readonly colorService = inject(EditorColorService);
   private readonly projectService = inject(EditorProjectService);
+  private readonly boneService = inject(EditorBoneService);
+  private readonly boneHierarchyService = inject(EditorBoneHierarchyService);
+  private readonly exportService = inject(EditorExportService);
 
   readonly layers = this.layerService.layers;
   readonly selectedLayerId = this.layerService.selectedLayerId;
@@ -55,6 +65,12 @@ export class EditorDocumentService {
 
   readonly frames = this.frameService.frames;
   readonly currentFrameIndex = this.frameService.currentFrameIndex;
+
+  readonly animations = this.animationCollectionService.animations;
+  readonly currentAnimationIndex = this.animationCollectionService.currentAnimationIndex;
+
+  readonly boneHierarchy = this.boneHierarchyService.bones;
+  readonly selectedBoneHierarchyId = this.boneHierarchyService.selectedBoneId;
 
   readonly isAnimationPlaying = this.animationService.isPlaying;
   readonly animationFps = this.animationService.fps;
@@ -1006,5 +1022,95 @@ export class EditorDocumentService {
 
   setCanvasSaved(saved: boolean) {
     this.canvasState.setCanvasSaved(saved);
+  }
+
+  getCurrentAnimation(): AnimationItem | null {
+    return this.animationCollectionService.getCurrentAnimation();
+  }
+
+  setCurrentAnimation(index: number) {
+    this.animationCollectionService.setCurrentAnimation(index);
+  }
+
+  addAnimation(name?: string): AnimationItem {
+    return this.animationCollectionService.addAnimation(name);
+  }
+
+  removeAnimation(id: string): boolean {
+    return this.animationCollectionService.removeAnimation(id);
+  }
+
+  renameAnimation(id: string, newName: string): boolean {
+    return this.animationCollectionService.renameAnimation(id, newName);
+  }
+
+  reorderAnimations(fromIndex: number, toIndex: number): boolean {
+    return this.animationCollectionService.reorderAnimations(fromIndex, toIndex);
+  }
+
+  attachBoneToAnimation(animationId: string, boneId: string): boolean {
+    return this.animationCollectionService.attachBone(animationId, boneId);
+  }
+
+  detachBoneFromAnimation(animationId: string, boneId: string): boolean {
+    return this.animationCollectionService.detachBone(animationId, boneId);
+  }
+
+  addFrameToAnimation(animationId: string, name?: string): FrameItem | null {
+    return this.animationCollectionService.addFrameToAnimation(animationId, name);
+  }
+
+  removeFrameFromAnimation(animationId: string, frameId: string): boolean {
+    return this.animationCollectionService.removeFrameFromAnimation(animationId, frameId);
+  }
+
+  validateAnimationName(name: string): boolean {
+    return this.animationCollectionService.validateAnimationName(name);
+  }
+
+  addBone(
+    name?: string,
+    parentId: string | null = null,
+    x = 0,
+    y = 0,
+  ): BoneItem {
+    return this.boneHierarchyService.addBone(name, parentId, x, y);
+  }
+
+  removeBone(id: string): boolean {
+    return this.boneHierarchyService.removeBone(id);
+  }
+
+  renameBone(id: string, newName: string): boolean {
+    return this.boneHierarchyService.renameBone(id, newName);
+  }
+
+  updateBone(id: string, updates: Partial<Omit<BoneItem, 'id'>>): boolean {
+    return this.boneHierarchyService.updateBone(id, updates);
+  }
+
+  selectBone(id: string) {
+    this.boneHierarchyService.selectBone(id);
+  }
+
+  getBone(id: string): BoneItem | null {
+    return this.boneHierarchyService.getBone(id);
+  }
+
+  getChildBones(parentId: string): BoneItem[] {
+    return this.boneHierarchyService.getChildBones(parentId);
+  }
+
+  async exportAnimationAsSpriteSheet(
+    animation: AnimationItem,
+    options?: { padding: number; columns: number; backgroundColor?: string },
+  ): Promise<Blob | null> {
+    return this.exportService.exportAnimationAsSpriteSheet(animation, options);
+  }
+
+  async exportAnimationAsPackage(
+    animation: AnimationItem,
+  ): Promise<{ files: Map<string, Blob>; metadata: string } | null> {
+    return this.exportService.exportAnimationAsPackage(animation);
   }
 }

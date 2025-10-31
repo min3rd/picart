@@ -642,6 +642,7 @@ export class EditorCanvas {
         if (clickedPoint) {
           this.draggingPointId = clickedPoint.pointId;
           this.draggingPointBoneId = clickedPoint.boneId;
+          this.boneService.selectPoint(clickedPoint.pointId);
         } else {
           if (!this.currentBoneId) {
             const newBone: Bone = {
@@ -664,10 +665,16 @@ export class EditorCanvas {
           const bones = this.boneService.getBones(frameId);
           const currentBone = bones.find(b => b.id === this.currentBoneId);
           if (currentBone && currentBone.points.length > 0) {
-            newPoint.parentId = currentBone.points[currentBone.points.length - 1].id;
+            const selectedPoint = this.boneService.getSelectedPoint();
+            if (selectedPoint) {
+              newPoint.parentId = selectedPoint;
+            } else {
+              newPoint.parentId = currentBone.points[currentBone.points.length - 1].id;
+            }
           }
           
           this.boneService.addPointToBone(frameId, this.currentBoneId, newPoint);
+          this.boneService.selectPoint(newPoint.id);
         }
       } else if ((tool === 'brush' || tool === 'eraser') && insideCanvas) {
         const selectedLayer = this.document.selectedLayer();

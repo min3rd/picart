@@ -23,9 +23,51 @@
     (pointerdown)="onGripDown('right', $event)"
   ></div>
 
-  <pa-layers-panel
-    class="row-start-2 col-start-5 overflow-auto border-l border-neutral-200 dark:border-neutral-800 bg-neutral-100/60 dark:bg-neutral-800/40"
-  />
+  <div
+    class="row-start-2 col-start-5 overflow-hidden border-l border-neutral-200 dark:border-neutral-800 bg-neutral-100/60 dark:bg-neutral-800/40 flex flex-col"
+    id="right-panel-container"
+  >
+    <div
+      class="shrink-0 flex border-b border-neutral-200 dark:border-neutral-800"
+      id="right-panel-tabs"
+    >
+      <button
+        type="button"
+        (click)="rightPanelTab.set('layers')"
+        class="flex-1 px-4 py-2 text-sm font-medium"
+        [class.bg-white]="rightPanelTab() === 'layers'"
+        [class.dark\:bg-neutral-900]="rightPanelTab() === 'layers'"
+        [class.text-blue-600]="rightPanelTab() === 'layers'"
+        [class.dark\:text-blue-400]="rightPanelTab() === 'layers'"
+        [class.text-neutral-600]="rightPanelTab() !== 'layers'"
+        [class.dark\:text-neutral-400]="rightPanelTab() !== 'layers'"
+        id="layers-tab-button"
+      >
+        {{ "layers.title" | transloco }}
+      </button>
+      <button
+        type="button"
+        (click)="rightPanelTab.set('bones')"
+        class="flex-1 px-4 py-2 text-sm font-medium"
+        [class.bg-white]="rightPanelTab() === 'bones'"
+        [class.dark\:bg-neutral-900]="rightPanelTab() === 'bones'"
+        [class.text-blue-600]="rightPanelTab() === 'bones'"
+        [class.dark\:text-blue-400]="rightPanelTab() === 'bones'"
+        [class.text-neutral-600]="rightPanelTab() !== 'bones'"
+        [class.dark\:text-neutral-400]="rightPanelTab() !== 'bones'"
+        id="bones-tab-button"
+      >
+        {{ "bones.title" | transloco }}
+      </button>
+    </div>
+    <div class="flex-1 overflow-auto">
+      @if (rightPanelTab() === 'layers') {
+        <pa-layers-panel />
+      } @else {
+        <pa-bones-panel />
+      }
+    </div>
+  </div>
 
   <div
     class="row-start-3 col-start-1 -col-end-1 cursor-row-resize bg-transparent hover:bg-neutral-300/30 dark:hover:bg-neutral-600/30"
