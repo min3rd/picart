@@ -76,6 +76,19 @@ export class EditorDocumentService {
     this.tools.registerHistoryAdapter((key, previous, next) =>
       this.commitMetaChange({ key, previous, next }),
     );
+    
+    this.animationService.setLoadFrameCallback((index: number) => {
+      this.loadFrameState(index);
+    });
+    
+    setTimeout(() => this.initializeFirstFrame(), 0);
+  }
+
+  private initializeFirstFrame() {
+    const firstFrame = this.frames()[0];
+    if (firstFrame && !firstFrame.layers && !firstFrame.buffers) {
+      this.saveFrameStateById(firstFrame.id);
+    }
   }
 
   loadProjectFromLocalStorage(): Observable<boolean> {
@@ -946,14 +959,17 @@ export class EditorDocumentService {
   saveCurrentFrameState() {
     const currentFrame = this.frames()[this.currentFrameIndex()];
     if (!currentFrame) return;
-    
+    this.saveFrameStateById(currentFrame.id);
+  }
+
+  private saveFrameStateById(frameId: string) {
     const layers = this.layerService.layers();
     const buffers: Record<string, string[]> = {};
     for (const [id, buf] of this.canvasState.getAllBuffers().entries()) {
       buffers[id] = buf.slice();
     }
     
-    this.frameService.saveFrameState(currentFrame.id, layers, buffers);
+    this.frameService.saveFrameState(frameId, layers, buffers);
   }
 
   loadFrameState(frameIndex: number) {
