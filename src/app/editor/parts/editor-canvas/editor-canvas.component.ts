@@ -164,6 +164,13 @@ export class EditorCanvas {
       this.drawCanvas();
       return null as any;
     });
+    
+    effect(() => {
+      const tool = this.tools.currentTool();
+      if (tool !== 'bone' && this.currentBoneId) {
+        this.currentBoneId = null;
+      }
+    });
   }
 
   private readonly layoutEffect = effect(
@@ -194,6 +201,7 @@ export class EditorCanvas {
     if (tool === 'eraser') return this.eraserCursor;
     if (tool === 'line' || tool === 'circle' || tool === 'square')
       return `crosshair`;
+    if (tool === 'bone') return `crosshair`;
     return this.defaultCursor;
   }
 
@@ -229,6 +237,11 @@ export class EditorCanvas {
             return;
           }
           const tool = this.tools.currentTool();
+          if (tool === 'bone') {
+            this.currentBoneId = null;
+            this.boneService.clearSelection();
+            return;
+          }
           if (tool === 'lasso-select') {
             this.document.selectionPolygon.set(null as any);
             this.document.selectionRect.set(null as any);
@@ -417,7 +430,7 @@ export class EditorCanvas {
     if (this.draggingPointId && this.draggingPointBoneId) {
       const clampedX = Math.max(0, Math.min(w - 1, logicalX));
       const clampedY = Math.max(0, Math.min(h - 1, logicalY));
-      const frameId = this.document.currentFrameId();
+      const frameId = this.getCurrentFrameId();
       this.boneService.updatePoint(
         frameId,
         this.draggingPointBoneId,
@@ -623,7 +636,7 @@ export class EditorCanvas {
         this.document.endAction();
       } else if (tool === 'bone' && insideCanvas) {
         this.capturePointer(ev);
-        const frameId = this.document.currentFrameId();
+        const frameId = this.getCurrentFrameId();
         const clickedPoint = this.findBonePointAt(frameId, logicalX, logicalY);
         
         if (clickedPoint) {
@@ -1376,6 +1389,57 @@ export class EditorCanvas {
       }
     }
 
+    const tool = this.tools.currentTool();
+    if (tool === 'bone') {
+      const frameId = this.getCurrentFrameId();
+      const bones = this.boneService.getBones(frameId);
+      
+      ctx.save();
+      for (const bone of bones) {
+        if (bone.points.length === 0) continue;
+        
+        ctx.strokeStyle = bone.color;
+        ctx.lineWidth = Math.max(pxLineWidth, bone.thickness);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        for (let i = 0; i < bone.points.length; i++) {
+          const point = bone.points[i];
+          
+          if (point.parentId) {
+            const parent = bone.points.find(p => p.id === point.parentId);
+            if (parent) {
+              ctx.beginPath();
+              ctx.moveTo(parent.x + 0.5, parent.y + 0.5);
+              ctx.lineTo(point.x + 0.5, point.y + 0.5);
+              ctx.stroke();
+            }
+          }
+        }
+        
+        for (const point of bone.points) {
+          const isSelected = this.boneService.getSelectedPoint() === point.id;
+          const radius = Math.max(3 / scale, 0.5);
+          
+          ctx.fillStyle = bone.color;
+          ctx.beginPath();
+          ctx.arc(point.x + 0.5, point.y + 0.5, radius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          if (isSelected) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(pxLineWidth * 2, 0.3);
+            ctx.stroke();
+          }
+          
+          ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
+          ctx.lineWidth = Math.max(pxLineWidth, 0.2);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
     // Draw active selection if present
     const sel = this.document.selectionRect();
     const selShape = this.document.selectionShape();
@@ -1989,5 +2053,33 @@ export class EditorCanvas {
       container.clientHeight - paddingTop - paddingBottom,
     );
     return { contentWidth, contentHeight, paddingLeft, paddingTop };
+  }
+
+  private getCurrentFrameId(): string {
+    const frames = this.document.frames();
+    const currentIndex = this.document.currentFrameIndex();
+    const frame = frames[currentIndex];
+    return frame?.id || '';
+  }
+
+  private findBonePointAt(
+    frameId: string,
+    x: number,
+    y: number,
+  ): { boneId: string; pointId: string } | null {
+    const bones = this.boneService.getBones(frameId);
+    const hitRadius = 5;
+    
+    for (const bone of bones) {
+      for (const point of bone.points) {
+        const dx = point.x - x;
+        const dy = point.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= hitRadius) {
+          return { boneId: bone.id, pointId: point.id };
+        }
+      }
+    }
+    return null;
   }
 }
